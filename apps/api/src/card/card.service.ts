@@ -13,6 +13,7 @@ import {
 import { cardModel, cardProviderOptions } from '../llm/models';
 import { DictionaryService } from '../dictionary/dictionary.service';
 import { SessionStore } from '../session/session.store';
+import { TelemetryService } from '../telemetry/telemetry.service';
 
 /** The cache only ever holds full cards; grammar notes are built on the spot. */
 type CardVariant = Extract<CardResponse, { kind: 'card' }>;
@@ -51,6 +52,7 @@ export class CardService {
   constructor(
     private readonly sessions: SessionStore,
     private readonly dictionary: DictionaryService,
+    private readonly telemetry: TelemetryService,
   ) {}
 
   async build(request: CardRequest): Promise<CardResponse> {
@@ -62,6 +64,7 @@ export class CardService {
     // returns a note rather than a card, so nothing lands in the word bank: a
     // corrected verb is not vocabulary the writer learned.
     if (target.suggestionType === 'grammar') {
+      this.telemetry.noteOpened();
       return {
         kind: 'note',
         note: {
@@ -72,6 +75,9 @@ export class CardService {
         alternative: null,
       };
     }
+
+    if (target.kind === 'lookup') this.telemetry.lookup();
+    else this.telemetry.cardOpened();
 
     const key = cacheKey(target.word, target.sentence);
 
