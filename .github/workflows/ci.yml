@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# A newer push to the same branch makes the older run irrelevant.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: typecheck · test · lint · build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # packages/shared compiles to dist and both apps import the built
+      # output, so nothing else typechecks until this has run.
+      - name: Build shared
+        run: pnpm --filter @auto-learn/shared build
+
+      # Deliberately its own step rather than folded into the tests. ts-jest
+      # does not run full type diagnostics here, so a green jest run is not
+      # evidence that the code compiles — it has already reported 25/25
+      # passing on code carrying three type errors.
+      - name: Typecheck
+        run: pnpm typecheck
+
+      # jest owns *.spec.ts, vitest owns *.test.ts. See .claude/skills/testing
+      # for why there are two runners.
+      - name: Unit tests
+        run: pnpm test
+
+      - name: Lint
+        run: pnpm -r --if-present lint
+
+      # Next and Nest compile differently from a bare tsc, so this catches
+      # breakage typecheck alone can miss.
+      - name: Build
+        run: pnpm build
+
+# Playwright is deliberately absent. Its most valuable tests need
+# OPENAI_API_KEY, so running them per-PR means paying a model provider on
+# every push, and the rest largely restate coverage that belongs in unit
+# tests. Run it locally with `pnpm --filter web test:e2e`. Worth revisiting
+# when there are users to protect — and even then, prefer a schedule.

@@ -6,8 +6,8 @@ jest.mock('@ai-sdk/openai', () => ({ openai: jest.fn() }));
 
 import { HttpException } from '@nestjs/common';
 import { locateSpan, splitSentences } from '@auto-learn/shared';
-import type { ApiError } from '@auto-learn/shared';
-import { SessionStore } from '../session/session.store';
+import type { ApiError, ModelEdit } from '@auto-learn/shared';
+import { SessionStore, type StoredSentence } from '../session/session.store';
 import { TelemetryService } from '../telemetry/telemetry.service';
 import { ProposeService } from './propose.service';
 
@@ -54,7 +54,10 @@ describe('locateSpan', () => {
 });
 
 describe('ProposeService cap enforcement', () => {
-  const service = new ProposeService(new SessionStore(), new TelemetryService());
+  const service = new ProposeService(
+    new SessionStore(),
+    new TelemetryService(),
+  );
 
   const codeOf = async (text: string): Promise<ApiError> => {
     try {
@@ -83,15 +86,31 @@ describe('ProposeService cap enforcement', () => {
 });
 
 describe('ProposeService span resolution', () => {
-  const service = new ProposeService(new SessionStore(), new TelemetryService());
-  const resolve = (original: string, edits: unknown[]) =>
-    (service as never as {
-      resolveSentence: (i: number, o: string, e: unknown[]) => any;
-    }).resolveSentence(0, original, edits);
+  const service = new ProposeService(
+    new SessionStore(),
+    new TelemetryService(),
+  );
+  // resolveSentence is private; these tests reach it deliberately because it
+  // is where span resolution lives.
+  const resolve = (original: string, edits: ModelEdit[]): StoredSentence =>
+    (
+      service as unknown as {
+        resolveSentence: (
+          index: number,
+          original: string,
+          edits: ModelEdit[],
+        ) => StoredSentence;
+      }
+    ).resolveSentence(0, original, edits);
 
   it('applies silent fixes into text and gates the rest', () => {
     const result = resolve('The reuslts were very big.', [
-      { type: 'typo', original: 'reuslts', replacement: 'results', reason: 'spelling' },
+      {
+        type: 'typo',
+        original: 'reuslts',
+        replacement: 'results',
+        reason: 'spelling',
+      },
       {
         type: 'word-choice',
         original: 'very big',
@@ -107,7 +126,12 @@ describe('ProposeService span resolution', () => {
 
   it('drops an edit whose original is not in the sentence', () => {
     const result = resolve('The results were substantial.', [
-      { type: 'word-choice', original: 'gigantic', replacement: 'large', reason: 'x' },
+      {
+        type: 'word-choice',
+        original: 'gigantic',
+        replacement: 'large',
+        reason: 'x',
+      },
     ]);
     expect(result.gated).toHaveLength(0);
   });

@@ -84,10 +84,7 @@ export class SessionStore {
     return undefined;
   }
 
-  findSentence(
-    sessionId: string,
-    index: number,
-  ): StoredSentence | undefined {
+  findSentence(sessionId: string, index: number): StoredSentence | undefined {
     return this.cache.get(sessionId)?.sentences.find((s) => s.index === index);
   }
 }
