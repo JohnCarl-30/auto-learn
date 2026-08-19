@@ -99,10 +99,11 @@ export class ProposeService {
     };
   }
 
-  private async callModel(sentences: string[], option: ProposeRequest['option']) {
-    const numbered = sentences
-      .map((s, i) => `${i}. ${s}`)
-      .join('\n');
+  private async callModel(
+    sentences: string[],
+    option: ProposeRequest['option'],
+  ) {
+    const numbered = sentences.map((s, i) => `${i}. ${s}`).join('\n');
 
     try {
       const { object } = await generateObject({
