@@ -46,6 +46,7 @@ export function SentenceView({
             <button
               key={`g-${segment.start}`}
               type="button"
+              data-testid="gate"
               disabled={!interactive}
               onClick={() => onOpenGate(segment.suggestion.id)}
               title={segment.suggestion.teaser}
@@ -66,6 +67,7 @@ export function SentenceView({
             <button
               key={`w-${token.start}`}
               type="button"
+              data-testid="word"
               disabled={!interactive}
               onClick={() => onLookup(bareWord(token.value))}
               className={cn(
