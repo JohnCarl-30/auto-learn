@@ -1,11 +1,13 @@
 'use client';
 
-import type { ApiError } from '@auto-learn/shared';
+import type { ApiError, BankEntry } from '@auto-learn/shared';
 import { ComposePanel } from '@/components/compose-panel';
 import { ReviewPanel } from '@/components/review-panel';
 import { WordCard } from '@/components/word-card';
+import { BankPanel } from '@/components/bank-panel';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useReview } from '@/lib/use-review';
+import { useBank } from '@/lib/use-bank';
 
 export default function Page() {
   const {
@@ -19,7 +21,11 @@ export default function Page() {
     reject,
     dismiss,
     reset,
+    bankVersion,
+    reused,
   } = useReview();
+
+  const bank = useBank(bankVersion);
 
   return (
     <main className="mx-auto w-full max-w-2xl flex-1 px-6 py-16">
@@ -46,6 +52,8 @@ export default function Page() {
         </div>
       )}
 
+      {reused.length > 0 && <ReuseNotice entries={reused} />}
+
       {state.status === 'reviewing' && (
         <ReviewPanel
           response={state.response}
@@ -66,7 +74,39 @@ export default function Page() {
           }
         />
       )}
+
+      <BankPanel entries={bank.entries} count={bank.count} />
     </main>
+  );
+}
+
+/**
+ * The only reward in the product, and it is earned: it fires because the
+ * writer used a banked word themselves, not because they showed up.
+ */
+function ReuseNotice({ entries }: { entries: BankEntry[] }) {
+  const words = entries.map((entry) => entry.word);
+  const when = (entry: BankEntry) =>
+    new Date(entry.addedAt).toLocaleDateString();
+
+  return (
+    <div
+      data-testid="reuse-notice"
+      className="mb-6 rounded-md border border-emerald-500/40 bg-emerald-500/10 px-4 py-3 text-sm"
+    >
+      You used{' '}
+      <span className="font-medium">
+        {words.length === 1
+          ? words[0]
+          : `${words.slice(0, -1).join(', ')} and ${words[words.length - 1]}`}
+      </span>{' '}
+      here yourself.{' '}
+      {entries.length === 1 && (
+        <span className="text-muted-foreground">
+          You looked it up on {when(entries[0])}.
+        </span>
+      )}
+    </div>
   );
 }
 
