@@ -1,0 +1,10 @@
+packages:
+  - 'apps/*'
+  - 'packages/*'
+
+# Moved up from apps/web/pnpm-workspace.yaml, which create-next-app generated.
+# A pnpm-workspace.yaml inside a package makes pnpm treat that directory as its
+# own workspace root, which breaks `workspace:*` resolution for @auto-learn/shared.
+ignoredBuiltDependencies:
+  - sharp
+  - unrs-resolver
