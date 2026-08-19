@@ -8,10 +8,14 @@ import {
   type CardRequest,
   type CardResponse,
   type DictionarySense,
+  type GatedSuggestionType,
 } from '@auto-learn/shared';
 import { cardModel, cardProviderOptions } from '../llm/models';
 import { DictionaryService } from '../dictionary/dictionary.service';
 import { SessionStore } from '../session/session.store';
+
+/** The cache only ever holds full cards; grammar notes are built on the spot. */
+type CardVariant = Extract<CardResponse, { kind: 'card' }>;
 
 const SYSTEM_PROMPT = `You write vocabulary cards for university students writing academic English as a second language.
 
@@ -39,7 +43,7 @@ export class CardService {
    * reopen) and still shares across users who write the same phrase, which for
    * stock academic sentences is not rare.
    */
-  private readonly cache = new LRUCache<string, CardResponse>({
+  private readonly cache = new LRUCache<string, CardVariant>({
     max: 5_000,
     ttl: 24 * 60 * 60 * 1000,
   });
@@ -51,6 +55,24 @@ export class CardService {
 
   async build(request: CardRequest): Promise<CardResponse> {
     const target = this.resolveTarget(request);
+
+    // A grammar gate costs nothing extra. /propose already wrote the
+    // in-context reason — that one line *is* what a grammar fix has to teach,
+    // so there is no dictionary lookup and no second model call. It also
+    // returns a note rather than a card, so nothing lands in the word bank: a
+    // corrected verb is not vocabulary the writer learned.
+    if (target.suggestionType === 'grammar') {
+      return {
+        kind: 'note',
+        note: {
+          corrected: target.word,
+          note: target.reason ?? 'Grammatical correction.',
+        },
+        replacement: target.replacement,
+        alternative: null,
+      };
+    }
+
     const key = cacheKey(target.word, target.sentence);
 
     const cached = this.cache.get(key);
@@ -88,7 +110,8 @@ export class CardService {
       );
     }
 
-    const response: CardResponse = {
+    const response: CardVariant = {
+      kind: 'card',
       card: {
         word: target.word,
         lemma: retrieved.word,
@@ -120,6 +143,7 @@ export class CardService {
     replacement: string | null;
     reason: string | null;
     kind: CardRequest['kind'];
+    suggestionType: GatedSuggestionType | null;
   } {
     if (request.kind === 'suggestion') {
       const found = this.sessions.findSuggestion(
@@ -138,6 +162,7 @@ export class CardService {
         replacement: found.suggestion.replacement,
         reason: found.suggestion.reason,
         kind: 'suggestion',
+        suggestionType: found.suggestion.type,
       };
     }
 
@@ -162,6 +187,7 @@ export class CardService {
       replacement: null,
       reason: null,
       kind: 'lookup',
+      suggestionType: null,
     };
   }
 
