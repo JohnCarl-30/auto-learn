@@ -60,16 +60,39 @@ export const CardRequest = z.discriminatedUnion('kind', [
 ]);
 export type CardRequest = z.infer<typeof CardRequest>;
 
-export const CardResponse = z.object({
-  card: WordCard,
-  /**
-   * The withheld wording, released now that the card has been delivered.
-   * Null for a plain lookup, where there is nothing to apply.
-   */
-  replacement: z.string().nullable(),
-  /** One alternative, offered if the user rejects. Null when none is sensible. */
-  alternative: z.string().nullable(),
+/**
+ * What a grammar gate returns instead of a card.
+ *
+ * A word card defining "shows" teaches nothing about subject-verb agreement —
+ * the lesson is the rule, not the word. Grammar still passes through the gate
+ * (you read before you accept) but gets a single line, and deposits nothing in
+ * the word bank, because a corrected verb is not vocabulary you learned.
+ */
+export const GateNote = z.object({
+  corrected: z.string(),
+  note: z.string(),
 });
+export type GateNote = z.infer<typeof GateNote>;
+
+export const CardResponse = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('card'),
+    card: WordCard,
+    /**
+     * The withheld wording, released now that the card has been delivered.
+     * Null for a plain lookup, where there is nothing to apply.
+     */
+    replacement: z.string().nullable(),
+    /** One alternative, offered on reject. Null when none is sensible. */
+    alternative: z.string().nullable(),
+  }),
+  z.object({
+    kind: z.literal('note'),
+    note: GateNote,
+    replacement: z.string().nullable(),
+    alternative: z.string().nullable(),
+  }),
+]);
 export type CardResponse = z.infer<typeof CardResponse>;
 
 // --- What the model itself returns -------------------------------------------
