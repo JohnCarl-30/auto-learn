@@ -16,3 +16,9 @@ pnpm-debug.log*
 
 .turbo/
 *.tsbuildinfo
+
+# playwright
+test-results/
+playwright-report/
+blob-report/
+.playwright/
