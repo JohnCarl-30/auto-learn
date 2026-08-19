@@ -1,6 +1,6 @@
 'use client';
 
-import type { ApiError, CardResponse } from '@auto-learn/shared';
+import { curlyQuotes, type ApiError, type CardResponse } from '@auto-learn/shared';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -122,17 +122,22 @@ function CardBody({
         </Badge>
       </div>
 
-      <p className="text-sm leading-relaxed">{card.definition}</p>
+      <p className="text-sm leading-relaxed">{curlyQuotes(card.definition)}</p>
 
       {card.whyHere && (
-        <p className="text-sm text-muted-foreground italic">{card.whyHere}</p>
+        <p className="text-sm text-muted-foreground italic">
+          {curlyQuotes(card.whyHere)}
+        </p>
       )}
 
       <div className="space-y-1">
         {card.synonyms.map((synonym) => (
           <p key={synonym.word} className="text-sm">
             <span className="font-medium">{synonym.word}</span>
-            <span className="text-muted-foreground"> — {synonym.nuance}</span>
+            <span className="text-muted-foreground">
+              {' — '}
+              {curlyQuotes(synonym.nuance)}
+            </span>
           </p>
         ))}
       </div>
@@ -140,7 +145,7 @@ function CardBody({
       <ul className="space-y-1 border-l-2 pl-3">
         {card.useCases.map((useCase) => (
           <li key={useCase} className="text-sm text-muted-foreground">
-            {useCase}
+            {curlyQuotes(useCase)}
           </li>
         ))}
       </ul>
@@ -163,7 +168,7 @@ function NoteBody({
         <h3 className="text-lg font-semibold">{response.note.corrected}</h3>
         <Badge variant="secondary">grammar</Badge>
       </div>
-      <p className="text-sm leading-relaxed">{response.note.note}</p>
+      <p className="text-sm leading-relaxed">{curlyQuotes(response.note.note)}</p>
     </div>
   );
 }
