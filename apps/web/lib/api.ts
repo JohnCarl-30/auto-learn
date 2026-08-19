@@ -4,6 +4,7 @@ import {
   ProposeResponse,
   type CardRequest,
   type ProposeRequest,
+  type TelemetryEvent,
 } from '@auto-learn/shared';
 import type { ZodType } from 'zod';
 
@@ -69,4 +70,18 @@ export function propose(body: ProposeRequest): Promise<ProposeResponse> {
  */
 export function fetchCard(body: CardRequest): Promise<CardResponse> {
   return post('/card', body, CardResponse);
+}
+
+/**
+ * Accept and reject are the numbers that say whether people take what the gate
+ * teaches, and they only exist in the browser. Fire-and-forget: a dropped
+ * count is not worth failing a user action over.
+ */
+export function reportEvent(event: TelemetryEvent['event']): void {
+  void fetch(`${BASE_URL}/telemetry`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ event }),
+    keepalive: true,
+  }).catch(() => undefined);
 }
