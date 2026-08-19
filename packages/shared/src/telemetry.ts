@@ -19,7 +19,14 @@ export const TelemetrySnapshot = z.object({
   proposals: z.number().int(),
   /** Over-cap pastes. The demand signal for whole-essay mode. */
   overflowAttempts: z.number().int(),
-  cardsOpened: z.number().int(),
+  /**
+   * Requested is intent — a gate was clicked. Delivered is the card actually
+   * reaching the reader. They differ whenever the dictionary or the model
+   * fails, and conflating them inflates the engagement ratio with failures.
+   */
+  cardsRequested: z.number().int(),
+  cardsDelivered: z.number().int(),
+  cardsFailed: z.number().int(),
   notesOpened: z.number().int(),
   lookups: z.number().int(),
   accepted: z.number().int(),
