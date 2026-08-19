@@ -33,11 +33,15 @@ export function ComposePanel({
         placeholder="Paste one to three sentences you're unsure about."
         rows={5}
         className="resize-none text-base leading-relaxed"
+        data-testid="compose"
         aria-label="Sentences to review"
       />
 
       <div className="flex min-h-5 items-center justify-between text-sm">
-        <span className={overCap ? 'text-amber-600' : 'text-muted-foreground'}>
+        <span
+          data-testid="sentence-count"
+          className={overCap ? 'text-amber-600' : 'text-muted-foreground'}
+        >
           {empty
             ? 'One to three sentences.'
             : `${count} ${count === 1 ? 'sentence' : 'sentences'}`}
@@ -58,6 +62,7 @@ export function ComposePanel({
         {OPTIONS.map((option) => (
           <Button
             key={option}
+            data-testid={`option-${option}`}
             variant="outline"
             disabled={disabled || empty}
             onClick={() => onSubmit(text, option)}
