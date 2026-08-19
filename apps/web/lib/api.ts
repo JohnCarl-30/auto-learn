@@ -1,8 +1,11 @@
 import {
   ApiError,
+  CardResponse,
   ProposeResponse,
+  type CardRequest,
   type ProposeRequest,
 } from '@auto-learn/shared';
+import type { ZodType } from 'zod';
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
 
@@ -24,13 +27,15 @@ const malformed: ApiError = {
   message: 'The server sent back something unexpected.',
 };
 
-export async function propose(
-  body: ProposeRequest,
-): Promise<ProposeResponse> {
+async function post<T>(
+  path: string,
+  body: unknown,
+  schema: ZodType<T>,
+): Promise<T> {
   let response: Response;
 
   try {
-    response = await fetch(`${BASE_URL}/propose`, {
+    response = await fetch(`${BASE_URL}${path}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
@@ -48,8 +53,20 @@ export async function propose(
 
   // Validate on the way in, with the same schema the server built it from.
   // A drifted contract fails here, loudly, rather than as a blank render.
-  const parsed = ProposeResponse.safeParse(payload);
+  const parsed = schema.safeParse(payload);
   if (!parsed.success) throw new ApiFailure(malformed);
 
   return parsed.data;
+}
+
+export function propose(body: ProposeRequest): Promise<ProposeResponse> {
+  return post('/propose', body, ProposeResponse);
+}
+
+/**
+ * Fetching this is what releases the withheld wording — the replacement is not
+ * in the propose payload at all, so this call *is* the gate opening.
+ */
+export function fetchCard(body: CardRequest): Promise<CardResponse> {
+  return post('/card', body, CardResponse);
 }
