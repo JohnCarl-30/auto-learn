@@ -1,85 +1,49 @@
 import { expect, test } from '@playwright/test';
 
-const THREE = 'One here. Two here. Three here.';
-const FIVE = 'One here. Two here. Three here. Four here. Five here.';
+/**
+ * What is left here needs a real browser and a real server.
+ *
+ * Compose behaviour, gate styling, card rendering and bank state moved to
+ * component tests, and the API's error codes moved to supertest — both run in
+ * milliseconds without booting anything. A browser test that restates them
+ * only buys a slower way to learn the same thing.
+ */
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/');
 });
 
-test.describe('compose', () => {
-  test('renders the four transforms', async ({ page }) => {
-    await expect(page.getByTestId('option-grammar')).toHaveText(
-      'Fix my grammar',
-    );
-    await expect(page.getByTestId('option-natural')).toBeVisible();
-    await expect(page.getByTestId('option-academic')).toBeVisible();
-    await expect(page.getByTestId('option-clearer')).toBeVisible();
-  });
-
-  test('counts sentences as you type', async ({ page }) => {
-    const count = page.getByTestId('sentence-count');
-    await expect(count).toHaveText('One to three sentences.');
-
-    await page.getByTestId('compose').fill('Just one.');
-    await expect(count).toHaveText('1 sentence');
-
-    await page.getByTestId('compose').fill(THREE);
-    await expect(count).toHaveText('3 sentences');
-  });
-
-  test('disables the transforms only when there is nothing to work on', async ({
+test.describe('the stack talks to itself', () => {
+  test('an over-cap paste is refused by the server and rendered as guidance', async ({
     page,
   }) => {
-    await expect(page.getByTestId('option-academic')).toBeDisabled();
-    await page.getByTestId('compose').fill('Something.');
-    await expect(page.getByTestId('option-academic')).toBeEnabled();
-  });
-});
-
-test.describe('the sentence cap', () => {
-  test('warns over the cap but keeps the button live', async ({ page }) => {
-    await page.getByTestId('compose').fill(FIVE);
-
-    await expect(page.getByTestId('sentence-count')).toHaveText('5 sentences');
-    await expect(
-      page.getByText("That's more than I take at once."),
-    ).toBeVisible();
-
-    // Deliberately still clickable: the server has to see the attempt, because
-    // the overflow count is the signal that decides whether whole-essay mode
-    // is worth building.
-    await expect(page.getByTestId('option-academic')).toBeEnabled();
-  });
-
-  test('is refused by the server with the real count, not truncated', async ({
-    page,
-  }) => {
-    await page.getByTestId('compose').fill(FIVE);
+    // The one full-stack smoke test: browser -> API -> browser. The pieces are
+    // covered elsewhere; this proves they are actually wired together.
+    await page
+      .getByTestId('compose')
+      .fill('One here. Two here. Three here. Four here. Five here.');
     await page.getByTestId('option-academic').click();
 
     const notice = page.getByTestId('cap-notice');
     await expect(notice).toBeVisible();
     await expect(notice).toContainText('I found 5');
-    await expect(notice).toContainText('one to three sentences');
 
-    // No review was rendered — nothing was silently processed.
+    // Nothing was silently processed.
     await expect(page.getByTestId('review')).toHaveCount(0);
   });
 });
 
 test.describe('the gate', () => {
-  // These need real proposals. They light up the moment a key exists, and are
-  // the tests that actually check the product's thesis.
+  // These need real proposals. They light up the moment a key exists, and they
+  // are the tests that actually check the product's thesis.
   test.skip(
     !process.env.OPENAI_API_KEY,
     'needs OPENAI_API_KEY to get real proposals',
   );
 
-  test('marks suggestions and withholds the wording until the card opens', async ({
-    page,
-  }) => {
-    // Watch the wire: the proposal must not contain the replacement.
+  test('withholds the wording until the card is opened', async ({ page }) => {
+    // Watch the wire: the proposal must not carry the replacement. This is the
+    // product's central claim, and only a real request can prove it.
     const proposal = page.waitForResponse(
       (response) =>
         response.url().includes('/propose') && response.status() === 200,
@@ -88,32 +52,27 @@ test.describe('the gate', () => {
     await page.getByTestId('compose').fill('The results were very big.');
     await page.getByTestId('option-academic').click();
 
-    const body = await (await proposal).json();
-    const serialised = JSON.stringify(body);
-    expect(serialised).not.toContain('replacement');
+    const body: unknown = await (await proposal).json();
+    expect(JSON.stringify(body)).not.toContain('replacement');
 
     await expect(page.getByTestId('review')).toBeVisible();
     await expect(page.getByTestId('gate').first()).toBeVisible();
   });
 
-  test('opens a card and applies the wording only after accepting', async ({
-    page,
-  }) => {
+  test('applies the wording only after accepting', async ({ page }) => {
     await page.getByTestId('compose').fill('The results were very big.');
     await page.getByTestId('option-academic').click();
 
     const gate = page.getByTestId('gate').first();
     await expect(gate).toBeVisible();
-    const before = await page.getByTestId('review').innerText();
+    const before = await page.getByTestId('finished-text').innerText();
 
     await gate.click();
     await expect(page.getByTestId('word-card')).toBeVisible();
-
     await page.getByTestId('accept').click();
-    await expect(page.getByTestId('word-card')).toHaveCount(0);
 
-    const after = await page.getByTestId('review').innerText();
-    expect(after).not.toBe(before);
+    await expect(page.getByTestId('word-card')).toHaveCount(0);
+    await expect(page.getByTestId('finished-text')).not.toHaveText(before);
   });
 
   test('keeps your wording when you reject', async ({ page }) => {
@@ -133,28 +92,17 @@ test.describe('the gate', () => {
   });
 });
 
-test.describe('the word bank', () => {
-  test('is present and empty before anything is learned', async ({ page }) => {
-    const bank = page.getByTestId('bank');
-    await expect(bank).toBeVisible();
-    await expect(bank).toContainText('will collect here');
-
-    // No account ask on an empty bank — the prompt waits until there is
-    // something worth losing.
-    await expect(page.getByTestId('claim-prompt')).toHaveCount(0);
-  });
-});
-
 test.describe('leaving with the text', () => {
   test.skip(
     !process.env.OPENAI_API_KEY,
     'needs OPENAI_API_KEY to reach the review',
   );
 
-  test('shows the finished sentence as plain, copyable text', async ({
+  test('copies the finished sentence to the real clipboard', async ({
     page,
     context,
   }) => {
+    // jsdom has no clipboard worth testing against; this needs a browser.
     await context.grantPermissions(['clipboard-read', 'clipboard-write']);
 
     await page.getByTestId('compose').fill('The results were very big.');
@@ -162,8 +110,6 @@ test.describe('leaving with the text', () => {
     await expect(page.getByTestId('finished')).toBeVisible();
 
     const shown = await page.getByTestId('finished-text').innerText();
-    expect(shown.length).toBeGreaterThan(0);
-
     await page.getByTestId('copy').click();
     await expect(page.getByTestId('copy')).toHaveText('Copied');
 
