@@ -92,9 +92,17 @@ const build = (
   // Held as its own reference so assertions never pass an unbound method.
   const lookup = jest.fn().mockResolvedValue(lookupResult);
   const dictionary = { lookup } as unknown as DictionaryService;
-  const service = new CardService(sessions, dictionary, new TelemetryService());
+  const telemetry = new TelemetryService();
+  const service = new CardService(sessions, dictionary, telemetry);
   const session = sessions.create('academic', [sentence()]);
-  return { service, sessions, dictionary, lookup, sessionId: session.id };
+  return {
+    service,
+    sessions,
+    dictionary,
+    lookup,
+    telemetry,
+    sessionId: session.id,
+  };
 };
 
 const errorOf = async (fn: () => Promise<unknown>): Promise<ApiError> => {
@@ -297,5 +305,65 @@ describe('CardService grammar gates', () => {
 
     expect(lookup).not.toHaveBeenCalled();
     expect(generate).not.toHaveBeenCalled();
+  });
+});
+
+describe('CardService engagement accounting', () => {
+  it('counts a delivered card as both requested and delivered', async () => {
+    const { service, sessionId, telemetry } = build();
+
+    await service.build({
+      kind: 'suggestion',
+      sessionId,
+      suggestionId: 'gate-1',
+    });
+
+    const snapshot = telemetry.snapshot();
+    expect(snapshot.cardsRequested).toBe(1);
+    expect(snapshot.cardsDelivered).toBe(1);
+    expect(snapshot.cardsFailed).toBe(0);
+  });
+
+  it('does not count a failed card as delivered', async () => {
+    // The bug this replaced: a card that never rendered still counted as
+    // engagement, inflating cardsRequested/proposals with failures.
+    const { service, sessionId, telemetry } = build(null);
+
+    await service
+      .build({ kind: 'suggestion', sessionId, suggestionId: 'gate-1' })
+      .catch(() => undefined);
+
+    const snapshot = telemetry.snapshot();
+    expect(snapshot.cardsRequested).toBe(1);
+    expect(snapshot.cardsDelivered).toBe(0);
+    expect(snapshot.cardsFailed).toBe(1);
+  });
+
+  it('does not count a failed model call as delivered', async () => {
+    const { service, sessionId, telemetry } = build();
+    generate.mockRejectedValue(new Error('model exploded'));
+
+    await service
+      .build({ kind: 'suggestion', sessionId, suggestionId: 'gate-1' })
+      .catch(() => undefined);
+
+    const snapshot = telemetry.snapshot();
+    expect(snapshot.cardsDelivered).toBe(0);
+    expect(snapshot.cardsFailed).toBe(1);
+  });
+
+  it('leaves card counters alone for a grammar note', async () => {
+    const { service, sessionId, telemetry } = build();
+
+    await service.build({
+      kind: 'suggestion',
+      sessionId,
+      suggestionId: 'gate-grammar',
+    });
+
+    const snapshot = telemetry.snapshot();
+    expect(snapshot.notesOpened).toBe(1);
+    expect(snapshot.cardsRequested).toBe(0);
+    expect(snapshot.cardsDelivered).toBe(0);
   });
 });
