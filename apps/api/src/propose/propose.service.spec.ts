@@ -8,6 +8,7 @@ import { HttpException } from '@nestjs/common';
 import { locateSpan, splitSentences } from '@auto-learn/shared';
 import type { ApiError } from '@auto-learn/shared';
 import { SessionStore } from '../session/session.store';
+import { TelemetryService } from '../telemetry/telemetry.service';
 import { ProposeService } from './propose.service';
 
 describe('splitSentences', () => {
@@ -53,7 +54,7 @@ describe('locateSpan', () => {
 });
 
 describe('ProposeService cap enforcement', () => {
-  const service = new ProposeService(new SessionStore());
+  const service = new ProposeService(new SessionStore(), new TelemetryService());
 
   const codeOf = async (text: string): Promise<ApiError> => {
     try {
@@ -82,7 +83,7 @@ describe('ProposeService cap enforcement', () => {
 });
 
 describe('ProposeService span resolution', () => {
-  const service = new ProposeService(new SessionStore());
+  const service = new ProposeService(new SessionStore(), new TelemetryService());
   const resolve = (original: string, edits: unknown[]) =>
     (service as never as {
       resolveSentence: (i: number, o: string, e: unknown[]) => any;
