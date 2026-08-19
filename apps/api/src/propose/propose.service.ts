@@ -16,6 +16,7 @@ import {
   type SilentFixType,
 } from '@auto-learn/shared';
 import { proposeModel, proposeProviderOptions } from '../llm/models';
+import { TelemetryService } from '../telemetry/telemetry.service';
 import {
   SessionStore,
   type StoredGated,
@@ -43,7 +44,10 @@ Rules:
 export class ProposeService {
   private readonly logger = new Logger(ProposeService.name);
 
-  constructor(private readonly sessions: SessionStore) {}
+  constructor(
+    private readonly sessions: SessionStore,
+    private readonly telemetry: TelemetryService,
+  ) {}
 
   async propose(request: ProposeRequest): Promise<ProposeResponse> {
     const sentences = splitSentences(request.text);
@@ -55,6 +59,7 @@ export class ProposeService {
     // The cap is enforced here, not in the UI. Refused, never truncated —
     // a silently truncated paste looks served and isn't.
     if (sentences.length > MAX_SENTENCES) {
+      this.telemetry.overflow();
       throw this.fail(
         'too_many_sentences',
         `Bring me the one to three sentences you're unsure about — I found ${sentences.length}.`,
@@ -72,6 +77,7 @@ export class ProposeService {
     );
 
     const session = this.sessions.create(request.option, stored);
+    this.telemetry.proposal();
 
     return {
       sessionId: session.id,
