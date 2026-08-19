@@ -1,11 +1,22 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import type { ProposeResponse } from '@auto-learn/shared';
+import type {
+  GatedSuggestionType,
+  ProposeResponse,
+  ReviewedSentence,
+} from '@auto-learn/shared';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { SentenceView } from './sentence-view';
+
+/** Matches the marks in the sentence, so the list reads as a key to them. */
+const DOT_STYLES: Record<GatedSuggestionType, string> = {
+  'word-choice': 'bg-amber-500/70',
+  register: 'bg-amber-500/70',
+  grammar: 'bg-sky-600/70',
+};
 
 export function ReviewPanel({
   response,
@@ -67,6 +78,10 @@ export function ReviewPanel({
                 />
               </div>
 
+              {isFocused && !cardSlot && (
+                <TeaserList sentence={sentence} onOpenGate={onOpenGate} />
+              )}
+
               {isFocused && cardSlot}
             </div>
           );
@@ -79,5 +94,49 @@ export function ReviewPanel({
         </p>
       )}
     </div>
+  );
+}
+
+/**
+ * The teasers used to live in a `title` attribute, which meant they did not
+ * exist on touch and were slow to find on desktop — the one thing that tells
+ * you what is behind a gate was effectively invisible. They are text now.
+ */
+function TeaserList({
+  sentence,
+  onOpenGate,
+}: {
+  sentence: ReviewedSentence;
+  onOpenGate: (suggestionId: string) => void;
+}) {
+  if (sentence.gated.length === 0) return null;
+
+  return (
+    <ul className="space-y-1.5" data-testid="teasers">
+      {sentence.gated.map((suggestion) => (
+        <li key={suggestion.id}>
+          <button
+            type="button"
+            data-testid="teaser"
+            onClick={() => onOpenGate(suggestion.id)}
+            className="group flex w-full items-baseline gap-2 text-left text-sm"
+          >
+            <span
+              aria-hidden
+              className={cn(
+                'mt-1.5 size-1.5 shrink-0 rounded-full',
+                DOT_STYLES[suggestion.type],
+              )}
+            />
+            <span className="text-muted-foreground group-hover:text-foreground">
+              <span className="font-medium text-foreground">
+                {suggestion.original}
+              </span>{' '}
+              — {suggestion.teaser}
+            </span>
+          </button>
+        </li>
+      ))}
+    </ul>
   );
 }
