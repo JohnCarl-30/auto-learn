@@ -81,14 +81,20 @@ const sentence = (): StoredSentence => ({
   ],
 });
 
-const build = (lookupResult: unknown = { word: 'substantial', senses: SENSES, synonyms: ['significant'] }) => {
+const build = (
+  lookupResult: unknown = {
+    word: 'substantial',
+    senses: SENSES,
+    synonyms: ['significant'],
+  },
+) => {
   const sessions = new SessionStore();
-  const dictionary = {
-    lookup: jest.fn().mockResolvedValue(lookupResult),
-  } as unknown as DictionaryService;
+  // Held as its own reference so assertions never pass an unbound method.
+  const lookup = jest.fn().mockResolvedValue(lookupResult);
+  const dictionary = { lookup } as unknown as DictionaryService;
   const service = new CardService(sessions, dictionary, new TelemetryService());
   const session = sessions.create('academic', [sentence()]);
-  return { service, sessions, dictionary, sessionId: session.id };
+  return { service, sessions, dictionary, lookup, sessionId: session.id };
 };
 
 const errorOf = async (fn: () => Promise<unknown>): Promise<ApiError> => {
@@ -107,7 +113,7 @@ beforeEach(() => {
 
 describe('CardService target resolution', () => {
   it('builds the card for the replacement word, not the one being replaced', async () => {
-    const { service, sessionId, dictionary } = build();
+    const { service, sessionId, lookup } = build();
 
     const result = await service.build({
       kind: 'suggestion',
@@ -115,7 +121,7 @@ describe('CardService target resolution', () => {
       suggestionId: 'gate-1',
     });
 
-    expect(dictionary.lookup).toHaveBeenCalledWith('substantial');
+    expect(lookup).toHaveBeenCalledWith('substantial');
     expect(asCard(result).card.word).toBe('substantial');
   });
 
@@ -222,8 +228,16 @@ describe('CardService caching', () => {
   it('does not call the model twice for the same word and sentence', async () => {
     const { service, sessionId } = build();
 
-    await service.build({ kind: 'suggestion', sessionId, suggestionId: 'gate-1' });
-    await service.build({ kind: 'suggestion', sessionId, suggestionId: 'gate-1' });
+    await service.build({
+      kind: 'suggestion',
+      sessionId,
+      suggestionId: 'gate-1',
+    });
+    await service.build({
+      kind: 'suggestion',
+      sessionId,
+      suggestionId: 'gate-1',
+    });
 
     expect(generate).toHaveBeenCalledTimes(1);
   });
@@ -231,7 +245,11 @@ describe('CardService caching', () => {
   it('still releases the replacement on a cache hit', async () => {
     const { service, sessionId } = build();
 
-    await service.build({ kind: 'suggestion', sessionId, suggestionId: 'gate-1' });
+    await service.build({
+      kind: 'suggestion',
+      sessionId,
+      suggestionId: 'gate-1',
+    });
     const second = await service.build({
       kind: 'suggestion',
       sessionId,
@@ -269,7 +287,7 @@ describe('CardService grammar gates', () => {
   });
 
   it('costs no dictionary lookup and no model call', async () => {
-    const { service, sessionId, dictionary } = build();
+    const { service, sessionId, lookup } = build();
 
     await service.build({
       kind: 'suggestion',
@@ -277,7 +295,7 @@ describe('CardService grammar gates', () => {
       suggestionId: 'gate-grammar',
     });
 
-    expect(dictionary.lookup).not.toHaveBeenCalled();
+    expect(lookup).not.toHaveBeenCalled();
     expect(generate).not.toHaveBeenCalled();
   });
 });
