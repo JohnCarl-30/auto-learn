@@ -1,6 +1,6 @@
 // These tests exercise validation and span resolution only — they never reach
-// the model. `ai` is ESM-only and would fail to load under jest's CJS runtime,
-// so it is mocked out rather than transformed.
+// the model. `ai` and `@ai-sdk/openai` are ESM-only and jest's CJS runtime
+// cannot load them, so they are mocked at the module boundary.
 jest.mock('ai', () => ({ generateObject: jest.fn() }));
 jest.mock('@ai-sdk/openai', () => ({ openai: jest.fn() }));
 
