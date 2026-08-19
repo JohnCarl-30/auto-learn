@@ -7,6 +7,7 @@ import { generateObject } from 'ai';
 import type { ApiError, CardResponse, ModelCard } from '@auto-learn/shared';
 import type { DictionaryService } from '../dictionary/dictionary.service';
 import { SessionStore, type StoredSentence } from '../session/session.store';
+import { TelemetryService } from '../telemetry/telemetry.service';
 import { CardService } from './card.service';
 
 const generate = generateObject as unknown as jest.Mock;
@@ -85,7 +86,7 @@ const build = (lookupResult: unknown = { word: 'substantial', senses: SENSES, sy
   const dictionary = {
     lookup: jest.fn().mockResolvedValue(lookupResult),
   } as unknown as DictionaryService;
-  const service = new CardService(sessions, dictionary);
+  const service = new CardService(sessions, dictionary, new TelemetryService());
   const session = sessions.create('academic', [sentence()]);
   return { service, sessions, dictionary, sessionId: session.id };
 };
