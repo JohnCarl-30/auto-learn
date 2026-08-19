@@ -10,9 +10,26 @@ in the wrong one and it either fails to load or silently stops being checked.
 
 | Pattern | Runner | Use it for |
 |---|---|---|
-| `*.spec.ts` | jest (`apps/api`) | Nest unit tests. ESM packages mocked at the boundary. |
-| `*.test.ts` | vitest (`apps/api`, `packages/shared`) | Anything importing a real ESM package; all pure logic. |
-| `apps/web/e2e/*.spec.ts` | Playwright | Browser checks against both servers. |
+| `apps/api/**/*.spec.ts` | jest | Nest unit tests, and HTTP tests via supertest. ESM packages mocked. |
+| `apps/api/**/*.test.ts` | vitest | Anything importing a real ESM package. |
+| `packages/shared/**/*.test.ts` | vitest | Pure contract logic. |
+| `apps/web/**/*.test.tsx` | jest + React Testing Library | Components and hooks, in jsdom. |
+| `apps/web/e2e/*.spec.ts` | Playwright | Only what needs a real browser and a real server. |
+
+## Choosing where a test goes
+
+Push it as far down as it will go. In order of preference:
+
+1. **Pure function** → `packages/shared`, vitest. Fastest, and the logic most worth pinning.
+2. **A component or hook** → `apps/web`, jest + RTL. No server, no browser.
+3. **HTTP behaviour** — status codes, the Zod body pipe, module wiring → `apps/api`, jest +
+   supertest against the real Nest app. Still no browser.
+4. **Playwright** — only when the assertion genuinely needs a browser *and* a live server:
+   the real clipboard, or watching an actual response body on the wire.
+
+Playwright costs a browser and two servers per run, so a test that could have lived a rung
+lower buys nothing but a slower way to learn the same thing. The suite was trimmed from ten
+tests to five on exactly this basis.
 
 ## The ESM constraint
 
