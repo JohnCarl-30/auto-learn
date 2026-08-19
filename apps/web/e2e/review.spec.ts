@@ -132,3 +132,15 @@ test.describe('the gate', () => {
     await expect(page.getByTestId('review')).toContainText(original);
   });
 });
+
+test.describe('the word bank', () => {
+  test('is present and empty before anything is learned', async ({ page }) => {
+    const bank = page.getByTestId('bank');
+    await expect(bank).toBeVisible();
+    await expect(bank).toContainText('will collect here');
+
+    // No account ask on an empty bank — the prompt waits until there is
+    // something worth losing.
+    await expect(page.getByTestId('claim-prompt')).toHaveCount(0);
+  });
+});
