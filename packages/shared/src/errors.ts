@@ -7,6 +7,7 @@ export const ApiErrorCode = z.enum([
   'session_not_found',
   'suggestion_not_found',
   'word_not_in_sentence',
+  'no_dictionary_entry',
   'upstream_failed',
 ]);
 export type ApiErrorCode = z.infer<typeof ApiErrorCode>;
