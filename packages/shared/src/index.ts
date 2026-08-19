@@ -6,3 +6,5 @@ export * from './wordbank';
 export * from './sentences';
 export * from './segment';
 export * from './apply';
+export * from './reuse';
+export * from './telemetry';
