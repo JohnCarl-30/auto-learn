@@ -30,9 +30,9 @@ export function ReviewPanel({
   const gatedCount = sentences[focused]?.gated.length ?? 0;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-testid="review">
       <div className="flex items-center justify-between">
-        <span className="text-sm text-muted-foreground">
+        <span className="text-sm text-muted-foreground" data-testid="progress">
           Sentence {focused + 1} of {total}
           {gatedCount > 0 &&
             ` · ${gatedCount} ${gatedCount === 1 ? 'suggestion' : 'suggestions'}`}
