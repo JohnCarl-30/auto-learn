@@ -76,9 +76,24 @@ export class CardService {
       };
     }
 
+    // Intent, counted before anything can fail: the reader clicked.
+    this.telemetry.cardRequested();
     if (target.kind === 'lookup') this.telemetry.lookup();
-    else this.telemetry.cardOpened();
 
+    try {
+      const response = await this.buildCard(target);
+      this.telemetry.cardDelivered();
+      return response;
+    } catch (error) {
+      // Counted separately so a flaky model cannot masquerade as engagement.
+      this.telemetry.cardFailed();
+      throw error;
+    }
+  }
+
+  private async buildCard(
+    target: ReturnType<CardService['resolveTarget']>,
+  ): Promise<CardVariant> {
     const key = cacheKey(target.word, target.sentence);
 
     const cached = this.cache.get(key);

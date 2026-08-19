@@ -13,7 +13,9 @@ export class TelemetryService {
   private readonly counts = {
     proposals: 0,
     overflowAttempts: 0,
-    cardsOpened: 0,
+    cardsRequested: 0,
+    cardsDelivered: 0,
+    cardsFailed: 0,
     notesOpened: 0,
     lookups: 0,
     accepted: 0,
@@ -29,8 +31,19 @@ export class TelemetryService {
     this.counts.overflowAttempts += 1;
   }
 
-  cardOpened(): void {
-    this.counts.cardsOpened += 1;
+  /** A gate was clicked. Intent, regardless of what happens next. */
+  cardRequested(): void {
+    this.counts.cardsRequested += 1;
+  }
+
+  /** A card actually reached the reader. */
+  cardDelivered(): void {
+    this.counts.cardsDelivered += 1;
+  }
+
+  /** The request was made but no card came back. */
+  cardFailed(): void {
+    this.counts.cardsFailed += 1;
   }
 
   noteOpened(): void {
