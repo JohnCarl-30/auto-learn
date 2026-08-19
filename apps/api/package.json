@@ -12,13 +12,14 @@
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
-    "lint": "eslint \"src/**/*.ts\" --fix",
+    "lint": "eslint \"src/**/*.ts\"",
     "test": "jest && vitest run",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test:jest": "jest",
-    "test:vitest": "vitest run"
+    "test:vitest": "vitest run",
+    "lint:fix": "eslint \"src/**/*.ts\" --fix"
   },
   "dependencies": {
     "@ai-sdk/openai": "^4.0.42",

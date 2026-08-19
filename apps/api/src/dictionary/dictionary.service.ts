@@ -24,12 +24,13 @@ export class DictionaryService {
   // Wrapped in an object because LRUCache values must extend `{}` — a bare
   // null cannot be stored, and misses are exactly what we most want to cache
   // (see the timeout note below).
-  private readonly cache = new LRUCache<string, { value: RetrievedWord | null }>(
-    {
-      max: 10_000,
-      ttl: 24 * 60 * 60 * 1000,
-    },
-  );
+  private readonly cache = new LRUCache<
+    string,
+    { value: RetrievedWord | null }
+  >({
+    max: 10_000,
+    ttl: 24 * 60 * 60 * 1000,
+  });
 
   async lookup(word: string): Promise<RetrievedWord | null> {
     const key = word.toLowerCase();
