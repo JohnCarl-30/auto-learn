@@ -5,10 +5,12 @@ import {
   applyReplacement,
   dismissSuggestion,
   type ApiError,
+  type BankEntry,
   type ProposeResponse,
   type TransformOption,
 } from '@auto-learn/shared';
-import { ApiFailure, fetchCard, propose } from './api';
+import { ApiFailure, fetchCard, propose, reportEvent } from './api';
+import { bankWord, recordReuse } from './bank';
 import type { CardState } from '@/components/word-card';
 
 export type ReviewState =
@@ -32,13 +34,26 @@ export function useReview() {
   const [state, setState] = useState<ReviewState>({ status: 'idle' });
   const [open, setOpen] = useState<OpenTarget | null>(null);
   const [card, setCard] = useState<CardState | null>(null);
+  /** Bumped after every bank write so the bank view re-reads and grows. */
+  const [bankVersion, setBankVersion] = useState(0);
+  /** Banked words the writer just used again, unprompted. */
+  const [reused, setReused] = useState<BankEntry[]>([]);
 
   const submit = useCallback(
     async (text: string, option: TransformOption) => {
       setOpen(null);
       setCard(null);
+      setReused([]);
       setState({ status: 'proposing' });
       try {
+        // Checked before the model runs: this is plain string matching against
+        // the bank, and it costs nothing.
+        const hits = await recordReuse(text);
+        if (hits.length > 0) {
+          setReused(hits);
+          setBankVersion((v) => v + 1);
+        }
+
         const response = await propose({ text, option });
         setState({ status: 'reviewing', response, focused: 0 });
       } catch (error) {
@@ -57,12 +72,24 @@ export function useReview() {
   }, []);
 
   const load = useCallback(
-    async (target: OpenTarget, request: Parameters<typeof fetchCard>[0]) => {
+    async (
+      target: OpenTarget,
+      request: Parameters<typeof fetchCard>[0],
+      sentenceText: string,
+    ) => {
       setOpen(target);
       setCard({ status: 'loading' });
       try {
         const response = await fetchCard(request);
         setCard({ status: 'ready', response });
+
+        // Looking a word up is a deliberate act, so it banks on sight. A gate
+        // does not — accepting it does, below. Grammar notes never bank:
+        // a corrected verb is not vocabulary you learned.
+        if (response.kind === 'card' && target.suggestionId === null) {
+          await bankWord(response.card, sentenceText, 'tapped');
+          setBankVersion((v) => v + 1);
+        }
       } catch (error) {
         setCard({ status: 'error', error: toApiError(error) });
       }
@@ -80,6 +107,7 @@ export function useReview() {
           sessionId: state.response.sessionId,
           suggestionId,
         },
+        state.response.sentences[sentenceIndex]?.text ?? '',
       );
     },
     [load, state],
@@ -96,6 +124,7 @@ export function useReview() {
           sentenceIndex,
           word,
         },
+        state.response.sentences[sentenceIndex]?.text ?? '',
       );
     },
     [load, state],
@@ -111,6 +140,19 @@ export function useReview() {
     (replacement: string) => {
       const target = open;
       if (!target?.suggestionId) return;
+
+      const sentenceText =
+        state.status === 'reviewing'
+          ? (state.response.sentences[target.sentenceIndex]?.text ?? '')
+          : '';
+
+      reportEvent('suggestion_accepted');
+
+      if (card?.status === 'ready' && card.response.kind === 'card') {
+        void bankWord(card.response.card, sentenceText, 'accepted').then(() =>
+          setBankVersion((v) => v + 1),
+        );
+      }
 
       setState((current) => {
         if (current.status !== 'reviewing') return current;
@@ -129,13 +171,15 @@ export function useReview() {
 
       dismiss();
     },
-    [dismiss, open],
+    [card, dismiss, open, state],
   );
 
   /** The user's wording stands; the marker goes away. */
   const reject = useCallback(() => {
     const target = open;
     if (!target?.suggestionId) return;
+
+    reportEvent('suggestion_rejected');
 
     setState((current) => {
       if (current.status !== 'reviewing') return current;
@@ -158,6 +202,7 @@ export function useReview() {
   const reset = useCallback(() => {
     setOpen(null);
     setCard(null);
+    setReused([]);
     setState({ status: 'idle' });
   }, []);
 
@@ -165,6 +210,8 @@ export function useReview() {
     state,
     open,
     card,
+    bankVersion,
+    reused,
     submit,
     focus,
     openGate,
