@@ -4,12 +4,22 @@ jest.mock('@ai-sdk/openai', () => ({ openai: jest.fn() }));
 
 import { HttpException } from '@nestjs/common';
 import { generateObject } from 'ai';
-import type { ApiError, ModelCard } from '@auto-learn/shared';
+import type { ApiError, CardResponse, ModelCard } from '@auto-learn/shared';
 import type { DictionaryService } from '../dictionary/dictionary.service';
 import { SessionStore, type StoredSentence } from '../session/session.store';
 import { CardService } from './card.service';
 
 const generate = generateObject as unknown as jest.Mock;
+
+const asCard = (r: CardResponse) => {
+  if (r.kind !== 'card') throw new Error(`expected a card, got "${r.kind}"`);
+  return r;
+};
+
+const asNote = (r: CardResponse) => {
+  if (r.kind !== 'note') throw new Error(`expected a note, got "${r.kind}"`);
+  return r;
+};
 
 const SENSES = [
   {
@@ -57,6 +67,16 @@ const sentence = (): StoredSentence => ({
       replacement: 'substantial',
       reason: 'more precise for academic writing',
     },
+    {
+      id: 'gate-grammar',
+      type: 'grammar',
+      original: 'were',
+      start: 12,
+      end: 16,
+      teaser: 'grammar fix available',
+      replacement: 'was',
+      reason: '"results" is plural, so the verb must agree.',
+    },
   ],
 });
 
@@ -95,7 +115,7 @@ describe('CardService target resolution', () => {
     });
 
     expect(dictionary.lookup).toHaveBeenCalledWith('substantial');
-    expect(result.card.word).toBe('substantial');
+    expect(asCard(result).card.word).toBe('substantial');
   });
 
   it('releases the withheld replacement only with the card', async () => {
@@ -121,7 +141,7 @@ describe('CardService target resolution', () => {
     });
 
     expect(result.replacement).toBeNull();
-    expect(result.card.whyHere).toBeNull();
+    expect(asCard(result).card.whyHere).toBeNull();
   });
 
   it('rejects a lookup for a word that is not in the sentence', async () => {
@@ -193,7 +213,7 @@ describe('CardService grounding', () => {
       sessionId,
       suggestionId: 'gate-1',
     });
-    expect(result.card.senseId).toBe('s1');
+    expect(asCard(result).card.senseId).toBe('s1');
   });
 });
 
@@ -218,5 +238,45 @@ describe('CardService caching', () => {
     });
 
     expect(second.replacement).toBe('substantial');
+  });
+});
+
+describe('CardService grammar gates', () => {
+  it('returns a note, not a vocabulary card', async () => {
+    const { service, sessionId } = build();
+
+    const result = await service.build({
+      kind: 'suggestion',
+      sessionId,
+      suggestionId: 'gate-grammar',
+    });
+
+    expect(result.kind).toBe('note');
+    expect(asNote(result).note.note).toContain('plural');
+  });
+
+  it('still releases the withheld correction, so the gate holds', async () => {
+    const { service, sessionId } = build();
+
+    const result = await service.build({
+      kind: 'suggestion',
+      sessionId,
+      suggestionId: 'gate-grammar',
+    });
+
+    expect(result.replacement).toBe('was');
+  });
+
+  it('costs no dictionary lookup and no model call', async () => {
+    const { service, sessionId, dictionary } = build();
+
+    await service.build({
+      kind: 'suggestion',
+      sessionId,
+      suggestionId: 'gate-grammar',
+    });
+
+    expect(dictionary.lookup).not.toHaveBeenCalled();
+    expect(generate).not.toHaveBeenCalled();
   });
 });
