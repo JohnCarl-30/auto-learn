@@ -5,6 +5,7 @@ import { ComposePanel } from '@/components/compose-panel';
 import { ReviewPanel } from '@/components/review-panel';
 import { WordCard } from '@/components/word-card';
 import { BankPanel } from '@/components/bank-panel';
+import { FinishedText } from '@/components/finished-text';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useReview } from '@/lib/use-review';
 import { useBank } from '@/lib/use-bank';
@@ -73,6 +74,10 @@ export default function Page() {
             ) : null
           }
         />
+      )}
+
+      {state.status === 'reviewing' && (
+        <FinishedText response={state.response} />
       )}
 
       <BankPanel entries={bank.entries} count={bank.count} />
