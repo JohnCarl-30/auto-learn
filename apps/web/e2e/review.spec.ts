@@ -144,3 +144,30 @@ test.describe('the word bank', () => {
     await expect(page.getByTestId('claim-prompt')).toHaveCount(0);
   });
 });
+
+test.describe('leaving with the text', () => {
+  test.skip(
+    !process.env.OPENAI_API_KEY,
+    'needs OPENAI_API_KEY to reach the review',
+  );
+
+  test('shows the finished sentence as plain, copyable text', async ({
+    page,
+    context,
+  }) => {
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+
+    await page.getByTestId('compose').fill('The results were very big.');
+    await page.getByTestId('option-academic').click();
+    await expect(page.getByTestId('finished')).toBeVisible();
+
+    const shown = await page.getByTestId('finished-text').innerText();
+    expect(shown.length).toBeGreaterThan(0);
+
+    await page.getByTestId('copy').click();
+    await expect(page.getByTestId('copy')).toHaveText('Copied');
+
+    const clipboard = await page.evaluate(() => navigator.clipboard.readText());
+    expect(clipboard).toBe(shown);
+  });
+});
