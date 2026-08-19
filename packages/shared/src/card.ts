@@ -35,8 +35,11 @@ export const WordCard = z.object({
   synonyms: z.array(SynonymNuance).min(2).max(3),
   useCases: z.array(z.string()).length(2),
   register: Register,
-  /** One line. Not a panel — people read edit rationale twice and never again. */
-  whyHere: z.string(),
+  /**
+   * One line. Not a panel — people read edit rationale twice and never again.
+   * Null for a plain lookup, where no change was proposed to justify.
+   */
+  whyHere: z.string().nullable(),
 });
 export type WordCard = z.infer<typeof WordCard>;
 
@@ -89,7 +92,7 @@ export const ModelCard = z.object({
   synonyms: z.array(SynonymNuance).min(2).max(3),
   useCases: z.array(z.string()).length(2),
   register: Register,
-  whyHere: z.string(),
+  whyHere: z.string().nullable(),
   alternative: z.string().nullable(),
 });
 export type ModelCard = z.infer<typeof ModelCard>;
