@@ -1,7 +1,9 @@
 import {
   ApiError,
   CardResponse,
+  DictateResponse,
   ProposeResponse,
+  SpeakResponse,
   type CardRequest,
   type ProposeRequest,
   type TelemetryEvent,
@@ -28,6 +30,30 @@ const malformed: ApiError = {
   message: 'The server sent back something unexpected.',
 };
 
+/**
+ * The one place a response is turned into either a value or an ApiFailure.
+ *
+ * Shared by every caller below, including the one that uploads audio, so there
+ * stays exactly one `ApiError.safeParse` in this file. A second reader of
+ * failures is how the two drift apart and a real refusal starts arriving as
+ * "something unexpected".
+ */
+async function handle<T>(response: Response, schema: ZodType<T>): Promise<T> {
+  const payload: unknown = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    const parsed = ApiError.safeParse(payload);
+    throw new ApiFailure(parsed.success ? parsed.data : malformed);
+  }
+
+  // Validate on the way in, with the same schema the server built it from.
+  // A drifted contract fails here, loudly, rather than as a blank render.
+  const parsed = schema.safeParse(payload);
+  if (!parsed.success) throw new ApiFailure(malformed);
+
+  return parsed.data;
+}
+
 async function post<T>(
   path: string,
   body: unknown,
@@ -45,19 +71,19 @@ async function post<T>(
     throw new ApiFailure(unreachable);
   }
 
-  const payload: unknown = await response.json().catch(() => null);
+  return handle(response, schema);
+}
 
-  if (!response.ok) {
-    const parsed = ApiError.safeParse(payload);
-    throw new ApiFailure(parsed.success ? parsed.data : malformed);
+async function get<T>(path: string, schema: ZodType<T>): Promise<T> {
+  let response: Response;
+
+  try {
+    response = await fetch(`${BASE_URL}${path}`);
+  } catch {
+    throw new ApiFailure(unreachable);
   }
 
-  // Validate on the way in, with the same schema the server built it from.
-  // A drifted contract fails here, loudly, rather than as a blank render.
-  const parsed = schema.safeParse(payload);
-  if (!parsed.success) throw new ApiFailure(malformed);
-
-  return parsed.data;
+  return handle(response, schema);
 }
 
 export function propose(body: ProposeRequest): Promise<ProposeResponse> {
@@ -70,6 +96,38 @@ export function propose(body: ProposeRequest): Promise<ProposeResponse> {
  */
 export function fetchCard(body: CardRequest): Promise<CardResponse> {
   return post('/card', body, CardResponse);
+}
+
+/**
+ * Turns a recording into text, and nothing more.
+ *
+ * The only caller here that does not send JSON. `Content-Type` is deliberately
+ * unset: the browser has to write it itself, because only it knows the
+ * multipart boundary it just generated.
+ */
+export async function dictate(recording: Blob): Promise<DictateResponse> {
+  const body = new FormData();
+  body.append('audio', recording, 'recording');
+
+  let response: Response;
+
+  try {
+    response = await fetch(`${BASE_URL}/dictate`, { method: 'POST', body });
+  } catch {
+    throw new ApiFailure(unreachable);
+  }
+
+  return handle(response, DictateResponse);
+}
+
+/**
+ * Asks for a word to be said out loud.
+ *
+ * Only called for words the dictionary had no recording of — and a GET, so the
+ * browser keeps the answer and a second play costs nothing at all.
+ */
+export function speak(word: string): Promise<SpeakResponse> {
+  return get(`/speak/${encodeURIComponent(word)}`, SpeakResponse);
 }
 
 /**
