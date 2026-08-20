@@ -148,3 +148,55 @@ describe('WordCard non-ready states', () => {
     expect(onDismiss).toHaveBeenCalled();
   });
 });
+
+describe('WordCard saving a looked-up word', () => {
+  const LOOKUP = { ...CARD, replacement: null, alternative: null };
+
+  const setupLookup = (saved = false) => {
+    const handlers = {
+      onAccept: jest.fn(),
+      onReject: jest.fn(),
+      onSave: jest.fn(),
+      onDismiss: jest.fn(),
+    };
+    render(
+      <WordCard
+        state={{ status: 'ready', response: LOOKUP }}
+        saved={saved}
+        {...handlers}
+      />,
+    );
+    return { ...handlers, user: userEvent.setup() };
+  };
+
+  it('offers to save rather than banking on sight', async () => {
+    // Tapping a word is often just checking one you already know. Banking it
+    // automatically fills the bank with noise the reader never chose.
+    const { user, onSave } = setupLookup();
+    const save = screen.getByTestId('save');
+    expect(save).toHaveTextContent('Save to bank');
+
+    await user.click(save);
+    expect(onSave).toHaveBeenCalled();
+  });
+
+  it('shows it is already saved and stops offering', () => {
+    setupLookup(true);
+    const save = screen.getByTestId('save');
+    expect(save).toHaveTextContent('Saved');
+    expect(save).toBeDisabled();
+  });
+
+  it('offers no save on a grammar note, which is not vocabulary', () => {
+    render(
+      <WordCard
+        state={{ status: 'ready', response: { ...NOTE, replacement: null } }}
+        onAccept={jest.fn()}
+        onReject={jest.fn()}
+        onSave={jest.fn()}
+        onDismiss={jest.fn()}
+      />,
+    );
+    expect(screen.queryByTestId('save')).not.toBeInTheDocument();
+  });
+});

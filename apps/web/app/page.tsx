@@ -24,6 +24,8 @@ export default function Page() {
     reset,
     bankVersion,
     reused,
+    saved,
+    saveLookup,
   } = useReview();
 
   const bank = useBank(bankVersion);
@@ -67,8 +69,10 @@ export default function Page() {
             card ? (
               <WordCard
                 state={card}
+                saved={saved}
                 onAccept={accept}
                 onReject={reject}
+                onSave={() => void saveLookup()}
                 onDismiss={dismiss}
               />
             ) : null
@@ -80,7 +84,11 @@ export default function Page() {
         <FinishedText response={state.response} />
       )}
 
-      <BankPanel entries={bank.entries} count={bank.count} />
+      <BankPanel
+        entries={bank.entries}
+        count={bank.count}
+        onRemove={(id) => void bank.remove(id)}
+      />
     </main>
   );
 }
