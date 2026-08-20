@@ -1,10 +1,30 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useState } from 'react';
+import type { TransformOption } from '@auto-learn/shared';
 import { ComposePanel } from './compose-panel';
+
+/** The panel is controlled, so a test needs someone to hold the text. */
+function Harness({
+  onSubmit,
+}: {
+  onSubmit: (text: string, option: TransformOption) => void;
+}) {
+  const [text, setText] = useState('');
+
+  return (
+    <ComposePanel
+      text={text}
+      onTextChange={setText}
+      disabled={false}
+      onSubmit={onSubmit}
+    />
+  );
+}
 
 const setup = () => {
   const onSubmit = jest.fn();
-  render(<ComposePanel disabled={false} onSubmit={onSubmit} />);
+  render(<Harness onSubmit={onSubmit} />);
   return { onSubmit, user: userEvent.setup() };
 };
 
@@ -68,6 +88,48 @@ describe('ComposePanel', () => {
       'One. Two. Three. Four. Five.',
       'academic',
     );
+  });
+
+  /**
+   * The page unmounts this panel while a proposal is in flight and brings it
+   * back on failure, so a draft the panel owned itself returned empty — losing
+   * work on the one path where someone most needs it back. Over the cap it was
+   * worst: the refusal exists to teach you to send less, which it cannot do
+   * once the thing you were meant to trim is gone.
+   */
+  it('does not own the text, so a failed request cannot eat it', async () => {
+    const user = userEvent.setup();
+    const onSubmit = jest.fn();
+
+    // The parent holds the draft across the unmount the page performs.
+    function Page() {
+      const [text, setText] = useState('');
+      const [inFlight, setInFlight] = useState(false);
+
+      return (
+        <>
+          {!inFlight && (
+            <ComposePanel
+              text={text}
+              onTextChange={setText}
+              disabled={false}
+              onSubmit={() => setInFlight(true)}
+            />
+          )}
+          {inFlight && (
+            <button onClick={() => setInFlight(false)}>fail</button>
+          )}
+        </>
+      );
+    }
+
+    render(<Page />);
+    await user.type(screen.getByTestId('compose'), 'The results was good.');
+    await user.click(screen.getByTestId('option-academic'));
+    await user.click(screen.getByText('fail'));
+
+    expect(screen.getByTestId('compose')).toHaveValue('The results was good.');
+    expect(onSubmit).not.toHaveBeenCalled();
   });
 
   it('passes the chosen transform through', async () => {
