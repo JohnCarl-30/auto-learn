@@ -26,6 +26,8 @@ export default function Page() {
     reused,
     saved,
     saveLookup,
+    draft,
+    setDraft,
   } = useReview();
 
   const bank = useBank(bankVersion);
@@ -41,7 +43,12 @@ export default function Page() {
 
       {(state.status === 'idle' || state.status === 'error') && (
         <div className="space-y-6">
-          <ComposePanel disabled={false} onSubmit={submit} />
+          <ComposePanel
+            text={draft}
+            onTextChange={setDraft}
+            disabled={false}
+            onSubmit={submit}
+          />
           {state.status === 'error' && <Notice error={state.error} />}
         </div>
       )}

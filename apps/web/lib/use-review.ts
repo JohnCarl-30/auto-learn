@@ -32,6 +32,16 @@ const toApiError = (error: unknown): ApiError =>
 
 export function useReview() {
   const [state, setState] = useState<ReviewState>({ status: 'idle' });
+  /**
+   * The paste, held here rather than inside the compose panel.
+   *
+   * The panel unmounts while a proposal is in flight, so anything it owned
+   * itself came back empty when the request failed — losing work someone had
+   * just typed, on the one path where they most need it back. The over-cap
+   * refusal is the sharpest case: it exists to teach you to send less, which
+   * it cannot do if the thing you were meant to trim is gone.
+   */
+  const [draft, setDraft] = useState('');
   const [open, setOpen] = useState<OpenTarget | null>(null);
   const [card, setCard] = useState<CardState | null>(null);
   /** Bumped after every bank write so the bank view re-reads and grows. */
@@ -212,6 +222,9 @@ export function useReview() {
     setOpen(null);
     setCard(null);
     setReused([]);
+    // Start over is a deliberate request for a blank page; a failed request
+    // is not. Only the first clears the draft.
+    setDraft('');
     setState({ status: 'idle' });
   }, []);
 
@@ -219,6 +232,8 @@ export function useReview() {
     state,
     open,
     card,
+    draft,
+    setDraft,
     bankVersion,
     reused,
     saved,
