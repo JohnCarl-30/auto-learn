@@ -29,6 +29,8 @@ export const TelemetrySnapshot = z.object({
   cardsFailed: z.number().int(),
   notesOpened: z.number().int(),
   lookups: z.number().int(),
+  /** Whether anyone speaks rather than types. The only voice number worth keeping. */
+  dictations: z.number().int(),
   accepted: z.number().int(),
   rejected: z.number().int(),
   since: z.string(),

@@ -18,6 +18,7 @@ export class TelemetryService {
     cardsFailed: 0,
     notesOpened: 0,
     lookups: 0,
+    dictations: 0,
     accepted: 0,
     rejected: 0,
   };
@@ -52,6 +53,17 @@ export class TelemetryService {
 
   lookup(): void {
     this.counts.lookups += 1;
+  }
+
+  /**
+   * Someone spoke instead of typing. The one voice number worth keeping: it
+   * answers whether the feature is used at all, which is what decides if it
+   * earns more investment. Plays are not counted — most are served straight
+   * from the dictionary's own URLs and never reach us, so any figure here
+   * would undercount in a way that misleads rather than informs.
+   */
+  dictation(): void {
+    this.counts.dictations += 1;
   }
 
   accepted(): void {
