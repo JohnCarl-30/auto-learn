@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import {
   MAX_SENTENCES,
   TRANSFORM_LABELS,
@@ -12,15 +12,22 @@ import { Textarea } from '@/components/ui/textarea';
 
 const OPTIONS = TransformOption.options;
 
+/**
+ * Controlled on purpose. The page unmounts this panel while a proposal is in
+ * flight, so a draft owned here would not survive a failed request — see the
+ * note on `draft` in use-review.
+ */
 export function ComposePanel({
+  text,
+  onTextChange,
   disabled,
   onSubmit,
 }: {
+  text: string;
+  onTextChange: (text: string) => void;
   disabled: boolean;
   onSubmit: (text: string, option: TransformOption) => void;
 }) {
-  const [text, setText] = useState('');
-
   const count = useMemo(() => splitSentences(text).length, [text]);
   const overCap = count > MAX_SENTENCES;
   const empty = count === 0;
@@ -29,7 +36,7 @@ export function ComposePanel({
     <div className="space-y-4">
       <Textarea
         value={text}
-        onChange={(event) => setText(event.target.value)}
+        onChange={(event) => onTextChange(event.target.value)}
         placeholder="Paste one to three sentences you're unsure about."
         rows={5}
         className="resize-none text-base leading-relaxed"
