@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { Pronunciation } from './speech';
 
 export const PartOfSpeech = z.enum([
   'noun',
@@ -40,6 +41,8 @@ export const WordCard = z.object({
    * Null for a plain lookup, where no change was proposed to justify.
    */
   whyHere: z.string().nullable(),
+  /** How it sounds. Retrieved with the senses, not generated — see ModelCard. */
+  pronunciation: Pronunciation,
 });
 export type WordCard = z.infer<typeof WordCard>;
 
@@ -107,6 +110,12 @@ export const DictionarySense = z.object({
 });
 export type DictionarySense = z.infer<typeof DictionarySense>;
 
+/**
+ * Note what is absent: `pronunciation`. It is retrieved from the dictionary
+ * alongside the senses, never generated — a model asked to produce IPA will
+ * happily invent it, and invented pronunciation is the one error this product
+ * cannot afford, because the learner has no way to notice it.
+ */
 export const ModelCard = z.object({
   /** Must be one of the senseIds supplied in the prompt. */
   senseId: z.string(),
