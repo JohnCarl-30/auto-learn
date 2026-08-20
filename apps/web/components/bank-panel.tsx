@@ -9,9 +9,11 @@ import { Separator } from '@/components/ui/separator';
 export function BankPanel({
   entries,
   count,
+  onRemove,
 }: {
   entries: BankEntry[];
   count: number;
+  onRemove?: (id: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
 
@@ -77,6 +79,17 @@ export function BankPanel({
                   <Badge className="text-xs" data-testid="reused-badge">
                     used {entry.timesReused}×
                   </Badge>
+                )}
+                {onRemove && (
+                  <button
+                    type="button"
+                    data-testid="remove-word"
+                    aria-label={`Remove ${entry.word}`}
+                    onClick={() => onRemove(entry.id)}
+                    className="ml-auto text-xs text-muted-foreground hover:text-destructive"
+                  >
+                    Remove
+                  </button>
                 )}
               </div>
               <p className="text-sm text-muted-foreground">{entry.definition}</p>
