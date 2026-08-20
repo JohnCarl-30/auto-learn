@@ -14,13 +14,18 @@ export type CardState =
 
 export function WordCard({
   state,
+  saved = false,
   onAccept,
   onReject,
+  onSave,
   onDismiss,
 }: {
   state: CardState;
+  /** True once a looked-up word has been added to the bank. */
+  saved?: boolean;
   onAccept: (replacement: string) => void;
   onReject: () => void;
+  onSave?: () => void;
   onDismiss: () => void;
 }) {
   if (state.status === 'loading') {
@@ -93,9 +98,27 @@ export function WordCard({
               )}
             </>
           ) : (
-            <Button size="sm" variant="ghost" onClick={onDismiss}>
-              Close
-            </Button>
+            <>
+              {/*
+                A looked-up word banks only on request. Tapping is often just
+                checking a word you already know, and the bank is the
+                retention mechanic — its contents have to be chosen.
+              */}
+              {response.kind === 'card' && onSave && (
+                <Button
+                  size="sm"
+                  variant={saved ? 'ghost' : 'default'}
+                  data-testid="save"
+                  disabled={saved}
+                  onClick={onSave}
+                >
+                  {saved ? 'Saved' : 'Save to bank'}
+                </Button>
+              )}
+              <Button size="sm" variant="ghost" onClick={onDismiss}>
+                Close
+              </Button>
+            </>
           )}
         </div>
       </CardContent>
