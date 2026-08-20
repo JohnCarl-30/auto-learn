@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { BankEntry } from '@auto-learn/shared';
-import { countBank, listBank } from './bank';
+import { countBank, listBank, removeWord } from './bank';
 
 /**
  * Reads the bank, re-reading whenever `version` changes — the review hook
@@ -15,6 +15,8 @@ import { countBank, listBank } from './bank';
 export function useBank(version: number) {
   const [entries, setEntries] = useState<BankEntry[]>([]);
   const [count, setCount] = useState(0);
+  /** Bumped by this hook's own mutations, so a delete re-reads immediately. */
+  const [ownVersion, setOwnVersion] = useState(0);
 
   useEffect(() => {
     // IndexedDB does not exist during SSR.
@@ -32,7 +34,12 @@ export function useBank(version: number) {
     return () => {
       live = false;
     };
-  }, [version]);
+  }, [version, ownVersion]);
 
-  return { entries, count };
+  const remove = useCallback(async (id: string) => {
+    await removeWord(id);
+    setOwnVersion((v) => v + 1);
+  }, []);
+
+  return { entries, count, remove };
 }
