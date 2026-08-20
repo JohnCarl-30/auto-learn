@@ -1,7 +1,19 @@
-import { render, screen } from '@testing-library/react';
+jest.mock('../lib/api', () => ({ speak: jest.fn() }));
+jest.mock('../lib/audio', () => ({
+  playAudio: jest.fn(),
+  synthesisedSrc: (r: { mediaType: string; audio: string }) =>
+    `data:${r.mediaType};base64,${r.audio}`,
+}));
+
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { CardResponse } from '@auto-learn/shared';
+import { speak } from '../lib/api';
+import { playAudio } from '../lib/audio';
 import { WordCard, type CardState } from './word-card';
+
+const asks = speak as jest.Mock;
+const plays = playAudio as jest.Mock;
 
 const CARD: CardResponse = {
   kind: 'card',
@@ -21,6 +33,10 @@ const CARD: CardResponse = {
     ],
     register: 'formal',
     whyHere: 'Precise where "very big" only sounds emphatic.',
+    pronunciation: {
+      ipa: '/səbˈstænʃəl/',
+      audioUrl: 'https://api.dictionaryapi.dev/media/substantial-us.mp3',
+    },
   },
   replacement: 'substantial',
   alternative: 'considerable',
@@ -198,5 +214,127 @@ describe('WordCard saving a looked-up word', () => {
       />,
     );
     expect(screen.queryByTestId('save')).not.toBeInTheDocument();
+  });
+
+  describe('hearing the word', () => {
+    beforeEach(() => {
+      asks.mockReset();
+      plays.mockReset();
+      plays.mockResolvedValue(undefined);
+    });
+
+    it('shows how the word is written out in sound', () => {
+      setup({ status: 'ready', response: CARD });
+
+      expect(screen.getByTestId('ipa')).toHaveTextContent('/səbˈstænʃəl/');
+    });
+
+    /**
+     * The free path, and the one that must not cost anything. When the
+     * dictionary already had a recording, asking the server to synthesise one
+     * would be paying for audio we were given.
+     */
+    it('plays the recording the dictionary had, without asking the server', async () => {
+      const { user } = setup({ status: 'ready', response: CARD });
+
+      await user.click(screen.getByTestId('pronounce'));
+
+      expect(plays).toHaveBeenCalledWith(
+        'https://api.dictionaryapi.dev/media/substantial-us.mp3',
+      );
+      expect(asks).not.toHaveBeenCalled();
+    });
+
+    it('synthesises only when nobody recorded the word', async () => {
+      asks.mockResolvedValue({
+        word: 'substantial',
+        audio: 'bGlzdGVu',
+        mediaType: 'audio/mpeg',
+      });
+
+      const { user } = setup({
+        status: 'ready',
+        response: {
+          ...CARD,
+          card: {
+            ...CARD.card,
+            pronunciation: { ipa: '/səbˈstænʃəl/', audioUrl: null },
+          },
+        } as CardResponse,
+      });
+
+      await user.click(screen.getByTestId('pronounce'));
+
+      await waitFor(() =>
+        expect(plays).toHaveBeenCalledWith('data:audio/mpeg;base64,bGlzdGVu'),
+      );
+      expect(asks).toHaveBeenCalledWith('substantial');
+    });
+
+    it('does not pay twice to replay the same word', async () => {
+      asks.mockResolvedValue({
+        word: 'substantial',
+        audio: 'bGlzdGVu',
+        mediaType: 'audio/mpeg',
+      });
+
+      const { user } = setup({
+        status: 'ready',
+        response: {
+          ...CARD,
+          card: { ...CARD.card, pronunciation: { ipa: null, audioUrl: null } },
+        } as CardResponse,
+      });
+
+      await user.click(screen.getByTestId('pronounce'));
+      await waitFor(() => expect(plays).toHaveBeenCalledTimes(1));
+      await user.click(screen.getByTestId('pronounce'));
+
+      await waitFor(() => expect(plays).toHaveBeenCalledTimes(2));
+      expect(asks).toHaveBeenCalledTimes(1);
+    });
+
+    /**
+     * A dictionary URL can be dead, or in a codec this browser will not take.
+     * Falling through to synthesis means a broken link costs one silent
+     * attempt rather than the feature.
+     */
+    it('synthesises when the recording will not play', async () => {
+      plays.mockRejectedValueOnce(new Error('no codec'));
+      asks.mockResolvedValue({
+        word: 'substantial',
+        audio: 'bGlzdGVu',
+        mediaType: 'audio/mpeg',
+      });
+
+      const { user } = setup({ status: 'ready', response: CARD });
+
+      await user.click(screen.getByTestId('pronounce'));
+
+      await waitFor(() => expect(asks).toHaveBeenCalledWith('substantial'));
+    });
+
+    it('says so rather than going quiet when it cannot play at all', async () => {
+      asks.mockRejectedValue(new Error('down'));
+
+      const { user } = setup({
+        status: 'ready',
+        response: {
+          ...CARD,
+          card: { ...CARD.card, pronunciation: { ipa: null, audioUrl: null } },
+        } as CardResponse,
+      });
+
+      await user.click(screen.getByTestId('pronounce'));
+
+      expect(await screen.findByText(/Couldn't play that/)).toBeInTheDocument();
+    });
+
+    it('leaves no pronunciation controls on a grammar note', () => {
+      setup({ status: 'ready', response: NOTE });
+
+      expect(screen.queryByTestId('pronounce')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('ipa')).not.toBeInTheDocument();
+    });
   });
 });
