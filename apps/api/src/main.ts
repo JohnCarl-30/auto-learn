@@ -1,5 +1,6 @@
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 
 /**
@@ -20,10 +21,17 @@ function checkApiKey(logger: Logger): void {
 }
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
   const logger = new Logger('Bootstrap');
 
   checkApiKey(logger);
+
+  // Rate limiting keys on the client IP, and behind a hosted load balancer
+  // every request arrives carrying the proxy's address instead — which would
+  // make one caller's burst exhaust the limit for everybody. One hop, because
+  // trusting the whole chain lets a client name its own address in
+  // X-Forwarded-For and step around the limit entirely.
+  app.set('trust proxy', 1);
 
   app.enableCors({
     origin: process.env.WEB_ORIGIN ?? 'http://localhost:3000',
