@@ -3,6 +3,7 @@ jest.mock('ai', () => ({ generateObject: jest.fn() }));
 jest.mock('@ai-sdk/openai', () => ({ openai: jest.fn() }));
 
 import { INestApplication } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import type { ApiError, TelemetrySnapshot } from '@auto-learn/shared';
@@ -17,6 +18,11 @@ import { AppModule } from './app.module';
  * checked by a browser, which was far more machinery than the job needs.
  *
  * Nothing here reaches the model, so no key is required.
+ *
+ * Rate limiting is switched off for these: they fire enough requests from one
+ * address to matter, and coupling this file's request count to the limits would
+ * mean a new test here failing somewhere else for no readable reason. The limits
+ * have their own spec.
  */
 describe('HTTP surface', () => {
   let app: INestApplication;
@@ -24,7 +30,10 @@ describe('HTTP surface', () => {
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
-    }).compile();
+    })
+      .overrideProvider(APP_GUARD)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     app = moduleRef.createNestApplication();
     await app.init();
