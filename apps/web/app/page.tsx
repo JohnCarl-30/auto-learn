@@ -1,12 +1,13 @@
 'use client';
 
-import type { ApiError, ApiErrorCode, BankEntry } from '@auto-learn/shared';
+import type { BankEntry } from '@auto-learn/shared';
 import { ComposePanel } from '@/components/compose-panel';
 import { ReviewPanel } from '@/components/review-panel';
 import { WordCard } from '@/components/word-card';
 import { BankPanel } from '@/components/bank-panel';
 import { FinishedText } from '@/components/finished-text';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { ApiNotice } from '@/components/notice';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useReview } from '@/lib/use-review';
 import { useBank } from '@/lib/use-bank';
@@ -53,7 +54,7 @@ export default function Page() {
             disabled={false}
             onSubmit={submit}
           />
-          {state.status === 'error' && <Notice error={state.error} />}
+          {state.status === 'error' && <ApiNotice error={state.error} />}
         </div>
       )}
 
@@ -130,36 +131,6 @@ function ReuseNotice({ entries }: { entries: BankEntry[] }) {
           You looked it up on {when(entries[0])}.
         </span>
       )}
-    </div>
-  );
-}
-
-/**
- * Refusals that are not failures.
- *
- * An over-cap paste is the product explaining its workflow, and a refused burst
- * is "wait a moment" — neither is the red treatment that means something broke.
- * Everything else keeps it.
- */
-const GUIDANCE: Partial<Record<ApiErrorCode, string>> = {
-  too_many_sentences: 'cap-notice',
-  rate_limited: 'wait-notice',
-};
-
-function Notice({ error }: { error: ApiError }) {
-  const guidance = GUIDANCE[error.code];
-
-  return (
-    <div
-      role="status"
-      data-testid={guidance ?? 'error-notice'}
-      className={
-        guidance
-          ? 'rounded-md border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm'
-          : 'rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive'
-      }
-    >
-      {error.message}
     </div>
   );
 }
