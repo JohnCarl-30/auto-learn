@@ -1,6 +1,6 @@
 'use client';
 
-import type { ApiError, BankEntry } from '@auto-learn/shared';
+import type { ApiError, ApiErrorCode, BankEntry } from '@auto-learn/shared';
 import { ComposePanel } from '@/components/compose-panel';
 import { ReviewPanel } from '@/components/review-panel';
 import { WordCard } from '@/components/word-card';
@@ -130,14 +130,25 @@ function ReuseNotice({ entries }: { entries: BankEntry[] }) {
   );
 }
 
+/**
+ * Refusals that are not failures.
+ *
+ * An over-cap paste is the product explaining its workflow, and a refused burst
+ * is "wait a moment" — neither is the red treatment that means something broke.
+ * Everything else keeps it.
+ */
+const GUIDANCE: Partial<Record<ApiErrorCode, string>> = {
+  too_many_sentences: 'cap-notice',
+  rate_limited: 'wait-notice',
+};
+
 function Notice({ error }: { error: ApiError }) {
-  // An over-cap paste is the product explaining its workflow, not a failure.
-  const guidance = error.code === 'too_many_sentences';
+  const guidance = GUIDANCE[error.code];
 
   return (
     <div
       role="status"
-      data-testid={guidance ? 'cap-notice' : 'error-notice'}
+      data-testid={guidance ?? 'error-notice'}
       className={
         guidance
           ? 'rounded-md border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm'
