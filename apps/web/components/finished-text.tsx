@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import type { ProposeResponse } from '@auto-learn/shared';
 import { Button } from '@/components/ui/button';
 
@@ -13,25 +13,17 @@ import { Button } from '@/components/ui/button';
  * plain, copyable prose.
  */
 export function FinishedText({ response }: { response: ProposeResponse }) {
-  const [copied, setCopied] = useState(false);
-
   const text = response.sentences.map((sentence) => sentence.text).join(' ');
-
-  useEffect(() => {
-    if (!copied) return;
-    const timer = setTimeout(() => setCopied(false), 2000);
-    return () => clearTimeout(timer);
-  }, [copied]);
 
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(text);
-      setCopied(true);
+      toast.success('Copied');
     } catch {
       // Clipboard can be blocked by permissions or an insecure context. The
-      // text is visible and selectable regardless, so this is recoverable
-      // without an error message.
-      setCopied(false);
+      // failure used to be silent, which reads as a dead button — say what
+      // happened, and point at the way out that always works.
+      toast.error('Could not copy. Select the text and copy it yourself.');
     }
   };
 
@@ -41,8 +33,13 @@ export function FinishedText({ response }: { response: ProposeResponse }) {
         <h2 className="text-sm font-medium text-muted-foreground">
           Your sentence
         </h2>
-        <Button size="sm" variant="outline" data-testid="copy" onClick={copy}>
-          {copied ? 'Copied' : 'Copy'}
+        <Button
+          size="sm"
+          variant="outline"
+          data-testid="copy"
+          onClick={() => void copy()}
+        >
+          Copy
         </Button>
       </div>
 

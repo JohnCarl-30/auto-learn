@@ -9,6 +9,7 @@ import {
   type ProposeResponse,
   type TransformOption,
 } from '@auto-learn/shared';
+import { toast } from 'sonner';
 import { ApiFailure, fetchCard, propose, reportEvent } from './api';
 import { bankWord, recordReuse } from './bank';
 import type { CardState } from '@/components/word-card';
@@ -146,6 +147,7 @@ export function useReview() {
     await bankWord(card.response.card, sentenceText, 'tapped');
     setBankVersion((v) => v + 1);
     setSaved(true);
+    toast.success(`Saved ${card.response.card.word} to your bank`);
   }, [card, open, state]);
 
   const dismiss = useCallback(() => {
@@ -168,9 +170,13 @@ export function useReview() {
       reportEvent('suggestion_accepted');
 
       if (card?.status === 'ready' && card.response.kind === 'card') {
-        void bankWord(card.response.card, sentenceText, 'accepted').then(() =>
-          setBankVersion((v) => v + 1),
-        );
+        const { word } = card.response.card;
+        void bankWord(card.response.card, sentenceText, 'accepted').then(() => {
+          setBankVersion((v) => v + 1);
+          // Accepting banks the word silently; the only sign was a number
+          // ticking up far below the fold.
+          toast.success(`Saved ${word} to your bank`);
+        });
       }
 
       setState((current) => {
