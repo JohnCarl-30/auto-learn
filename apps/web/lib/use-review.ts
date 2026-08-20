@@ -38,6 +38,8 @@ export function useReview() {
   const [bankVersion, setBankVersion] = useState(0);
   /** Banked words the writer just used again, unprompted. */
   const [reused, setReused] = useState<BankEntry[]>([]);
+  /** Whether the open lookup card has been saved to the bank. */
+  const [saved, setSaved] = useState(false);
 
   const submit = useCallback(
     async (text: string, option: TransformOption) => {
@@ -72,24 +74,19 @@ export function useReview() {
   }, []);
 
   const load = useCallback(
-    async (
-      target: OpenTarget,
-      request: Parameters<typeof fetchCard>[0],
-      sentenceText: string,
-    ) => {
+    async (target: OpenTarget, request: Parameters<typeof fetchCard>[0]) => {
       setOpen(target);
+      setSaved(false);
       setCard({ status: 'loading' });
       try {
         const response = await fetchCard(request);
         setCard({ status: 'ready', response });
 
-        // Looking a word up is a deliberate act, so it banks on sight. A gate
-        // does not — accepting it does, below. Grammar notes never bank:
-        // a corrected verb is not vocabulary you learned.
-        if (response.kind === 'card' && target.suggestionId === null) {
-          await bankWord(response.card, sentenceText, 'tapped');
-          setBankVersion((v) => v + 1);
-        }
+        // Deliberately does *not* bank here. Tapping a word is often just
+        // checking one you already know, and an auto-banked word you cannot
+        // undo fills the bank with noise — the bank is the retention
+        // mechanic, so its contents have to be words you chose.
+        // Accepting a gate banks (below); a lookup banks only if you say so.
       } catch (error) {
         setCard({ status: 'error', error: toApiError(error) });
       }
@@ -107,7 +104,6 @@ export function useReview() {
           sessionId: state.response.sessionId,
           suggestionId,
         },
-        state.response.sentences[sentenceIndex]?.text ?? '',
       );
     },
     [load, state],
@@ -124,15 +120,28 @@ export function useReview() {
           sentenceIndex,
           word,
         },
-        state.response.sentences[sentenceIndex]?.text ?? '',
       );
     },
     [load, state],
   );
 
+  /** Banks a word the reader looked up and decided was worth keeping. */
+  const saveLookup = useCallback(async () => {
+    if (card?.status !== 'ready' || card.response.kind !== 'card') return;
+    if (state.status !== 'reviewing' || !open) return;
+
+    const sentenceText =
+      state.response.sentences[open.sentenceIndex]?.text ?? '';
+
+    await bankWord(card.response.card, sentenceText, 'tapped');
+    setBankVersion((v) => v + 1);
+    setSaved(true);
+  }, [card, open, state]);
+
   const dismiss = useCallback(() => {
     setOpen(null);
     setCard(null);
+    setSaved(false);
   }, []);
 
   /** Splices the accepted wording in and drops the marker. */
@@ -212,6 +221,8 @@ export function useReview() {
     card,
     bankVersion,
     reused,
+    saved,
+    saveLookup,
     submit,
     focus,
     openGate,

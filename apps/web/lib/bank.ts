@@ -123,3 +123,15 @@ export async function recordReuse(text: string): Promise<BankEntry[]> {
   const updated = await Promise.all(hits.map((entry) => markReused(entry.id)));
   return updated.filter((entry): entry is BankEntry => entry !== null);
 }
+
+/** Removes a word banked by mistake. */
+export async function removeWord(id: string): Promise<void> {
+  const db = await connect();
+  await db.delete(STORE, id);
+}
+
+/** Whether a word is already banked, so the UI can say "Saved" rather than offer it again. */
+export async function isBanked(lemma: string, senseId: string): Promise<boolean> {
+  const db = await connect();
+  return (await db.get(STORE, entryId(lemma, senseId))) !== undefined;
+}

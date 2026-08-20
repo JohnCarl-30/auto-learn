@@ -94,3 +94,45 @@ describe('BankPanel account prompt', () => {
     );
   });
 });
+
+describe('BankPanel removing a word', () => {
+  it('offers a way out of a word banked by mistake', async () => {
+    const user = userEvent.setup();
+    const onRemove = jest.fn();
+    render(
+      <BankPanel
+        entries={[entry('substantial')]}
+        count={1}
+        onRemove={onRemove}
+      />,
+    );
+    await user.click(screen.getByTestId('bank-toggle'));
+    await user.click(screen.getByTestId('remove-word'));
+
+    expect(onRemove).toHaveBeenCalledWith('substantial:s1');
+  });
+
+  it('labels each remove button with its word', async () => {
+    const user = userEvent.setup();
+    render(
+      <BankPanel
+        entries={[entry('substantial'), entry('nonetheless')]}
+        count={2}
+        onRemove={jest.fn()}
+      />,
+    );
+    await user.click(screen.getByTestId('bank-toggle'));
+
+    expect(
+      screen.getByRole('button', { name: 'Remove substantial' }),
+    ).toBeInTheDocument();
+  });
+
+  it('shows no remove control when removal is not offered', async () => {
+    const user = userEvent.setup();
+    render(<BankPanel entries={[entry('substantial')]} count={1} />);
+    await user.click(screen.getByTestId('bank-toggle'));
+
+    expect(screen.queryByTestId('remove-word')).not.toBeInTheDocument();
+  });
+});
