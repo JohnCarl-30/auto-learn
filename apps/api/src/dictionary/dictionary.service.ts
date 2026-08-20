@@ -1,12 +1,21 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { LRUCache } from 'lru-cache';
-import type { DictionarySense } from '@auto-learn/shared';
+import type { DictionarySense, Pronunciation } from '@auto-learn/shared';
+import { pickPronunciation, type PhoneticSource } from './phonetics';
 
 export interface RetrievedWord {
   word: string;
   senses: DictionarySense[];
   synonyms: string[];
+  /**
+   * Rides along with the senses at no cost — Free Dictionary returns it in the
+   * same response we were already making, and we were discarding it. No extra
+   * request, no extra latency, and the cache below covers it for free.
+   */
+  pronunciation: Pronunciation;
 }
+
+const NOTHING_HEARD: Pronunciation = { ipa: null, audioUrl: null };
 
 const DICTIONARY_URL = 'https://api.dictionaryapi.dev/api/v2/entries/en';
 const DATAMUSE_URL = 'https://api.datamuse.com/words';
@@ -38,12 +47,20 @@ export class DictionaryService {
     const cached = this.cache.get(key);
     if (cached !== undefined) return cached.value;
 
-    const [senses, synonyms] = await Promise.all([
-      this.fetchSenses(key),
+    const [entry, synonyms] = await Promise.all([
+      this.fetchEntry(key),
       this.fetchSynonyms(key),
     ]);
 
-    const result = senses.length > 0 ? { word: key, senses, synonyms } : null;
+    const result =
+      entry.senses.length > 0
+        ? {
+            word: key,
+            senses: entry.senses,
+            synonyms,
+            pronunciation: entry.pronunciation,
+          }
+        : null;
     this.cache.set(key, { value: result });
     return result;
   }
@@ -55,18 +72,24 @@ export class DictionaryService {
    * senses and paraphrase it, rather than to invent a definition or to parrot
    * this text back.
    */
-  private async fetchSenses(word: string): Promise<DictionarySense[]> {
+  private async fetchEntry(
+    word: string,
+  ): Promise<{ senses: DictionarySense[]; pronunciation: Pronunciation }> {
     try {
       const response = await fetch(
         `${DICTIONARY_URL}/${encodeURIComponent(word)}`,
         { signal: AbortSignal.timeout(2_500) },
       );
 
-      // 404 is the ordinary "no entry" answer here, not a failure.
-      if (!response.ok) return [];
+      // 404 is the ordinary "no entry" answer here, not a failure. So is a
+      // 502, which this API returns intermittently — and which arrives as
+      // plain text, so parsing it as JSON would throw rather than degrade.
+      if (!response.ok) return { senses: [], pronunciation: NOTHING_HEARD };
 
       const payload = (await response.json()) as DictionaryApiEntry[];
-      if (!Array.isArray(payload)) return [];
+      if (!Array.isArray(payload)) {
+        return { senses: [], pronunciation: NOTHING_HEARD };
+      }
 
       const senses: DictionarySense[] = [];
       for (const entry of payload) {
@@ -83,12 +106,15 @@ export class DictionaryService {
         }
       }
 
-      // A long tail of near-duplicate archaic senses only makes the choice
-      // harder and the prompt more expensive.
-      return senses.slice(0, 12);
+      return {
+        // A long tail of near-duplicate archaic senses only makes the choice
+        // harder and the prompt more expensive.
+        senses: senses.slice(0, 12),
+        pronunciation: pickPronunciation(payload),
+      };
     } catch (error) {
       this.logger.warn(`dictionary lookup failed for "${word}"`, error);
-      return [];
+      return { senses: [], pronunciation: NOTHING_HEARD };
     }
   }
 
@@ -113,7 +139,7 @@ export class DictionaryService {
   }
 }
 
-interface DictionaryApiEntry {
+interface DictionaryApiEntry extends PhoneticSource {
   meanings?: Array<{
     partOfSpeech?: string;
     definitions?: Array<{ definition?: string; example?: string }>;

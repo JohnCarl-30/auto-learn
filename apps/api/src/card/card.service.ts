@@ -143,6 +143,10 @@ export class CardService {
         useCases: generated.useCases,
         register: generated.register,
         whyHere: target.kind === 'lookup' ? null : generated.whyHere,
+        // Word-derived, not request-derived — so unlike `replacement` below,
+        // this is safe to keep on the cached variant and needs no re-stitching
+        // when the next reader meets the same word in a different sentence.
+        pronunciation: retrieved.pronunciation,
       },
       replacement: target.replacement,
       alternative: generated.alternative,
