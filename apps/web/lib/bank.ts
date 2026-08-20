@@ -130,6 +130,18 @@ export async function removeWord(id: string): Promise<void> {
   await db.delete(STORE, id);
 }
 
+/**
+ * Puts a removed word back exactly as it was.
+ *
+ * Deliberately not `bankWord`, which would mint a fresh `addedAt` and reset
+ * `timesReused` — undoing a mistaken tap should not cost someone the evidence
+ * that they have used the word three times since.
+ */
+export async function restoreWord(entry: BankEntry): Promise<void> {
+  const db = await connect();
+  await db.put(STORE, entry);
+}
+
 /** Whether a word is already banked, so the UI can say "Saved" rather than offer it again. */
 export async function isBanked(lemma: string, senseId: string): Promise<boolean> {
   const db = await connect();

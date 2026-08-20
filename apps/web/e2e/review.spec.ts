@@ -111,7 +111,8 @@ test.describe('leaving with the text', () => {
 
     const shown = await page.getByTestId('finished-text').innerText();
     await page.getByTestId('copy').click();
-    await expect(page.getByTestId('copy')).toHaveText('Copied');
+    // The confirmation is a toast now, not a label swap on the button.
+    await expect(page.getByText('Copied')).toBeVisible();
 
     const clipboard = await page.evaluate(() => navigator.clipboard.readText());
     expect(clipboard).toBe(shown);

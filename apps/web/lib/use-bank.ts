@@ -1,8 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import type { BankEntry } from '@auto-learn/shared';
-import { countBank, listBank, removeWord } from './bank';
+import { countBank, listBank, removeWord, restoreWord } from './bank';
 
 /**
  * Reads the bank, re-reading whenever `version` changes — the review hook
@@ -36,10 +37,32 @@ export function useBank(version: number) {
     };
   }, [version, ownVersion]);
 
-  const remove = useCallback(async (id: string) => {
-    await removeWord(id);
-    setOwnVersion((v) => v + 1);
-  }, []);
+  /**
+   * Removing is the one destructive act in the product, and the bank row simply
+   * vanished — no confirmation, nothing to reach for if it was the wrong row.
+   * The undo lives here rather than at the call site so it cannot drift from
+   * the delete it reverses.
+   */
+  const remove = useCallback(
+    async (id: string) => {
+      const entry = entries.find((candidate) => candidate.id === id);
+
+      await removeWord(id);
+      setOwnVersion((v) => v + 1);
+
+      if (!entry) return;
+
+      toast(`Removed ${entry.word}`, {
+        action: {
+          label: 'Undo',
+          onClick: () => {
+            void restoreWord(entry).then(() => setOwnVersion((v) => v + 1));
+          },
+        },
+      });
+    },
+    [entries],
+  );
 
   return { entries, count, remove };
 }
