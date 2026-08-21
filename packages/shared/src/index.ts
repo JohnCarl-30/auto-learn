@@ -9,3 +9,4 @@ export * from './apply';
 export * from './reuse';
 export * from './telemetry';
 export * from './text';
+export * from './diff';
