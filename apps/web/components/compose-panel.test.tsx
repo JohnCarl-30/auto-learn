@@ -140,3 +140,45 @@ describe('ComposePanel', () => {
     expect(onSubmit).toHaveBeenCalledWith('A sentence.', 'clearer');
   });
 });
+
+/**
+ * A blank textarea and four verbs is everything a first-time visitor is given.
+ */
+describe('ComposePanel with an empty box', () => {
+  it('offers sentences to start from', () => {
+    setup();
+    expect(screen.getAllByTestId('example').length).toBeGreaterThan(0);
+  });
+
+  /**
+   * Filling the box, not submitting it: choosing a transform is the one thing
+   * a newcomer has to understand, and submitting for them skips it.
+   */
+  it('fills the box from an example without spending a request', async () => {
+    const { user, onSubmit } = setup();
+    const example = screen.getAllByTestId('example')[0];
+    const sentence = example.textContent ?? '';
+
+    await user.click(example);
+
+    expect(screen.getByTestId('compose')).toHaveValue(sentence);
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it('gets out of the way once there is something to work on', async () => {
+    const { user } = setup();
+    await user.click(screen.getAllByTestId('example')[0]);
+
+    expect(screen.queryByTestId('examples')).not.toBeInTheDocument();
+  });
+
+  it('says what each transform does, not just what it is called', () => {
+    setup();
+    expect(screen.getByTestId('option-clearer')).toHaveTextContent(
+      'Untangles sentences that fight themselves.',
+    );
+    expect(screen.getByTestId('option-grammar')).toHaveTextContent(
+      'Only what is actually wrong.',
+    );
+  });
+});
