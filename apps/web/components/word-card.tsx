@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import { curlyQuotes, type ApiError, type CardResponse } from '@auto-learn/shared';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -28,6 +29,8 @@ export function WordCard({
   onSave?: () => void;
   onDismiss: () => void;
 }) {
+  useEscapeToDismiss(onDismiss);
+
   if (state.status === 'loading') {
     return (
       <Card>
@@ -124,6 +127,27 @@ export function WordCard({
       </CardContent>
     </Card>
   );
+}
+
+/**
+ * Escape closes the card.
+ *
+ * The card is the only thing in the product that opens over what you were
+ * reading, and until now the way out was a button that is not always there —
+ * a gate offers "Use it" and "Keep mine", neither of which is "not now". The
+ * keyboard needed an exit that does not depend on which card you got.
+ */
+function useEscapeToDismiss(onDismiss: () => void) {
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      onDismiss();
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [onDismiss]);
 }
 
 function CardBody({
