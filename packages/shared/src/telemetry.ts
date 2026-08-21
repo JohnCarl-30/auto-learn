@@ -4,7 +4,7 @@ import { z } from 'zod';
  * Three questions decide what v2 is, and nothing else here is worth counting:
  *
  *   1. Do people arrive with essays?      -> overflowAttempts
- *   2. Do they engage the gate at all?    -> cardsOpened / proposals
+ *   2. Do they engage the gate at all?    -> cardsDelivered / proposals
  *   3. Do they take the suggestions?      -> accepted vs rejected
  *
  * Accept and reject happen in the browser, so the client reports those two.
