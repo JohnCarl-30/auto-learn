@@ -61,14 +61,40 @@ export function ReviewPanel({
 
           return (
             <div key={sentence.index} className="space-y-4">
+              {/*
+                The unfocused sentence was a bare clickable div — the one
+                mouse-only control in a flow where every gate and every word is
+                a real button. Its own buttons are disabled while it is dimmed,
+                so they cannot be tabbed to either, which left a keyboard user
+                unable to reach any sentence but the first.
+
+                A wrapping <button> is not available: the sentence contains
+                buttons, and nesting them is invalid. Hence the role, the tab
+                stop and the key handler. The sentence text is the accessible
+                name, which is what should be announced.
+              */}
               <div
+                role={isFocused ? undefined : 'button'}
+                tabIndex={isFocused ? undefined : 0}
+                data-testid={isFocused ? undefined : 'focus-sentence'}
                 className={cn(
-                  'transition-opacity',
+                  'rounded-sm transition-opacity outline-none',
+                  'focus-visible:ring-ring focus-visible:ring-2 focus-visible:ring-offset-2',
                   isFocused
                     ? 'opacity-100'
                     : 'cursor-pointer opacity-40 hover:opacity-70',
                 )}
                 onClick={isFocused ? undefined : () => onFocus(index)}
+                onKeyDown={
+                  isFocused
+                    ? undefined
+                    : (event) => {
+                        // Enter and Space, because that is what a button does.
+                        if (event.key !== 'Enter' && event.key !== ' ') return;
+                        event.preventDefault();
+                        onFocus(index);
+                      }
+                }
               >
                 <SentenceView
                   sentence={sentence}
