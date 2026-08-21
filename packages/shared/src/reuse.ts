@@ -31,6 +31,35 @@ export function findReused(
 }
 
 /**
+ * Blanks a banked word out of the sentence it was learned in.
+ *
+ * A recall drill needs the context without the answer, and the context is the
+ * writer's own sentence — the memory hook the bank was built around. Matching
+ * reuses the same conservative inflection set as `findReused`, so a word
+ * banked as "study" is still hidden where the sentence says "studied".
+ *
+ * Punctuation attached to the word is kept: masking "big," to "_____" loses a
+ * comma the reader needs to parse the sentence.
+ */
+export function maskLemma(text: string, lemma: string, mask = '_____'): string {
+  const base = lemma.toLowerCase();
+  const forms = new Set([base, ...inflectionsOf(base)]);
+
+  // Splitting on a captured separator keeps the whitespace as tokens, so the
+  // sentence comes back out spaced exactly as it went in.
+  return text
+    .split(/(\s+)/)
+    .map((token) => {
+      const bare = bareWord(token);
+      if (!bare || !forms.has(bare.toLowerCase())) return token;
+
+      const start = token.indexOf(bare);
+      return token.slice(0, start) + mask + token.slice(start + bare.length);
+    })
+    .join('');
+}
+
+/**
  * A small, closed set of regular English inflections.
  *
  * Not a stemmer on purpose: an aggressive stemmer matches "substance" to
