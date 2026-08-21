@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo, useSyncExternalStore } from 'react';
 import {
   MAX_SENTENCES,
   TRANSFORM_HINTS,
@@ -12,6 +12,57 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 
 const OPTIONS = TransformOption.options;
+
+/** The last transform run, so the keyboard has something to repeat. */
+const LAST_OPTION_KEY = 'auto-learn:last-transform';
+
+/*
+  Read as an external store rather than copied into state: the server cannot
+  know it, so an initial value would be a hydration mismatch. Same shape as the
+  bank panel's expanded flag.
+*/
+const listeners = new Set<() => void>();
+
+function subscribeToLastOption(listener: () => void): () => void {
+  listeners.add(listener);
+  window.addEventListener('storage', listener);
+
+  return () => {
+    listeners.delete(listener);
+    window.removeEventListener('storage', listener);
+  };
+}
+
+function readLastOption(): TransformOption | null {
+  const stored = window.localStorage.getItem(LAST_OPTION_KEY);
+  const parsed = TransformOption.safeParse(stored);
+
+  return parsed.success ? parsed.data : null;
+}
+
+function writeLastOption(option: TransformOption): void {
+  window.localStorage.setItem(LAST_OPTION_KEY, option);
+  for (const listener of listeners) listener();
+}
+
+/** Somewhere else someone is typing — their Enter is not ours. */
+function isOtherField(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+
+  return target.isContentEditable || ['INPUT', 'SELECT'].includes(target.tagName);
+}
+
+/**
+ * Naming the wrong key is worse than naming none. Safe to branch on the
+ * platform here because the hint only renders once there is a stored choice,
+ * which the server snapshot never has — so this never runs during hydration.
+ */
+function shortcutLabel(): string {
+  const mac =
+    typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.userAgent);
+
+  return mac ? '⌘↵' : 'Ctrl↵';
+}
 
 /**
  * Sentences to try when you have arrived with nothing of your own.
@@ -46,6 +97,44 @@ export function ComposePanel({
   const count = useMemo(() => splitSentences(text).length, [text]);
   const overCap = count > MAX_SENTENCES;
   const empty = count === 0;
+
+  const lastOption = useSyncExternalStore(
+    subscribeToLastOption,
+    readLastOption,
+    () => null,
+  );
+
+  const run = (option: TransformOption) => {
+    writeLastOption(option);
+    onSubmit(text, option);
+  };
+
+  /*
+    Cmd-Enter repeats your last transform rather than picking one for you.
+    There is no sensible default among four verbs, and guessing spends a model
+    call on a decision nobody made — so before the first choice this key does
+    nothing, and once there is a choice the hint below says what it will do.
+
+    Bound to the window rather than to the textarea: the panel comes back after
+    a failed request with focus nowhere in particular, and a shortcut that
+    depends on where you last clicked is a shortcut people stop trusting. The
+    bank's search box sits on the same page, so typing there is left alone.
+  */
+  useEffect(() => {
+    if (disabled || empty || !lastOption) return;
+
+    const onKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.key !== 'Enter' || !(event.metaKey || event.ctrlKey)) return;
+      if (isOtherField(event.target)) return;
+
+      event.preventDefault();
+      writeLastOption(lastOption);
+      onSubmit(text, lastOption);
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [disabled, empty, lastOption, onSubmit, text]);
 
   return (
     <div className="space-y-4">
@@ -115,7 +204,7 @@ export function ComposePanel({
             data-testid={`option-${option}`}
             variant="outline"
             disabled={disabled || empty}
-            onClick={() => onSubmit(text, option)}
+            onClick={() => run(option)}
             className="h-auto flex-col items-start gap-0.5 py-2 text-left whitespace-normal"
           >
             <span>{TRANSFORM_LABELS[option]}</span>
@@ -125,6 +214,12 @@ export function ComposePanel({
           </Button>
         ))}
       </div>
+
+      {lastOption && !empty && (
+        <p className="text-xs text-muted-foreground" data-testid="repeat-hint">
+          {shortcutLabel()} repeats {TRANSFORM_LABELS[lastOption]}
+        </p>
+      )}
     </div>
   );
 }
