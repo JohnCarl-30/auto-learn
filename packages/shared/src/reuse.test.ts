@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { findReused } from './reuse';
+import { findReused, maskLemma } from './reuse';
 
 describe('findReused', () => {
   it('finds an exact reuse', () => {
@@ -63,5 +63,39 @@ describe('findReused', () => {
   it('handles an empty bank and empty text', () => {
     expect(findReused('Anything at all.', [])).toEqual([]);
     expect(findReused('   ', ['substantial'])).toEqual([]);
+  });
+});
+
+describe('maskLemma', () => {
+  it('hides the word the drill is asking for', () => {
+    expect(maskLemma('The results were substantial.', 'substantial')).toBe(
+      'The results were _____.',
+    );
+  });
+
+  it('hides it in the form the sentence actually used', () => {
+    expect(maskLemma('She studied it for years.', 'study')).toBe(
+      'She _____ it for years.',
+    );
+  });
+
+  it('keeps the punctuation the sentence needs to parse', () => {
+    expect(maskLemma('Substantial, yes, but untested.', 'substantial')).toBe(
+      '_____, yes, but untested.',
+    );
+  });
+
+  it('leaves every other word alone', () => {
+    expect(maskLemma('The substance was substantial.', 'substantial')).toBe(
+      'The substance was _____.',
+    );
+  });
+
+  it('preserves the spacing it was given', () => {
+    expect(maskLemma('a  big   gap', 'big')).toBe('a  _____   gap');
+  });
+
+  it('returns the sentence untouched when the word is not in it', () => {
+    expect(maskLemma('Nothing to see.', 'substantial')).toBe('Nothing to see.');
   });
 });
