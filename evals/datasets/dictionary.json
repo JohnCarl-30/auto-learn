@@ -5,79 +5,83 @@
       {
         "senseId": "s0",
         "partOfSpeech": "noun",
-        "definition": "Direction."
+        "definition": "(computer science) the code that identifies where a piece of information is stored  "
       },
       {
         "senseId": "s1",
-        "partOfSpeech": "noun",
-        "definition": "Preparation."
+        "partOfSpeech": "verb",
+        "definition": "speak to",
+        "example": "He addressed the crowd outside the window"
       },
       {
         "senseId": "s2",
-        "partOfSpeech": "verb",
-        "definition": "To prepare oneself."
+        "partOfSpeech": "noun",
+        "definition": "the place where a person or organization can be found or communicated with  "
       },
       {
         "senseId": "s3",
         "partOfSpeech": "verb",
-        "definition": "To direct speech."
+        "definition": "give a speech to",
+        "example": "The chairman addressed the board of trustees"
       },
       {
         "senseId": "s4",
-        "partOfSpeech": "verb",
-        "definition": "To aim; to direct."
+        "partOfSpeech": "noun",
+        "definition": "the act of delivering a formal spoken communication to an audience",
+        "example": "he listened to an address on minor Roman poets"
       },
       {
         "senseId": "s5",
         "partOfSpeech": "verb",
-        "definition": "To prepare or make ready."
+        "definition": "put an address on (an envelope)  "
       },
       {
         "senseId": "s6",
-        "partOfSpeech": "verb",
-        "definition": "To prepare oneself; to apply one's skill or energies (to some object); to betake."
+        "partOfSpeech": "noun",
+        "definition": "the manner of speaking to another individual",
+        "example": "he failed in his manner of address to the captain"
       },
       {
         "senseId": "s7",
         "partOfSpeech": "verb",
-        "definition": "To direct one’s remarks (to someone)."
+        "definition": "direct a question at someone  "
       },
       {
         "senseId": "s8",
-        "partOfSpeech": "verb",
-        "definition": "To clothe or array; to dress."
+        "partOfSpeech": "noun",
+        "definition": "a sign in front of a house or business carrying the conventional form by which its location is described  "
       },
       {
         "senseId": "s9",
         "partOfSpeech": "verb",
-        "definition": "To direct, as words (to anyone or anything); to make, as a speech, petition, etc. (to any audience).",
-        "example": "He addressed some portions of his remarks to his supporters, some to his opponents."
+        "definition": "address or apply oneself to something, direct one's efforts towards something, such as a question  "
       },
       {
         "senseId": "s10",
-        "partOfSpeech": "verb",
-        "definition": "To direct speech to; to make a communication to, whether spoken or written; to apply to by words, as by a speech, petition, etc., to speak to."
+        "partOfSpeech": "noun",
+        "definition": "written directions for finding some location",
+        "example": "written on letters or packages that are to be delivered to that location"
       },
       {
         "senseId": "s11",
         "partOfSpeech": "verb",
-        "definition": "To direct in writing, as a letter; to superscribe, or to direct and transmit.",
-        "example": "He addressed a letter."
+        "definition": "greet, as with a prescribed form, title, or name",
+        "example": "He always addresses me with `Sir'"
       }
     ],
     "synonyms": [
-      "work",
-      "direct",
-      "cover",
-      "handle",
-      "deal",
+      "computer address",
+      "reference",
       "speech",
-      "accost",
-      "treat",
+      "destination",
+      "name and address",
       "savoir-faire",
-      "plow",
-      "speak to",
-      "speak"
+      "turn to",
+      "speak",
+      "direct",
+      "call",
+      "cover",
+      "treat"
     ]
   },
   "corroborate": {
@@ -86,20 +90,27 @@
       {
         "senseId": "s0",
         "partOfSpeech": "verb",
-        "definition": "To confirm or support something with additional evidence; to attest or vouch for."
+        "definition": "establish or strengthen as with new evidence or facts",
+        "example": "his story confirmed my doubts"
       },
       {
         "senseId": "s1",
         "partOfSpeech": "verb",
-        "definition": "To make strong; to strengthen."
+        "definition": "give evidence for  "
+      },
+      {
+        "senseId": "s2",
+        "partOfSpeech": "verb",
+        "definition": "support with evidence or authority or make more certain or confirm",
+        "example": "The stories and claims were born out by the evidence"
       }
     ],
     "synonyms": [
-      "sustain",
-      "affirm",
-      "support",
-      "substantiate",
       "confirm",
+      "sustain",
+      "substantiate",
+      "support",
+      "affirm",
       "validate",
       "underpin",
       "bear out"
@@ -111,19 +122,29 @@
       {
         "senseId": "s0",
         "partOfSpeech": "verb",
-        "definition": "To make clear; to clarify; to shed light upon."
+        "definition": "make clear and (more) comprehensible",
+        "example": "clarify the mystery surrounding her death"
+      },
+      {
+        "senseId": "s1",
+        "partOfSpeech": "verb",
+        "definition": "make free from confusion or ambiguity",
+        "example": "make clear"
       }
     ],
     "synonyms": [
-      "clear",
-      "illuminate",
       "clarify",
-      "enlighten",
+      "clear up",
+      "clear",
       "shed light on",
       "crystallize",
-      "sort out",
+      "crystallise",
+      "crystalize",
+      "crystalise",
       "straighten out",
-      "clear up"
+      "sort out",
+      "enlighten",
+      "illuminate"
     ]
   },
   "leverage": {
@@ -131,33 +152,31 @@
     "senses": [
       {
         "senseId": "s0",
-        "partOfSpeech": "noun",
-        "definition": "A force compounded by means of a lever rotating around a pivot; see torque.",
-        "example": "A crowbar uses leverage to pry nails out of wood."
+        "partOfSpeech": "verb",
+        "definition": "supplement with leverage",
+        "example": "leverage the money that is already available"
       },
       {
         "senseId": "s1",
         "partOfSpeech": "noun",
-        "definition": "By extension, any influence which is compounded or used to gain an advantage.",
-        "example": "Try using competitors’ prices for leverage in the negotiation."
+        "definition": "the mechanical advantage gained by being in a position to use a lever  "
       },
       {
         "senseId": "s2",
-        "partOfSpeech": "noun",
-        "definition": "The use of borrowed funds with a contractually determined return to increase the ability of a business to invest and earn an expected higher return, but usually at high risk.",
-        "example": "Leverage is great until something goes wrong with your investments and you still have to pay your debts."
+        "partOfSpeech": "verb",
+        "definition": "provide with leverage",
+        "example": "We need to leverage this company"
       },
       {
         "senseId": "s3",
         "partOfSpeech": "noun",
-        "definition": "The ability to earn very high returns when operating at high capacity utilization of a facility.",
-        "example": "Their variable-cost-reducing investments have dramatically increased their leverage."
+        "definition": "strategic advantage",
+        "example": "power to act effectively"
       },
       {
         "senseId": "s4",
-        "partOfSpeech": "verb",
-        "definition": "To use; to exploit; to manipulate in order to take full advantage (of something).",
-        "example": "They plan to leverage off the publicity to get a good distribution agreement."
+        "partOfSpeech": "noun",
+        "definition": "investing with borrowed money as a way to amplify potential gains (at the risk of greater losses)  "
       }
     ],
     "synonyms": [
@@ -171,17 +190,19 @@
       {
         "senseId": "s0",
         "partOfSpeech": "verb",
-        "definition": "To reduce, lessen, or decrease; to make less severe or easier to bear."
+        "definition": "lessen or to try to lessen the seriousness or extent of",
+        "example": "The circumstances extenuate the crime"
       },
       {
         "senseId": "s1",
         "partOfSpeech": "verb",
-        "definition": "To downplay."
+        "definition": "make less severe or harsh",
+        "example": "mitigating circumstances"
       }
     ],
     "synonyms": [
-      "palliate",
-      "extenuate"
+      "extenuate",
+      "palliate"
     ]
   },
   "novel": {
@@ -190,36 +211,29 @@
       {
         "senseId": "s0",
         "partOfSpeech": "adjective",
-        "definition": "Newly made, formed or evolved; having no precedent; of recent origin; new."
+        "definition": "original and of a kind not seen before",
+        "example": "the computer produced a completely novel proof of a well-known theorem"
       },
       {
         "senseId": "s1",
-        "partOfSpeech": "adjective",
-        "definition": "Original, especially in an interesting way; new and striking; not of the typical or ordinary type."
+        "partOfSpeech": "noun",
+        "definition": "an extended fictional work in prose",
+        "example": "usually in the form of a story"
       },
       {
         "senseId": "s2",
-        "partOfSpeech": "noun",
-        "definition": "A work of prose fiction, longer than a novella."
+        "partOfSpeech": "adjective",
+        "definition": "pleasantly new or different",
+        "example": "common sense of a most refreshing sort"
       },
       {
         "senseId": "s3",
         "partOfSpeech": "noun",
-        "definition": "A fable; a short tale, especially one of many making up a larger work."
-      },
-      {
-        "senseId": "s4",
-        "partOfSpeech": "noun",
-        "definition": "A novelty; something new."
-      },
-      {
-        "senseId": "s5",
-        "partOfSpeech": "noun",
-        "definition": "A new legal constitution in ancient Rome."
+        "definition": "a printed and bound book that is an extended work of fiction",
+        "example": "his bookcases were filled with nothing but novels"
       }
     ],
     "synonyms": [
-      "original",
       "fresh",
       "new",
       "refreshing"
@@ -231,54 +245,32 @@
       {
         "senseId": "s0",
         "partOfSpeech": "adjective",
-        "definition": "Evincing strength and health; strong.",
-        "example": "A robust wall was put up."
+        "definition": "sturdy and strong in form, constitution, or construction",
+        "example": "a robust body"
       },
       {
         "senseId": "s1",
         "partOfSpeech": "adjective",
-        "definition": "Violent; rough; rude."
+        "definition": "marked by richness and fullness of flavor",
+        "example": "a rich ruby port"
       },
       {
         "senseId": "s2",
         "partOfSpeech": "adjective",
-        "definition": "Requiring strength or vigor",
-        "example": "robust employment"
+        "definition": "strong enough to withstand or overcome intellectual challenges or adversity",
+        "example": "the experiment yielded robust results"
       },
       {
         "senseId": "s3",
         "partOfSpeech": "adjective",
-        "definition": "Sensible (of intellect etc.); straightforward, not given to or confused by uncertainty or subtlety"
-      },
-      {
-        "senseId": "s4",
-        "partOfSpeech": "adjective",
-        "definition": "Designed or evolved in such a way as to be resistant to total failure despite partial damage."
-      },
-      {
-        "senseId": "s5",
-        "partOfSpeech": "adjective",
-        "definition": "Resistant or impervious to failure regardless of user input or unexpected conditions."
-      },
-      {
-        "senseId": "s6",
-        "partOfSpeech": "adjective",
-        "definition": "Not greatly influenced by errors in assumptions about the distribution of sample errors."
+        "definition": "rough and crude",
+        "example": "a robust tale"
       }
     ],
     "synonyms": [
-      "vigorous",
-      "stout",
-      "strong",
-      "rich",
-      "rugged",
-      "unrefined",
-      "beefy",
-      "tasteful",
-      "chesty",
-      "hardy",
-      "burly",
-      "strapping"
+      "full-bodied",
+      "racy",
+      "rich"
     ]
   },
   "salient": {
@@ -287,54 +279,31 @@
       {
         "senseId": "s0",
         "partOfSpeech": "noun",
-        "definition": "An outwardly projecting part of a fortification, trench system, or line of defense."
+        "definition": "(military) the part of the line of battle that projects closest to the enemy  "
       },
       {
         "senseId": "s1",
         "partOfSpeech": "adjective",
-        "definition": "Worthy of note; pertinent or relevant.",
-        "example": "The article is not exhaustive, but it covers the salient points pretty well."
+        "definition": "having a quality that thrusts itself into attention",
+        "example": "an outstanding fact of our time is that nations poisoned by anti semitism proved less fortunate in regard to their own freedom"
       },
       {
         "senseId": "s2",
         "partOfSpeech": "adjective",
-        "definition": "Prominent; conspicuous."
+        "definition": "(of angles) pointing outward at an angle of less than 180 degrees  "
       },
       {
         "senseId": "s3",
         "partOfSpeech": "adjective",
-        "definition": "(usually of a quadruped) Depicted in a leaping posture.",
-        "example": "a lion salient"
-      },
-      {
-        "senseId": "s4",
-        "partOfSpeech": "adjective",
-        "definition": "Projecting outwards, pointing outwards.",
-        "example": "a salient angle"
-      },
-      {
-        "senseId": "s5",
-        "partOfSpeech": "adjective",
-        "definition": "Moving by leaps or springs; jumping."
-      },
-      {
-        "senseId": "s6",
-        "partOfSpeech": "adjective",
-        "definition": "Shooting or springing out; projecting."
-      },
-      {
-        "senseId": "s7",
-        "partOfSpeech": "adjective",
-        "definition": "Denoting any angle less than two right angles."
+        "definition": "represented as leaping (rampant but leaning forward)  "
       }
     ],
     "synonyms": [
-      "conspicuous",
-      "prominent",
-      "obvious",
       "outstanding",
+      "prominent",
+      "spectacular",
       "striking",
-      "spectacular"
+      "salient(ip)"
     ]
   },
   "significant": {
@@ -342,50 +311,34 @@
     "senses": [
       {
         "senseId": "s0",
-        "partOfSpeech": "noun",
-        "definition": "That which has significance; a sign; a token; a symbol."
+        "partOfSpeech": "adjective",
+        "definition": "important in effect or meaning",
+        "example": "a significant change in tax laws"
       },
       {
         "senseId": "s1",
         "partOfSpeech": "adjective",
-        "definition": "Signifying something; carrying meaning.",
-        "example": "a significant word or sound; a significant look"
+        "definition": "of considerable importance, size, or worth",
+        "example": "won by a substantial margin"
       },
       {
         "senseId": "s2",
         "partOfSpeech": "adjective",
-        "definition": "Having a covert or hidden meaning."
+        "definition": "too closely correlated to be attributed to chance and therefore indicating a systematic relation",
+        "example": "the interaction effect is significant at the .01 level"
       },
       {
         "senseId": "s3",
         "partOfSpeech": "adjective",
-        "definition": "Having a noticeable or major effect; notable.",
-        "example": "That was a significant step in the right direction."
-      },
-      {
-        "senseId": "s4",
-        "partOfSpeech": "adjective",
-        "definition": "Reasonably large in number or amount."
-      },
-      {
-        "senseId": "s5",
-        "partOfSpeech": "adjective",
-        "definition": "Having a low probability of occurring by chance (for example, having high correlation and thus likely to be related)."
+        "definition": "rich in significance or implication",
+        "example": "a meaning look"
       }
     ],
     "synonyms": [
-      "profound",
-      "substantial",
-      "portentous",
-      "prodigious",
-      "remarkable",
-      "fundamental",
       "important",
-      "noteworthy",
-      "operative",
-      "considerable",
-      "momentous",
-      "epochal"
+      "substantial",
+      "meaning(a)",
+      "pregnant"
     ]
   },
   "substantial": {
@@ -393,68 +346,54 @@
     "senses": [
       {
         "senseId": "s0",
-        "partOfSpeech": "noun",
-        "definition": "Anything having substance; an essential part."
+        "partOfSpeech": "adjective",
+        "definition": "of considerable importance, size, or worth",
+        "example": "won by a substantial margin"
       },
       {
         "senseId": "s1",
         "partOfSpeech": "adjective",
-        "definition": "Having a substance; actually existing.",
-        "example": "substantial life"
+        "definition": "of or relating to the real nature or essential elements of something",
+        "example": "a substantial argument"
       },
       {
         "senseId": "s2",
         "partOfSpeech": "adjective",
-        "definition": "Not imaginary; real; actual; true; veritable."
+        "definition": "having substance or capable of being treated as fact",
+        "example": "not imaginary"
       },
       {
         "senseId": "s3",
         "partOfSpeech": "adjective",
-        "definition": "Corporeal; material; firm."
+        "definition": "providing abundant nourishment",
+        "example": "a hearty meal"
       },
       {
         "senseId": "s4",
         "partOfSpeech": "adjective",
-        "definition": "Having good substance; strong; stout; solid; firm.",
-        "example": "a substantial fence or wall"
+        "definition": "of good quality and condition",
+        "example": "solidly built"
       },
       {
         "senseId": "s5",
         "partOfSpeech": "adjective",
-        "definition": "Possessed of goods or an estate; moderately wealthy.",
-        "example": "a substantial freeholder"
-      },
-      {
-        "senseId": "s6",
-        "partOfSpeech": "adjective",
-        "definition": "Large in size, quantity, or value; ample; significant.",
-        "example": "A substantial number of people went to the event."
-      },
-      {
-        "senseId": "s7",
-        "partOfSpeech": "adjective",
-        "definition": "Most important; essential."
-      },
-      {
-        "senseId": "s8",
-        "partOfSpeech": "adjective",
-        "definition": "Satisfying; having sufficient substance to be nourishing or filling.",
-        "example": "I don't just want a snack; I need something substantial."
+        "definition": "having an abundant supply of money or possessions of value",
+        "example": "an affluent banker"
       }
     ],
     "synonyms": [
       "significant",
-      "essential",
       "substantive",
-      "strong",
-      "hearty",
-      "considerable",
-      "sound",
-      "solid",
+      "real",
       "material",
+      "hearty",
       "satisfying",
-      "in essence",
-      "real"
+      "solid",
+      "square",
+      "strong",
+      "affluent",
+      "flush",
+      "loaded"
     ]
   }
 }

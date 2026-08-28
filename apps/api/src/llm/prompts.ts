@@ -75,8 +75,17 @@ export function cardUserPrompt(input: {
   /** The in-context reason from /propose. Null for a plain lookup. */
   reason: string | null;
 }): string {
+  // The usage example goes in with the gloss.
+  //
+  // The dictionary ships one for most senses and this used to drop them, which
+  // wasted the single best signal for telling two senses of one word apart. A
+  // gloss can be circular — "leverage: supplement with leverage" — where its
+  // example, "leverage the money that is already available", is not.
   const senseList = input.senses
-    .map((s) => `- ${s.senseId} (${s.partOfSpeech}): ${s.definition}`)
+    .map((s) => {
+      const gloss = `- ${s.senseId} (${s.partOfSpeech}): ${s.definition}`;
+      return s.example ? `${gloss} — used as: "${s.example}"` : gloss;
+    })
     .join('\n');
 
   return [
