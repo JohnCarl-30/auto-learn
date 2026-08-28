@@ -89,6 +89,11 @@ or the dictionary fails, and a failure is not engagement. `cardsFailed` is the
 one to watch for a different reason — if it climbs, the gate is breaking rather
 than teaching.
 
+`dictations` against `dictationsFailed` says whether voice works for the people
+trying it. Read together, always: a feature that is failing produces the same
+low success count as a feature nobody wants, and those two call for opposite
+decisions.
+
 `editsDropped` is the fourth number, and it qualifies the other three. An edit
 whose span cannot be located verbatim is discarded rather than guessed at, so a
 model that drifts produces *fewer gates* rather than an error — which reads as
