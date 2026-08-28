@@ -33,6 +33,7 @@ export class DictateService {
       text = result.text;
     } catch (error) {
       this.logger.warn('transcription failed', error);
+      this.telemetry.dictationFailed();
       throw this.fail(
         'upstream_failed',
         "I couldn't make out that recording. Try again in a moment.",
@@ -43,6 +44,7 @@ export class DictateService {
     // it inside would have it caught and reported as an upstream failure.
     const transcript = text.trim();
     if (!transcript) {
+      this.telemetry.dictationFailed();
       throw this.fail(
         'no_speech_detected',
         "I didn't hear anything in that recording.",

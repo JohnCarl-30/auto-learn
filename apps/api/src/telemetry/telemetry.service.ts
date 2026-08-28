@@ -20,6 +20,7 @@ export class TelemetryService {
     notesOpened: 0,
     lookups: 0,
     dictations: 0,
+    dictationsFailed: 0,
     accepted: 0,
     rejected: 0,
   };
@@ -76,6 +77,18 @@ export class TelemetryService {
    */
   dictation(): void {
     this.counts.dictations += 1;
+  }
+
+  /**
+   * A recording arrived and no transcript went back — the provider fell over,
+   * or there was nothing audible in it.
+   *
+   * Counted whichever end was at fault. From where the reader sits both are
+   * "I spoke and it did not work", and it is their willingness to try again
+   * that this is measuring.
+   */
+  dictationFailed(): void {
+    this.counts.dictationsFailed += 1;
   }
 
   accepted(): void {
