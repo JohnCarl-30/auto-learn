@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BankExport, BANK_EXPORT_VERSION } from './wordbank';
+import { BankEntry, BankExport, BANK_EXPORT_VERSION, mergeBankEntry } from './wordbank';
 
 const entry = {
   id: 'substantial:s0',
@@ -68,5 +68,73 @@ describe('BankExport', () => {
     });
 
     expect(result.success).toBe(true);
+  });
+});
+
+/**
+ * The same word met on two devices. Restoring must never cost someone evidence
+ * they earned — a merge that overwrites is indistinguishable from data loss,
+ * and it happens silently.
+ */
+describe('mergeBankEntry', () => {
+  const at = (iso: string, over: Partial<BankEntry> = {}): BankEntry =>
+    BankEntry.parse({ ...entry, addedAt: iso, ...over });
+
+  it('keeps the higher reuse count, whichever side holds it', () => {
+    const local = at('2026-08-01T00:00:00.000Z', { timesReused: 1 });
+    const file = at('2026-08-05T00:00:00.000Z', { timesReused: 6 });
+
+    expect(mergeBankEntry(local, file).timesReused).toBe(6);
+    expect(mergeBankEntry(file, local).timesReused).toBe(6);
+  });
+
+  it('keeps the most recent reuse date, ignoring nulls', () => {
+    const local = at('2026-08-01T00:00:00.000Z', { lastReusedAt: null });
+    const file = at('2026-08-05T00:00:00.000Z', {
+      lastReusedAt: '2026-08-20T00:00:00.000Z',
+    });
+
+    expect(mergeBankEntry(local, file).lastReusedAt).toBe(
+      '2026-08-20T00:00:00.000Z',
+    );
+  });
+
+  it('never downgrades an accepted word to a tapped one', () => {
+    const accepted = at('2026-08-01T00:00:00.000Z', { addedVia: 'accepted' });
+    const tapped = at('2026-08-05T00:00:00.000Z', { addedVia: 'tapped' });
+
+    // Whichever way round, and whichever came first: adopting the word is the
+    // stronger act, and a later curious tap does not undo it.
+    expect(mergeBankEntry(accepted, tapped).addedVia).toBe('accepted');
+    expect(mergeBankEntry(tapped, accepted).addedVia).toBe('accepted');
+  });
+
+  it('takes the first acquisition, and the sentence it came from', () => {
+    const older = at('2026-07-01T00:00:00.000Z', {
+      sourceSentence: 'The sentence I actually met it in.',
+    });
+    const newer = at('2026-08-05T00:00:00.000Z', {
+      sourceSentence: 'A later one.',
+    });
+
+    const merged = mergeBankEntry(newer, older);
+
+    expect(merged.addedAt).toBe('2026-07-01T00:00:00.000Z');
+    expect(merged.sourceSentence).toBe('The sentence I actually met it in.');
+  });
+
+  it('is order-independent for everything it decides', () => {
+    const a = at('2026-08-01T00:00:00.000Z', {
+      timesReused: 2,
+      addedVia: 'tapped',
+      lastReusedAt: '2026-08-10T00:00:00.000Z',
+    });
+    const b = at('2026-08-05T00:00:00.000Z', {
+      timesReused: 5,
+      addedVia: 'accepted',
+      lastReusedAt: null,
+    });
+
+    expect(mergeBankEntry(a, b)).toEqual(mergeBankEntry(b, a));
   });
 });
