@@ -292,6 +292,41 @@ describe('HTTP surface', () => {
     });
 
     /**
+     * Counting only the successes would make a voice feature that is breaking
+     * look identical to one nobody wants — on the very number that decides
+     * whether it earns more. Same split as cards, for the same reason.
+     */
+    it('counts a recording that produced nothing as a failure, not a silence', async () => {
+      listen.mockResolvedValue({ text: '' });
+
+      const before = (await request(server()).get('/telemetry').expect(200))
+        .body as TelemetrySnapshot;
+
+      await recording(2_048).expect(422);
+
+      const after = (await request(server()).get('/telemetry').expect(200))
+        .body as TelemetrySnapshot;
+
+      expect(after.dictationsFailed).toBe(before.dictationsFailed + 1);
+      expect(after.dictations).toBe(before.dictations);
+    });
+
+    it('counts a provider that fell over the same way', async () => {
+      listen.mockRejectedValue(new Error('provider down'));
+
+      const before = (await request(server()).get('/telemetry').expect(200))
+        .body as TelemetrySnapshot;
+
+      await recording(2_048).expect(502);
+
+      const after = (await request(server()).get('/telemetry').expect(200))
+        .body as TelemetrySnapshot;
+
+      expect(after.dictationsFailed).toBe(before.dictationsFailed + 1);
+      expect(after.dictations).toBe(before.dictations);
+    });
+
+    /**
      * The reason the upload is multipart at all. body-parser refuses oversized
      * JSON from inside middleware, before Nest's router exists, so its 413
      * escapes every filter and reaches the browser in a shape ApiError cannot
