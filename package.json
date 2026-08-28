@@ -12,7 +12,8 @@
     "typecheck": "pnpm -r typecheck"
   },
   "engines": {
-    "node": ">=20"
+    "// node": "AbortSignal.any, which the streaming route composes its timeout and its client-disconnect signal with, landed in 20.3. The old >=20 admitted three releases where /propose/stream throws at runtime.",
+    "node": ">=20.3"
   },
   "packageManager": "pnpm@10.33.0"
 }
