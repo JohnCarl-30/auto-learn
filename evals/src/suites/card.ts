@@ -19,17 +19,33 @@ import { judge } from '../judge';
 import { cardScorers, scoreCard } from '../scorers/card';
 import type { CardSubject } from '../scorers/card';
 import type { Suite } from '../runner';
-import { booleanScore, type Score } from '../types';
+import { booleanScore, ratioScore, type Score } from '../types';
 
-const CardVerdict = z.object({
+/**
+ * Judged per synonym rather than per card.
+ *
+ * One boolean for "are the synonyms real" cannot be checked: it says a card
+ * failed without saying which word, so nobody can tell whether the judge was
+ * right. Per-item verdicts are what make the judge itself reviewable — see
+ * `validate-judge`. Pass semantics are unchanged (every synonym must be good),
+ * so the recorded pass rate stays comparable; the mean gains resolution.
+ */
+export const CardVerdict = z.object({
   /** The definition is a true account of the sense it selected. */
   definitionIsCorrect: z.boolean(),
   /** And it is the sense the word actually carries in this sentence. */
   senseFitsTheSentence: z.boolean(),
-  /** Every listed synonym really is a near-synonym in this sense. */
-  synonymsAreReal: z.boolean(),
-  /** Every nuance line states a true difference, not a restatement. */
-  nuancesAreTrue: z.boolean(),
+  synonyms: z.array(
+    z.object({
+      word: z.string(),
+      /** Could stand in for the target word in the writer's sentence. */
+      isSubstitutable: z.boolean(),
+      /** The nuance line states a real difference, not a restatement. */
+      nuanceIsTrue: z.boolean(),
+      /** One short sentence. This is the part a human reviews. */
+      why: z.string(),
+    }),
+  ),
   /** Both examples are grammatical, academic, and use the word correctly. */
   examplesAreCorrect: z.boolean(),
   why: z.string(),
@@ -41,8 +57,9 @@ You are given the writer's sentence, the target word, the dictionary sense the c
 
 Mark definitionIsCorrect FALSE if the definition misstates the sense, or is so vague it would fit a dozen other words.
 Mark senseFitsTheSentence FALSE if the word in that sentence carries a different sense from the one defined — this is the failure that matters most, and it is easy to miss because the card is internally consistent.
-Mark synonymsAreReal FALSE if any listed word is not a near-synonym in this sense, or could not replace the target word in the writer's sentence.
-Mark nuancesAreTrue FALSE if any nuance line states a difference that does not exist, or merely says the words are similar.
+Judge each synonym separately, in the order given, and return one entry per synonym.
+Mark isSubstitutable FALSE if that word is not a near-synonym in this sense, or could not stand in for the target word in the writer's sentence.
+Mark nuanceIsTrue FALSE if that nuance line states a difference that does not exist, or merely says the words are similar. A difference that is real but loosely hedged is true enough — you are grading whether the claim holds, not how precisely it is worded.
 Mark examplesAreCorrect FALSE if either example is ungrammatical, is not academic writing, or uses the word in a different sense from the one defined.`;
 
 async function judgeCard(subject: CardSubject) {
@@ -68,21 +85,26 @@ async function judgeCard(subject: CardSubject) {
     ].join('\n'),
   });
 
+  const bad = verdict.synonyms.filter(
+    (s) => !s.isSubstitutable || !s.nuanceIsTrue,
+  );
+
   const scores: Score[] = [
     booleanScore(
       'judge-definition',
       verdict.definitionIsCorrect && verdict.senseFitsTheSentence,
       verdict.why,
     ),
-    booleanScore(
+    ratioScore(
       'judge-synonym-nuance',
-      verdict.synonymsAreReal && verdict.nuancesAreTrue,
-      verdict.why,
+      verdict.synonyms.length - bad.length,
+      verdict.synonyms.length,
+      { detail: bad.map((s) => `${s.word}: ${s.why}`).join('; ') },
     ),
     booleanScore('judge-examples', verdict.examplesAreCorrect, verdict.why),
   ];
 
-  return { scores, spend };
+  return { scores, spend, verdict };
 }
 
 export const cardSuite: Suite<CardCase> = {
@@ -124,13 +146,24 @@ export const cardSuite: Suite<CardCase> = {
     const subject: CardSubject = { testCase, entry, card: object };
     const scores = scoreCard(subject);
     const spends = [priceCall(CARD_MODEL, usage)];
+    let verdict: z.infer<typeof CardVerdict> | null = null;
 
     if (options.judge) {
       const judged = await judgeCard(subject);
       scores.push(...judged.scores);
       spends.push(judged.spend);
+      verdict = judged.verdict;
     }
 
-    return { scores, spend: sumSpend(spends), output: object };
+    return {
+      scores,
+      spend: sumSpend(spends),
+      output: {
+        card: object,
+        word: testCase.word,
+        sentence: testCase.sentence,
+        verdict,
+      },
+    };
   },
 };

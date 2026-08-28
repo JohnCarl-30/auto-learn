@@ -6,6 +6,7 @@
   "scripts": {
     "eval": "tsx src/cli.ts",
     "record-dictionary": "tsx src/record-dictionary.ts",
+    "validate-judge": "tsx src/validate-judge.ts",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },

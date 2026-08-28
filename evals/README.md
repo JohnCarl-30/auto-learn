@@ -124,11 +124,39 @@ what CI wants; add `--from-last` to record the run you have just finished
 reading, so agreeing with a number does not cost a second run to write it down. A baseline updated in its own commit
 is a baseline nobody can review.
 
+## Checking the judge
+
+A judged score is a measurement, and an unvalidated measurement is a number
+with no error bar. When `judge-synonym-nuance` sits at 67%, the harness cannot
+tell you whether the card call lists bad synonyms or the rubric is too strict.
+Only a human can.
+
+```
+pnpm --filter @auto-learn/evals validate-judge            # build labels/synonyms.json
+# set "human" to "ok" or "bad" on each item
+pnpm --filter @auto-learn/evals validate-judge --report   # agreement, kappa, disagreements
+```
+
+It reports Cohen's kappa rather than raw agreement alone, because raw agreement
+flatters a judge that accepts everything: if 90% of synonyms are genuinely
+fine, a judge that never objects agrees 90% of the time while carrying no
+information. Kappa subtracts what the two raters' base rates would have agreed
+on by chance.
+
+The split between `too strict` and `too loose` is what tells you which side to
+fix — one-directional error is a rubric mis-aimed, scattered error is a rubric
+that is vague. Labels survive re-extraction, so labelling accumulates instead of
+restarting after every run.
+
 ## What this does not tell you
 
-- **It is stochastic.** One run of one case is one sample. Before concluding a
-  prompt edit helped, `--repeat=3` or more; a scorer that moves by one case out
-  of ten has told you nothing.
+- **It is stochastic, and the judged scorers are noisier than they look.**
+  `judge-synonym-nuance` came back 87% and 67% on two consecutive runs of the
+  same prompt at n=30. A card fails that scorer if *any* one of its two or
+  three synonyms is faulted, so a single per-item disagreement swings the card,
+  and ten cards is not many cards. Read `mean` beside `passRate` there — it
+  moves less — and do not gate on a 5-point change at that sample size. The
+  fix is more samples or more human labels, not a tighter prompt.
 - **The judge shares a family with the model it grades**, which is a known bias.
   `EVAL_JUDGE_MODEL` overrides it, and re-running under a different judge to see
   whether the verdicts move is the cheapest way to test for it.
