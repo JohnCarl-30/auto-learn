@@ -16,6 +16,7 @@ export class TelemetryService {
     cardsRequested: 0,
     cardsDelivered: 0,
     cardsFailed: 0,
+    editsDropped: 0,
     notesOpened: 0,
     lookups: 0,
     accepted: 0,
@@ -44,6 +45,17 @@ export class TelemetryService {
   /** The request was made but no card came back. */
   cardFailed(): void {
     this.counts.cardsFailed += 1;
+  }
+
+  /**
+   * Edits the model returned that could not be placed in the sentence.
+   *
+   * Counted per sentence rather than per edit site, because what matters is
+   * how much of a proposal was lost, not which loop dropped it.
+   */
+  editsDropped(count: number): void {
+    if (count <= 0) return;
+    this.counts.editsDropped += count;
   }
 
   noteOpened(): void {
