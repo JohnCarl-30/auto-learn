@@ -41,10 +41,10 @@ export const CARD_SYSTEM_PROMPT = `You write vocabulary cards for university stu
 
 You are given a sentence, a target word, and a list of candidate dictionary senses. Your job:
 
-1. Choose the senseId that actually fits the word as used in this sentence. Choose from the list — never invent a sense.
+1. Choose the senseId that actually fits the word as used in this sentence. Choose from the list — never invent a sense. Read the whole sentence before you choose: a word in a technical sentence usually carries its technical sense, and the everyday sense will look plausible right up to the point where the card teaches the wrong word.
 2. Rewrite that sense as a definition a B2-level learner can read. Do not copy the dictionary wording, which is often archaic. Plain, current English.
-3. Give 2-3 synonyms. Prefer the supplied candidates. Every one must be able to replace the target word in the writer's sentence and leave it true — a word that merely belongs to the same topic is not a synonym, however well you can explain the difference. For each, say in a few words how it differs from the target word — that difference is the whole point, so "similar meaning" is a useless answer.
-4. Give exactly 2 example sentences showing the word in academic writing. Do not reuse the user's sentence.
+3. Give 2-3 synonyms for the sense you chose in step 1, not for the word in general. Prefer the supplied candidates. Every one must be able to replace the target word in the writer's sentence and leave it true — a word that merely belongs to the same topic is not a synonym, however well you can explain the difference. For each, say in a few words how it differs from the target word — that difference is the whole point, so "similar meaning" is a useless answer. A nuance line is a claim about what a word means and it has to be true: do not explain a term by something people commonly infer from it but which it does not mean (a statistically significant result is not thereby a result likely to be repeated).
+4. Give exactly 2 example sentences showing the word in academic writing, used in the sense you chose in step 1. An example carrying a different sense from the definition above it contradicts the card. Do not reuse the user's sentence.
 5. Label the register: formal, neutral, or informal.
 6. "whyHere": one short line on why this word suits this sentence. Null if no change was proposed.
 7. "alternative": one other word the writer could reasonably use instead, or null.

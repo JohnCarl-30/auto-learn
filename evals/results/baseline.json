@@ -53,7 +53,7 @@
     }
   },
   "card": {
-    "recordedAt": "2026-08-28T09:42:56.067Z",
+    "recordedAt": "2026-08-28T09:57:19.164Z",
     "model": "gpt-5.6-terra",
     "cases": 10,
     "repeat": 3,
@@ -105,12 +105,12 @@
       },
       "judge-synonym-nuance": {
         "passRate": 0.6667,
-        "mean": 0.6667,
+        "mean": 0.8389,
         "samples": 30
       },
       "judge-examples": {
-        "passRate": 0.9667,
-        "mean": 0.9667,
+        "passRate": 0.8667,
+        "mean": 0.8667,
         "samples": 30
       },
       "register-label": {
