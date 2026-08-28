@@ -176,7 +176,20 @@ function CardBody({
             {card.pronunciation.ipa}
           </span>
         )}
-        <PronounceButton word={card.word} pronunciation={card.pronunciation} />
+        {/*
+          Keyed by the word, because everything this button remembers — the
+          source it resolved, whether playing it failed — is about *that* word
+          and must not outlive it. A card currently passes through a loading
+          state between words, which unmounts this anyway, but that is an
+          accident of how the page renders rather than a guarantee. Without the
+          key, the day that stops being true is the day the button plays the
+          previous word.
+        */}
+        <PronounceButton
+          key={card.word}
+          word={card.word}
+          pronunciation={card.pronunciation}
+        />
         <span className="text-sm text-muted-foreground">
           {card.partOfSpeech}
         </span>

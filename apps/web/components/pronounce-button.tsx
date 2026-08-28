@@ -28,6 +28,10 @@ export function PronounceButton({
 
   // Held in a ref rather than state: a replay should not re-render the card,
   // and once we have a source it is good for the life of this card.
+  //
+  // A ref seeded from props keeps its first value for as long as the component
+  // is mounted, so this is only correct while one mount means one word. The
+  // call site keys on the word to guarantee that.
   const source = useRef<string | null>(pronunciation.audioUrl);
 
   const play = async () => {
