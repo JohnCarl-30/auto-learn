@@ -38,6 +38,27 @@ describe('rate limiting', () => {
 
   const propose = () => request(server()).post('/propose').send({});
 
+  /**
+   * Spends the whole allowance without asserting on any of it, so a test can
+   * rely on the *next* call being refused.
+   *
+   * This exists because the test below used to inherit an exhausted limiter
+   * from the test above it, which is worth removing on its own account: a test
+   * that depends on its neighbour cannot be run alone, and reads as passing
+   * when the neighbour is what is broken.
+   *
+   * It was written believing it also fixed a flake — this file failed twice
+   * under a full parallel run — on the theory that the minute-long window
+   * could roll mid-test. That theory is wrong, and measured: the ten-request
+   * burst takes 33ms idle and 129ms under eight CPU spinners, against a
+   * 60,000ms window. The cause of those two failures is still unknown; the
+   * assertion output was not captured at the time. If it returns, capture the
+   * expected-versus-received before theorising.
+   */
+  const exhaustPropose = async () => {
+    for (let i = 0; i < RATE_LIMITS.propose.limit; i++) await propose();
+  };
+
   it('serves the whole allowance before refusing anything', async () => {
     for (let i = 0; i < RATE_LIMITS.propose.limit; i++) {
       await propose().expect(400);
@@ -47,7 +68,8 @@ describe('rate limiting', () => {
   });
 
   it('refuses in the shape the browser parses every failure with', async () => {
-    // Already over the limit from the previous test — the window has not moved.
+    await exhaustPropose();
+
     const response = await propose().expect(429);
 
     const parsed = ApiError.safeParse(response.body);
@@ -72,8 +94,9 @@ describe('rate limiting', () => {
   });
 
   it('limits each route separately, so a burst cannot silence the counts', async () => {
-    // /propose is exhausted at this point. The accept and reject pings are the
-    // numbers that decide what v2 is, and they must not be collateral damage.
+    // /propose has been refusing throughout. The accept and reject pings are
+    // the numbers that decide what v2 is, and they must not be collateral
+    // damage.
     await request(server())
       .post('/telemetry')
       .send({ event: 'suggestion_accepted' })

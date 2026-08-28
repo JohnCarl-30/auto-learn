@@ -1,0 +1,123 @@
+{
+  "propose": {
+    "recordedAt": "2026-08-28T09:40:49.703Z",
+    "model": "gpt-5.6-luna",
+    "cases": 14,
+    "repeat": 3,
+    "scorers": {
+      "verbatim-spans": {
+        "passRate": 1,
+        "mean": 1,
+        "samples": 33
+      },
+      "no-deletion": {
+        "passRate": 1,
+        "mean": 1,
+        "samples": 30
+      },
+      "span-minimality": {
+        "passRate": 1,
+        "mean": 1,
+        "samples": 33
+      },
+      "expected-fixes": {
+        "passRate": 0.9697,
+        "mean": 0.9697,
+        "samples": 33
+      },
+      "transform-discipline": {
+        "passRate": 1,
+        "mean": 1,
+        "samples": 21
+      },
+      "judge-edit-quality": {
+        "passRate": 0.8485,
+        "mean": 0.9394,
+        "samples": 33
+      },
+      "judge-meaning-preserved": {
+        "passRate": 1,
+        "mean": 1,
+        "samples": 33
+      },
+      "mechanical-not-gated": {
+        "passRate": 1,
+        "mean": 1,
+        "samples": 27
+      },
+      "no-false-positives": {
+        "passRate": 1,
+        "mean": 1,
+        "samples": 9
+      }
+    }
+  },
+  "card": {
+    "recordedAt": "2026-08-28T09:57:19.164Z",
+    "model": "gpt-5.6-terra",
+    "cases": 10,
+    "repeat": 3,
+    "scorers": {
+      "sense-grounded": {
+        "passRate": 1,
+        "mean": 1,
+        "samples": 30
+      },
+      "pos-matches-sense": {
+        "passRate": 1,
+        "mean": 1,
+        "samples": 30
+      },
+      "definition-rewritten": {
+        "passRate": 1,
+        "mean": 1,
+        "samples": 30
+      },
+      "right-sense-for-context": {
+        "passRate": 1,
+        "mean": 1,
+        "samples": 12
+      },
+      "nuance-is-substantive": {
+        "passRate": 1,
+        "mean": 1,
+        "samples": 30
+      },
+      "synonyms-are-distinct": {
+        "passRate": 1,
+        "mean": 1,
+        "samples": 30
+      },
+      "examples-are-fresh": {
+        "passRate": 1,
+        "mean": 1,
+        "samples": 30
+      },
+      "part-of-speech": {
+        "passRate": 1,
+        "mean": 1,
+        "samples": 30
+      },
+      "judge-definition": {
+        "passRate": 1,
+        "mean": 1,
+        "samples": 30
+      },
+      "judge-synonym-nuance": {
+        "passRate": 0.6667,
+        "mean": 0.8389,
+        "samples": 30
+      },
+      "judge-examples": {
+        "passRate": 0.8667,
+        "mean": 0.8667,
+        "samples": 30
+      },
+      "register-label": {
+        "passRate": 1,
+        "mean": 1,
+        "samples": 12
+      }
+    }
+  }
+}

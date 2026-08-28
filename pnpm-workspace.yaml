@@ -1,6 +1,7 @@
 packages:
   - 'apps/*'
   - 'packages/*'
+  - 'evals'
 
 # Moved up from apps/web/pnpm-workspace.yaml, which create-next-app generated.
 # A pnpm-workspace.yaml inside a package makes pnpm treat that directory as its

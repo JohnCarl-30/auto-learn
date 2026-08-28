@@ -1,0 +1,401 @@
+[
+  {
+    "key": "novel-is-not-a-book#original",
+    "caseId": "novel-is-not-a-book",
+    "word": "novel",
+    "sentence": "The paper proposes a novel approach to sentence segmentation.",
+    "synonym": "original",
+    "nuance": "emphasizes that the idea was created independently rather than copied.",
+    "judge": {
+      "isSubstitutable": true,
+      "nuanceIsTrue": true,
+      "why": "It can describe an approach that is new rather than copied or conventional."
+    },
+    "human": null
+  },
+  {
+    "key": "novel-is-not-a-book#innovative",
+    "caseId": "novel-is-not-a-book",
+    "word": "novel",
+    "sentence": "The paper proposes a novel approach to sentence segmentation.",
+    "synonym": "innovative",
+    "nuance": "emphasizes the use of a new idea that improves a method or practice.",
+    "judge": {
+      "isSubstitutable": true,
+      "nuanceIsTrue": true,
+      "why": "It suitably emphasizes a new approach that advances practice or methodology."
+    },
+    "human": null
+  },
+  {
+    "key": "novel-is-not-a-book#fresh",
+    "caseId": "novel-is-not-a-book",
+    "word": "novel",
+    "sentence": "The paper proposes a novel approach to sentence segmentation.",
+    "synonym": "fresh",
+    "nuance": "suggests a pleasantly new perspective, often with less emphasis on technical originality.",
+    "judge": {
+      "isSubstitutable": true,
+      "nuanceIsTrue": true,
+      "why": "It can describe a new perspective, though it is less technical than “novel.”"
+    },
+    "human": null
+  },
+  {
+    "key": "robust-is-not-healthy#strong",
+    "caseId": "robust-is-not-healthy",
+    "word": "robust",
+    "sentence": "The correlation remained robust across all three samples.",
+    "synonym": "strong",
+    "nuance": "the most direct alternative; less formal and less technical.",
+    "judge": {
+      "isSubstitutable": false,
+      "nuanceIsTrue": false,
+      "why": "Here robust means consistent across samples rather than merely strong."
+    },
+    "human": null,
+    "note": "Claude's read: judge is right. In 'remained robust across all three samples' robust means stable, not strong."
+  },
+  {
+    "key": "robust-is-not-healthy#substantial",
+    "caseId": "robust-is-not-healthy",
+    "word": "robust",
+    "sentence": "The correlation remained robust across all three samples.",
+    "synonym": "substantial",
+    "nuance": "emphasizes a large or important size or effect.",
+    "judge": {
+      "isSubstitutable": false,
+      "nuanceIsTrue": true,
+      "why": "Substantial refers to magnitude or importance, not consistency across samples."
+    },
+    "human": null,
+    "note": "Claude's read: judge is right. Magnitude, not consistency — same mis-reading as 'strong'."
+  },
+  {
+    "key": "robust-is-not-healthy#pronounced",
+    "caseId": "robust-is-not-healthy",
+    "word": "robust",
+    "sentence": "The correlation remained robust across all three samples.",
+    "synonym": "pronounced",
+    "nuance": "emphasizes that the relationship is clearly noticeable.",
+    "judge": {
+      "isSubstitutable": false,
+      "nuanceIsTrue": true,
+      "why": "Pronounced refers to conspicuousness, not resistance to variation across samples."
+    },
+    "human": null,
+    "note": "Claude's read: judge is right. Conspicuousness, not resistance to variation."
+  },
+  {
+    "key": "address-is-not-a-street#spoke to",
+    "caseId": "address-is-not-a-street",
+    "word": "address",
+    "sentence": "The chair addressed the committee before the vote was taken.",
+    "synonym": "spoke to",
+    "nuance": "More general and less formal; it can describe ordinary conversation as well as a formal speech.",
+    "judge": {
+      "isSubstitutable": true,
+      "nuanceIsTrue": true,
+      "why": "It can replace “addressed” here, though it is less formal."
+    },
+    "human": null
+  },
+  {
+    "key": "address-is-not-a-street#gave a speech to",
+    "caseId": "address-is-not-a-street",
+    "word": "address",
+    "sentence": "The chair addressed the committee before the vote was taken.",
+    "synonym": "gave a speech to",
+    "nuance": "Makes the speech event explicit and is more specific than address.",
+    "judge": {
+      "isSubstitutable": true,
+      "nuanceIsTrue": true,
+      "why": "It fits the formal speaking event implied by the sentence."
+    },
+    "human": null
+  },
+  {
+    "key": "address-is-not-a-street#delivered remarks to",
+    "caseId": "address-is-not-a-street",
+    "word": "address",
+    "sentence": "The chair addressed the committee before the vote was taken.",
+    "synonym": "delivered remarks to",
+    "nuance": "A formal phrase that often suggests a shorter, prepared statement.",
+    "judge": {
+      "isSubstitutable": true,
+      "nuanceIsTrue": true,
+      "why": "It is a formal near-synonym suitable for addressing a committee."
+    },
+    "human": null
+  },
+  {
+    "key": "leverage-is-not-a-lever#use",
+    "caseId": "leverage-is-not-a-lever",
+    "word": "leverage",
+    "sentence": "Researchers can leverage existing datasets to reduce collection costs.",
+    "synonym": "use",
+    "nuance": "More general and less focused on gaining a particular advantage.",
+    "judge": {
+      "isSubstitutable": true,
+      "nuanceIsTrue": true,
+      "why": "“Use” is broader, while “leverage” stresses gaining an advantage."
+    },
+    "human": null
+  },
+  {
+    "key": "leverage-is-not-a-lever#exploit",
+    "caseId": "leverage-is-not-a-lever",
+    "word": "leverage",
+    "sentence": "Researchers can leverage existing datasets to reduce collection costs.",
+    "synonym": "exploit",
+    "nuance": "Also means to make full use of something, but can sound negative if people or resources are treated unfairly.",
+    "judge": {
+      "isSubstitutable": true,
+      "nuanceIsTrue": true,
+      "why": "“Exploit” can mean making effective use of something but may imply unfair treatment."
+    },
+    "human": null
+  },
+  {
+    "key": "leverage-is-not-a-lever#employ",
+    "caseId": "leverage-is-not-a-lever",
+    "word": "leverage",
+    "sentence": "Researchers can leverage existing datasets to reduce collection costs.",
+    "synonym": "employ",
+    "nuance": "A more formal word for using a method, tool, or resource.",
+    "judge": {
+      "isSubstitutable": true,
+      "nuanceIsTrue": false,
+      "why": "“Employ” is formal, but it is not clearly more formal than “leverage.”"
+    },
+    "human": null,
+    "note": "Claude's read: judge too strict. 'Researchers can employ existing datasets' is fine; the rejection is a quibble with the formality claim, not the synonym."
+  },
+  {
+    "key": "significant-in-a-statistics-sentence#statistically reliable",
+    "caseId": "significant-in-a-statistics-sentence",
+    "word": "significant",
+    "sentence": "The difference between the two groups was statistically significant.",
+    "synonym": "statistically reliable",
+    "nuance": "Emphasizes that the result is likely to be repeated rather than caused by random variation.",
+    "judge": {
+      "isSubstitutable": false,
+      "nuanceIsTrue": false,
+      "why": "Statistical significance does not mean that a result would likely be replicated."
+    },
+    "human": null,
+    "note": "Claude's read: judge is right, and this one matters — 'likely to be repeated' is the commonest misreading of statistical significance."
+  },
+  {
+    "key": "significant-in-a-statistics-sentence#non-random",
+    "caseId": "significant-in-a-statistics-sentence",
+    "word": "significant",
+    "sentence": "The difference between the two groups was statistically significant.",
+    "synonym": "non-random",
+    "nuance": "Emphasizes that the pattern is unlikely to result from chance alone.",
+    "judge": {
+      "isSubstitutable": true,
+      "nuanceIsTrue": true,
+      "why": "It can describe a pattern unlikely to be due to chance alone."
+    },
+    "human": null
+  },
+  {
+    "key": "substantial-as-a-plain-lookup#significant",
+    "caseId": "substantial-as-a-plain-lookup",
+    "word": "substantial",
+    "sentence": "The intervention produced a substantial reduction in absenteeism.",
+    "synonym": "significant",
+    "nuance": "emphasizes that the reduction is important or meaningful",
+    "judge": {
+      "isSubstitutable": true,
+      "nuanceIsTrue": true,
+      "why": "It can describe an important or meaningful reduction in this context."
+    },
+    "human": null
+  },
+  {
+    "key": "substantial-as-a-plain-lookup#considerable",
+    "caseId": "substantial-as-a-plain-lookup",
+    "word": "substantial",
+    "sentence": "The intervention produced a substantial reduction in absenteeism.",
+    "synonym": "considerable",
+    "nuance": "emphasizes the relatively large amount of reduction",
+    "judge": {
+      "isSubstitutable": true,
+      "nuanceIsTrue": true,
+      "why": "It emphasizes the large amount or degree of the reduction."
+    },
+    "human": null
+  },
+  {
+    "key": "substantial-as-a-plain-lookup#substantive",
+    "caseId": "substantial-as-a-plain-lookup",
+    "word": "substantial",
+    "sentence": "The intervention produced a substantial reduction in absenteeism.",
+    "synonym": "substantive",
+    "nuance": "more formal; often suggests a meaningful, not minor, change",
+    "judge": {
+      "isSubstitutable": true,
+      "nuanceIsTrue": true,
+      "why": "It can describe a meaningful, nontrivial reduction, though it is somewhat less direct than “substantial.”"
+    },
+    "human": null
+  },
+  {
+    "key": "mitigate-is-formal#palliate",
+    "caseId": "mitigate-is-formal",
+    "word": "mitigate",
+    "sentence": "Randomisation was used to mitigate selection bias.",
+    "synonym": "palliate",
+    "nuance": "a formal word meaning to make a harmful effect less severe, often without removing its cause",
+    "judge": {
+      "isSubstitutable": false,
+      "nuanceIsTrue": true,
+      "why": "Palliate usually refers to relieving symptoms or suffering rather than reducing methodological bias."
+    },
+    "human": null,
+    "note": "Claude's read: judge is right. Palliate does not substitute for mitigating selection bias."
+  },
+  {
+    "key": "mitigate-is-formal#reduce",
+    "caseId": "mitigate-is-formal",
+    "word": "mitigate",
+    "sentence": "Randomisation was used to mitigate selection bias.",
+    "synonym": "reduce",
+    "nuance": "a broader, more neutral word for making the amount or degree of something smaller",
+    "judge": {
+      "isSubstitutable": true,
+      "nuanceIsTrue": true,
+      "why": "Reduce can replace mitigate here, though it is less specific about alleviating harm or severity."
+    },
+    "human": null
+  },
+  {
+    "key": "elucidate-is-formal#clarify",
+    "caseId": "elucidate-is-formal",
+    "word": "elucidate",
+    "sentence": "Further work is needed to elucidate the underlying mechanism.",
+    "synonym": "clarify",
+    "nuance": "a direct, neutral alternative that emphasizes making the mechanism clearer",
+    "judge": {
+      "isSubstitutable": true,
+      "nuanceIsTrue": true,
+      "why": "It can directly replace “elucidate” when making a mechanism clearer."
+    },
+    "human": null
+  },
+  {
+    "key": "elucidate-is-formal#shed light on",
+    "caseId": "elucidate-is-formal",
+    "word": "elucidate",
+    "sentence": "Further work is needed to elucidate the underlying mechanism.",
+    "synonym": "shed light on",
+    "nuance": "emphasizes providing useful understanding, often without fully explaining every detail",
+    "judge": {
+      "isSubstitutable": true,
+      "nuanceIsTrue": true,
+      "why": "It means providing understanding without necessarily giving a complete explanation."
+    },
+    "human": null
+  },
+  {
+    "key": "elucidate-is-formal#illuminate",
+    "caseId": "elucidate-is-formal",
+    "word": "elucidate",
+    "sentence": "Further work is needed to elucidate the underlying mechanism.",
+    "synonym": "illuminate",
+    "nuance": "a more formal alternative that suggests revealing an unclear aspect",
+    "judge": {
+      "isSubstitutable": true,
+      "nuanceIsTrue": false,
+      "why": "“Illuminate” is not clearly more formal than “elucidate.”"
+    },
+    "human": null,
+    "note": "Claude's read: judge too strict. Substitutable; the rejection is again about the formality claim."
+  },
+  {
+    "key": "corroborate-against-near-synonyms#confirm",
+    "caseId": "corroborate-against-near-synonyms",
+    "word": "corroborate",
+    "sentence": "These findings corroborate earlier reports from two independent laboratories.",
+    "synonym": "confirm",
+    "nuance": "more general; it shows that earlier reports are correct",
+    "judge": {
+      "isSubstitutable": true,
+      "nuanceIsTrue": true,
+      "why": "“Confirm” is a more general verb for establishing that a claim or result is true."
+    },
+    "human": null
+  },
+  {
+    "key": "corroborate-against-near-synonyms#support",
+    "caseId": "corroborate-against-near-synonyms",
+    "word": "corroborate",
+    "sentence": "These findings corroborate earlier reports from two independent laboratories.",
+    "synonym": "support",
+    "nuance": "slightly broader; it provides evidence in favour of the reports",
+    "judge": {
+      "isSubstitutable": true,
+      "nuanceIsTrue": true,
+      "why": "“Support” can mean providing evidence in favour of the earlier reports."
+    },
+    "human": null
+  },
+  {
+    "key": "corroborate-against-near-synonyms#bear out",
+    "caseId": "corroborate-against-near-synonyms",
+    "word": "corroborate",
+    "sentence": "These findings corroborate earlier reports from two independent laboratories.",
+    "synonym": "bear out",
+    "nuance": "a phrasal verb meaning to show that the earlier reports are true",
+    "judge": {
+      "isSubstitutable": true,
+      "nuanceIsTrue": true,
+      "why": "“Bear out” means showing that a claim or report is true."
+    },
+    "human": null
+  },
+  {
+    "key": "salient-adjective#prominent",
+    "caseId": "salient-adjective",
+    "word": "salient",
+    "sentence": "The most salient limitation is the small sample size.",
+    "synonym": "prominent",
+    "nuance": "emphasises that the limitation is especially noticeable or important among others.",
+    "judge": {
+      "isSubstitutable": true,
+      "nuanceIsTrue": true,
+      "why": "It can describe the limitation as especially important or noticeable among the others."
+    },
+    "human": null
+  },
+  {
+    "key": "salient-adjective#obvious",
+    "caseId": "salient-adjective",
+    "word": "salient",
+    "sentence": "The most salient limitation is the small sample size.",
+    "synonym": "obvious",
+    "nuance": "emphasises that the limitation is easy to see or recognise.",
+    "judge": {
+      "isSubstitutable": true,
+      "nuanceIsTrue": true,
+      "why": "It can replace “salient” here while focusing more on ease of recognition than importance."
+    },
+    "human": null
+  },
+  {
+    "key": "salient-adjective#striking",
+    "caseId": "salient-adjective",
+    "word": "salient",
+    "sentence": "The most salient limitation is the small sample size.",
+    "synonym": "striking",
+    "nuance": "emphasises that the limitation is unusually noticeable or surprising.",
+    "judge": {
+      "isSubstitutable": true,
+      "nuanceIsTrue": true,
+      "why": "It can describe a limitation as particularly noticeable, often with an element of surprise."
+    },
+    "human": null
+  }
+]
