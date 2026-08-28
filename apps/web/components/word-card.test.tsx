@@ -330,6 +330,59 @@ describe('WordCard saving a looked-up word', () => {
       expect(await screen.findByText(/Couldn't play that/)).toBeInTheDocument();
     });
 
+    /**
+     * Everything the button remembers is about one word. Today a card passes
+     * through a loading state between words, which unmounts it — but that is
+     * how the page happens to render, not a promise. Without a key on the word,
+     * a card swapped in place keeps the previous word's audio and plays it
+     * under the new one's name, which is a hard bug to see and a worse one to
+     * hear.
+     */
+    it('forgets the previous word when a card is replaced in place', async () => {
+      asks.mockResolvedValue({
+        word: 'warrant',
+        audio: 'bGlzdGVu',
+        mediaType: 'audio/mpeg',
+      });
+
+      const { rerender } = render(
+        <WordCard
+          state={{ status: 'ready', response: CARD }}
+          onAccept={jest.fn()}
+          onReject={jest.fn()}
+          onDismiss={jest.fn()}
+        />,
+      );
+
+      // A different word, with no recording of its own, straight into the same
+      // position — no loading state in between.
+      rerender(
+        <WordCard
+          state={{
+            status: 'ready',
+            response: {
+              ...CARD,
+              card: {
+                ...CARD.card,
+                word: 'warrant',
+                pronunciation: { ipa: null, audioUrl: null },
+              },
+            } as CardResponse,
+          }}
+          onAccept={jest.fn()}
+          onReject={jest.fn()}
+          onDismiss={jest.fn()}
+        />,
+      );
+
+      await userEvent.setup().click(screen.getByTestId('pronounce'));
+
+      // Synthesised, because this word has no recording. Reaching for the
+      // previous word's URL would play "substantial" as "warrant".
+      await waitFor(() => expect(asks).toHaveBeenCalledWith('warrant'));
+      expect(plays).not.toHaveBeenCalledWith(CARD.card.pronunciation.audioUrl);
+    });
+
     it('leaves no pronunciation controls on a grammar note', () => {
       setup({ status: 'ready', response: NOTE });
 
