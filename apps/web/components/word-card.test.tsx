@@ -338,3 +338,38 @@ describe('WordCard saving a looked-up word', () => {
     });
   });
 });
+
+/**
+ * The card is the only thing that opens over what you were reading, and its
+ * way out depends on which card you got: a gate offers "Use it" and "Keep
+ * mine", neither of which means "not now".
+ */
+describe('WordCard leaving by keyboard', () => {
+  it('closes on Escape', async () => {
+    const { user, onDismiss } = setup({ status: 'ready', response: CARD });
+
+    await user.keyboard('{Escape}');
+
+    expect(onDismiss).toHaveBeenCalled();
+  });
+
+  it('closes on Escape while it is still loading', async () => {
+    const { user, onDismiss } = setup({ status: 'loading' });
+
+    await user.keyboard('{Escape}');
+
+    expect(onDismiss).toHaveBeenCalled();
+  });
+
+  it('does not accept anything on the way out', async () => {
+    const { user, onAccept, onReject } = setup({
+      status: 'ready',
+      response: CARD,
+    });
+
+    await user.keyboard('{Escape}');
+
+    expect(onAccept).not.toHaveBeenCalled();
+    expect(onReject).not.toHaveBeenCalled();
+  });
+});

@@ -1,0 +1,38 @@
+# Render blueprint for the API. The web app goes to Vercel — see docs/deploy.md.
+#
+# Why Render, and why one instance: the session store, the telemetry counters
+# and the rate-limiter state are all in memory. A second instance would answer
+# a card request without the session that /propose created on the first, and
+# opening that card is the product's central mechanic. One process until there
+# is a Redis.
+services:
+  - type: web
+    name: auto-learn-api
+    runtime: node
+    plan: starter # Not free: the free tier sleeps, and sleeping resets the counters.
+    region: oregon
+    numInstances: 1
+    healthCheckPath: /health
+
+    # packages/shared compiles to dist and the API imports the built output, so
+    # nothing else builds until this has run.
+    buildCommand: >-
+      corepack enable &&
+      pnpm install --frozen-lockfile &&
+      pnpm --filter @auto-learn/shared build &&
+      pnpm --filter api build
+    startCommand: node apps/api/dist/main.js
+
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false # Set in the dashboard. Never in this file.
+      - key: WEB_ORIGIN
+        sync: false # The Vercel URL, once the web app has one.
+      # Voice. Without these, dictation and spoken pronunciation refuse;
+      # everything else — including the dictionary's own recordings — works.
+      - key: ELEVENLABS_API_KEY
+        sync: false
+      - key: ELEVENLABS_VOICE_ID
+        sync: false
+      - key: NODE_VERSION
+        value: 22

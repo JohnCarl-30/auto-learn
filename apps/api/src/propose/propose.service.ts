@@ -186,6 +186,14 @@ export class ProposeService {
       });
     }
 
+    // Counted by difference rather than at each `continue`: what matters is
+    // how much of the model's proposal never reached the reader, and that is
+    // the same number however it went missing — an unlocatable span, or a
+    // silent fix applied to the text that could not then be reported.
+    this.telemetry.editsDropped(
+      edits.length - silentFixes.length - gated.length,
+    );
+
     return { index, original, text, silentFixes, gated };
   }
 

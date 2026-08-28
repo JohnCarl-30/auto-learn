@@ -73,12 +73,22 @@ describe('SentenceView gates', () => {
   });
 });
 
+/**
+ * An unfocused sentence is text, not a row of dead controls. Disabled buttons
+ * are still announced, so a screen reader walking the review used to meet every
+ * gate in every sentence and could act on none of them.
+ */
 describe('SentenceView when the sentence is not focused', () => {
-  it('stops responding to clicks', () => {
+  it('offers nothing to press', () => {
     setup(false);
-    for (const gate of screen.getAllByTestId('gate')) {
-      expect(gate).toBeDisabled();
-    }
+    expect(screen.queryAllByRole('button')).toHaveLength(0);
+    expect(screen.queryAllByTestId('word')).toHaveLength(0);
+  });
+
+  it('still shows where the suggestions are', () => {
+    setup(false);
+    expect(screen.getAllByTestId('gate')).toHaveLength(2);
+    expect(screen.getByRole('paragraph')).toHaveTextContent(TEXT);
   });
 });
 

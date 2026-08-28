@@ -63,6 +63,22 @@ describe('rate limiting', () => {
     expect(parsed.data?.code).toBe('rate_limited');
   });
 
+  /**
+   * A platform health check polls from one address every few seconds. If it
+   * shared the limit it would eventually take a 429, the host would read that
+   * as "unhealthy", and it would restart a service that was working — dropping
+   * every in-flight review and zeroing the telemetry on the way out.
+   */
+  it('never refuses the health check, whatever else is happening', async () => {
+    // Far past any limit here, and from the same address as the burst above.
+    for (let i = 0; i < RATE_LIMITS.default.limit + 20; i++) {
+      await request(server()).get('/health').expect(200);
+    }
+
+    const response = await request(server()).get('/health').expect(200);
+    expect(response.body).toEqual({ status: 'ok' });
+  });
+
   it('limits each route separately, so a burst cannot silence the counts', async () => {
     // /propose is exhausted at this point. The accept and reject pings are the
     // numbers that decide what v2 is, and they must not be collateral damage.
