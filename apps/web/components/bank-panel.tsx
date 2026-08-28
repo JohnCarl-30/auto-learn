@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useSyncExternalStore } from 'react';
+import { useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { CLAIM_PROMPT_THRESHOLD, type BankEntry } from '@auto-learn/shared';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -54,12 +54,15 @@ export function BankPanel({
   count,
   onRemove,
   onExport,
+  onImport,
 }: {
   entries: BankEntry[];
   count: number;
   onRemove?: (id: string) => void;
   onExport?: () => void;
+  onImport?: (file: File) => void;
 }) {
+  const fileInput = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState('');
   const [order, setOrder] = useState<SortOrder>('recent');
   const [drilling, setDrilling] = useState(false);
@@ -72,15 +75,52 @@ export function BankPanel({
 
   const toggle = () => writeExpanded(!expanded);
 
+  /*
+    Restoring matters most when there is nothing here: a fresh browser, or one
+    whose storage was cleared, is exactly the case a backup exists for. So this
+    is rendered in the empty state as well, not only alongside a bank that
+    already exists.
+  */
+  const importControl = onImport && (
+    <>
+      <Button
+        variant="ghost"
+        size="sm"
+        data-testid="bank-import"
+        onClick={() => fileInput.current?.click()}
+      >
+        Import
+      </Button>
+      <input
+        ref={fileInput}
+        type="file"
+        accept="application/json,.json"
+        data-testid="bank-import-input"
+        aria-label="Import a word bank file"
+        className="hidden"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          // Cleared so choosing the same file twice fires again — a retry
+          // after a failed import is otherwise silently ignored.
+          event.target.value = '';
+          if (file) onImport(file);
+        }}
+      />
+    </>
+  );
+
   const visible = useMemo(() => filterAndSort(entries, query, order), [entries, query, order]);
 
   if (count === 0) {
     return (
       <section className="mt-16" data-testid="bank">
         <Separator className="mb-6" />
-        <p className="text-sm text-muted-foreground">
-          Words you accept or look up will collect here.
-        </p>
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-sm text-muted-foreground">
+            Words you accept or look up will collect here.
+          </p>
+          {importControl}
+        </div>
       </section>
     );
   }
@@ -127,6 +167,7 @@ export function BankPanel({
               Export
             </Button>
           )}
+          {importControl}
           <Button
             variant="ghost"
             size="sm"

@@ -3,7 +3,15 @@
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import type { BankEntry } from '@auto-learn/shared';
-import { countBank, exportBank, listBank, removeWord, restoreWord } from './bank';
+import { BankExport } from '@auto-learn/shared';
+import {
+  countBank,
+  exportBank,
+  importBank,
+  listBank,
+  removeWord,
+  restoreWord,
+} from './bank';
 import { datedFilename, downloadJson } from './download';
 
 /**
@@ -81,5 +89,38 @@ export function useBank(version: number) {
     );
   }, []);
 
-  return { entries, count, remove, download };
+  /**
+   * Reads a previously exported file back in.
+   *
+   * Validated against the same schema that wrote it, at the boundary, before
+   * anything touches IndexedDB — the file has been outside our control, and a
+   * half-applied import is worse than a refused one. A file from a version this
+   * build does not know is refused rather than guessed at.
+   */
+  const restore = useCallback(async (file: File) => {
+    let parsed;
+
+    try {
+      parsed = BankExport.safeParse(JSON.parse(await file.text()));
+    } catch {
+      toast.error('That file is not readable as JSON.');
+      return;
+    }
+
+    if (!parsed.success) {
+      toast.error('That does not look like a word bank export.');
+      return;
+    }
+
+    const { added, merged } = await importBank(parsed.data);
+    setOwnVersion((v) => v + 1);
+
+    toast.success(
+      merged > 0
+        ? `Restored ${added} ${added === 1 ? 'word' : 'words'}, and updated ${merged} you already had`
+        : `Restored ${added} ${added === 1 ? 'word' : 'words'}`,
+    );
+  }, []);
+
+  return { entries, count, remove, download, restore };
 }

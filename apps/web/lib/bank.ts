@@ -4,6 +4,7 @@ import { openDB, type IDBPDatabase } from 'idb';
 import {
   BANK_EXPORT_VERSION,
   findReused,
+  mergeBankEntry,
   type BankEntry,
   type BankExport,
   type WordCard,
@@ -162,6 +163,41 @@ export async function exportBank(): Promise<BankExport> {
     exportedAt: new Date().toISOString(),
     entries: [...entries].sort((a, b) => a.addedAt.localeCompare(b.addedAt)),
   };
+}
+
+export interface ImportResult {
+  added: number;
+  merged: number;
+}
+
+/**
+ * Restores a bank from a file, without discarding the one already here.
+ *
+ * Never a wholesale replace: someone restoring a backup onto a device they have
+ * since used would lose everything learned in between, which is the opposite of
+ * what reaching for a backup is meant to do. Words present on both sides are
+ * reconciled by `mergeBankEntry`, which keeps the strongest claim from each.
+ */
+export async function importBank(file: BankExport): Promise<ImportResult> {
+  const db = await connect();
+  let added = 0;
+  let merged = 0;
+
+  for (const incoming of file.entries) {
+    const existing = (await db.get(STORE, incoming.id)) as
+      | BankEntry
+      | undefined;
+
+    if (existing) {
+      await db.put(STORE, mergeBankEntry(existing, incoming));
+      merged += 1;
+    } else {
+      await db.put(STORE, incoming);
+      added += 1;
+    }
+  }
+
+  return { added, merged };
 }
 
 /** Whether a word is already banked, so the UI can say "Saved" rather than offer it again. */
