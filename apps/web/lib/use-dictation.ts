@@ -116,6 +116,15 @@ export function useDictation(onTranscript: (transcript: string) => void) {
 
     active.onstop = () => {
       release();
+
+      // Ending every track ends the recorder, so unmounting mid-recording
+      // arrives here. Without this the upload still goes — a transcription
+      // paid for and thrown away, because the panel it would report into is
+      // gone. The guards further down discard the answer; this declines to ask
+      // the question. Reachable by ordinary use: the transform buttons and
+      // ⌘↵ stay live while recording, so submitting mid-sentence unmounts us.
+      if (!alive.current) return;
+
       const recording = new Blob(chunks, {
         type: mimeType ?? AUDIO_MEDIA_TYPES[0],
       });

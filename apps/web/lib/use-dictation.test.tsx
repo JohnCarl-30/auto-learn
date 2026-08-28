@@ -156,6 +156,24 @@ describe('useDictation', () => {
     expect(tracks[0].stop).toHaveBeenCalled();
   });
 
+  /**
+   * A browser ends the recorder when its tracks end, so unmounting mid-recording
+   * lands in `onstop` with a real recording in hand. Sending it would spend a
+   * transcription on an answer that has nowhere to go — and the panel is gone,
+   * so the reader is not waiting for it either.
+   */
+  it('does not spend a transcription nobody will see', async () => {
+    const { result, unmount } = renderHook(() => useDictation(jest.fn()));
+
+    await act(() => result.current.start());
+    unmount();
+
+    // What the browser does once every track has stopped.
+    act(() => recorders[0].stop());
+
+    expect(transcribes).not.toHaveBeenCalled();
+  });
+
   it('repeats the server refusal rather than inventing its own', async () => {
     transcribes.mockRejectedValue(
       new ApiFailure({
