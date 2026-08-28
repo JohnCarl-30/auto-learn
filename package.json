@@ -8,6 +8,7 @@
     "dev:api": "pnpm --filter api start:dev",
     "build": "pnpm -r build",
     "test": "pnpm -r test",
+    "eval": "pnpm --filter @auto-learn/shared build && pnpm --filter @auto-learn/evals eval",
     "typecheck": "pnpm -r typecheck"
   },
   "engines": {

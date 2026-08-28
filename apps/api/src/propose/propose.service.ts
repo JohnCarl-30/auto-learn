@@ -5,7 +5,6 @@ import {
   MAX_SENTENCES,
   ModelProposal,
   SILENT_TYPES,
-  TRANSFORM_INSTRUCTIONS,
   locateSpan,
   splitSentences,
   type ApiError,
@@ -15,30 +14,18 @@ import {
   type SilentFix,
   type SilentFixType,
 } from '@auto-learn/shared';
-import { proposeModel, proposeProviderOptions } from '../llm/models';
+import {
+  PROPOSE_MAX_OUTPUT_TOKENS,
+  proposeModel,
+  proposeProviderOptions,
+} from '../llm/models';
+import { PROPOSE_SYSTEM_PROMPT, proposeUserPrompt } from '../llm/prompts';
 import { TelemetryService } from '../telemetry/telemetry.service';
 import {
   SessionStore,
   type StoredGated,
   type StoredSentence,
 } from '../session/session.store';
-
-const SYSTEM_PROMPT = `You help university students who write academic English as a second language.
-
-You receive 1-3 numbered sentences and one transform instruction. Return targeted edits for each sentence.
-
-Classify every edit:
-- "typo", "spacing", "punctuation" — mechanical slips. Applied silently.
-- "grammar" — a grammatical error: agreement, tense, article, preposition, plurality.
-- "word-choice" — a word that is correct but weak, vague, or imprecise for academic writing.
-- "register" — phrasing too casual or too formal for an academic essay.
-
-Rules:
-- "original" MUST be an exact, verbatim substring of that sentence. Copy it character for character.
-- Prefer the shortest span that captures the change. Never rewrite a whole sentence as one edit.
-- Never remove content. Every claim the writer made must survive.
-- If a sentence needs nothing, return an empty edits array for it. Do not invent changes to seem useful.
-- "reason" is one short line a learner can understand. No jargon.`;
 
 @Injectable()
 export class ProposeService {
@@ -103,16 +90,14 @@ export class ProposeService {
     sentences: string[],
     option: ProposeRequest['option'],
   ) {
-    const numbered = sentences.map((s, i) => `${i}. ${s}`).join('\n');
-
     try {
       const { object } = await generateObject({
         model: proposeModel(),
         schema: ModelProposal,
-        system: SYSTEM_PROMPT,
-        prompt: `Transform: ${TRANSFORM_INSTRUCTIONS[option]}\n\nSentences:\n${numbered}`,
+        system: PROPOSE_SYSTEM_PROMPT,
+        prompt: proposeUserPrompt(sentences, option),
         providerOptions: proposeProviderOptions,
-        maxOutputTokens: 2000,
+        maxOutputTokens: PROPOSE_MAX_OUTPUT_TOKENS,
       });
       return object;
     } catch (error) {

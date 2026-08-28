@@ -1,0 +1,62 @@
+name: Evals
+
+# Never on push or pull_request. Every case is a real model call, so a
+# per-PR eval bills a provider on every commit and — worse — makes a noisy
+# score into a merge blocker. Scheduled and manual only, which is also the
+# argument `ci.yml` already makes for keeping Playwright out.
+on:
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: 'propose, card, or both'
+        type: choice
+        options: [both, propose, card]
+        default: both
+      repeat:
+        description: 'Runs per case. Above 1 measures flakiness, and costs that multiple.'
+        default: '1'
+  schedule:
+    # Mondays, 06:00 UTC. The model behind these calls changes without asking,
+    # so the point of a schedule is to notice that before a user does.
+    - cron: '0 6 * * 1'
+
+jobs:
+  eval:
+    name: score the propose and card calls
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # The harness imports @auto-learn/shared, same as both apps.
+      - name: Build shared
+        run: pnpm --filter @auto-learn/shared build
+
+      # Cheap, deterministic, and the thing that decides whether the scores
+      # below mean anything. A broken scorer reports a number nobody re-derives.
+      - name: Test the scorers
+        run: pnpm --filter @auto-learn/evals test
+
+      - name: Run evals
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          pnpm --filter @auto-learn/evals eval \
+            ${{ github.event.inputs.suite == 'both' && ' ' || github.event.inputs.suite }} \
+            --repeat=${{ github.event.inputs.repeat || 1 }}
+
+      # Uploaded whether or not the run regressed: the failure is the reason
+      # you want the outputs, and they are gitignored locally.
+      - name: Keep the outputs
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: eval-runs
+          path: evals/results/runs/
+          retention-days: 30
