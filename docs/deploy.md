@@ -85,6 +85,13 @@ or the dictionary fails, and a failure is not engagement. `cardsFailed` is the
 one to watch for a different reason — if it climbs, the gate is breaking rather
 than teaching.
 
+`editsDropped` is the fourth number, and it qualifies the other three. An edit
+whose span cannot be located verbatim is discarded rather than guessed at, so a
+model that drifts produces *fewer gates* rather than an error — which reads as
+quiet success. Watch it as a share of `proposals`: a few per paste is ordinary,
+a rising ratio means the prompt or the model has moved and the other counts are
+measuring a product that is quietly getting thinner.
+
 ## Costs
 
 `/propose` and `/card` each spend a model call, behind no login. The per-IP
