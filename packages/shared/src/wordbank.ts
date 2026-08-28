@@ -56,3 +56,45 @@ export const BankExport = z.object({
   entries: z.array(BankEntry),
 });
 export type BankExport = z.infer<typeof BankExport>;
+
+/**
+ * Reconciles a word that exists in both the bank and the file being restored.
+ *
+ * Restoring must never cost someone evidence. The two records are the same word
+ * met twice — possibly on two devices — so the merge keeps the strongest claim
+ * from each rather than letting one overwrite the other:
+ *
+ *   - the earlier acquisition supplies the content, because `sourceSentence` is
+ *     the sentence they actually met the word in, and the first one is the true
+ *     one;
+ *   - `accepted` beats `tapped`, matching `bankWord` — adopting the word is the
+ *     stronger act, and it should not be downgraded by a later curious tap;
+ *   - reuse counts take the higher number and the later date, since each side
+ *     only ever saw its own device's reuses.
+ *
+ * Pure, and here rather than in the browser store, because getting it wrong
+ * silently destroys history and that is worth testing directly.
+ */
+export function mergeBankEntry(
+  existing: BankEntry,
+  incoming: BankEntry,
+): BankEntry {
+  // The earlier acquisition wins the content fields by being spread first.
+  const first =
+    existing.addedAt <= incoming.addedAt ? existing : incoming;
+
+  const lastReusedAt = [existing.lastReusedAt, incoming.lastReusedAt]
+    .filter((value): value is string => value !== null)
+    .sort()
+    .pop();
+
+  return {
+    ...first,
+    addedVia:
+      existing.addedVia === 'accepted' || incoming.addedVia === 'accepted'
+        ? 'accepted'
+        : 'tapped',
+    timesReused: Math.max(existing.timesReused, incoming.timesReused),
+    lastReusedAt: lastReusedAt ?? null,
+  };
+}
