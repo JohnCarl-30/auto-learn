@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import type { BankEntry } from '@auto-learn/shared';
-import { countBank, listBank, removeWord, restoreWord } from './bank';
+import { countBank, exportBank, listBank, removeWord, restoreWord } from './bank';
+import { datedFilename, downloadJson } from './download';
 
 /**
  * Reads the bank, re-reading whenever `version` changes — the review hook
@@ -64,5 +65,21 @@ export function useBank(version: number) {
     [entries],
   );
 
-  return { entries, count, remove };
+  /**
+   * Writes the bank to a file the reader keeps.
+   *
+   * The bank lives in one browser and nowhere else until accounts exist, so
+   * this is the only thing standing between a cleared cache and losing every
+   * word the product taught someone.
+   */
+  const download = useCallback(async () => {
+    const data = await exportBank();
+
+    downloadJson(datedFilename('auto-learn-bank', new Date()), data);
+    toast.success(
+      `Saved ${data.entries.length} ${data.entries.length === 1 ? 'word' : 'words'} to a file`,
+    );
+  }, []);
+
+  return { entries, count, remove, download };
 }

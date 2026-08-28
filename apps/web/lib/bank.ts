@@ -1,7 +1,13 @@
 'use client';
 
 import { openDB, type IDBPDatabase } from 'idb';
-import { findReused, type BankEntry, type WordCard } from '@auto-learn/shared';
+import {
+  BANK_EXPORT_VERSION,
+  findReused,
+  type BankEntry,
+  type BankExport,
+  type WordCard,
+} from '@auto-learn/shared';
 
 const DB_NAME = 'auto-learn';
 const DB_VERSION = 1;
@@ -140,6 +146,22 @@ export async function removeWord(id: string): Promise<void> {
 export async function restoreWord(entry: BankEntry): Promise<void> {
   const db = await connect();
   await db.put(STORE, entry);
+}
+
+/**
+ * The whole bank, in the shape a future import can read.
+ *
+ * Sorted by acquisition rather than by id so the file reads as a history — the
+ * order someone met these words in is part of what they are backing up.
+ */
+export async function exportBank(): Promise<BankExport> {
+  const entries = await listBank();
+
+  return {
+    version: BANK_EXPORT_VERSION,
+    exportedAt: new Date().toISOString(),
+    entries: [...entries].sort((a, b) => a.addedAt.localeCompare(b.addedAt)),
+  };
 }
 
 /** Whether a word is already banked, so the UI can say "Saved" rather than offer it again. */

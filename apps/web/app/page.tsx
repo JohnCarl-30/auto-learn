@@ -99,6 +99,7 @@ export default function Page() {
         entries={bank.entries}
         count={bank.count}
         onRemove={(id) => void bank.remove(id)}
+        onExport={() => void bank.download()}
       />
     </main>
   );
