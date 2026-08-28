@@ -32,3 +32,27 @@ export type BankEntry = z.infer<typeof BankEntry>;
 
 /** Offer the account prompt once the bank is worth losing. */
 export const CLAIM_PROMPT_THRESHOLD = 8;
+
+/**
+ * A bank, out of the browser it was built in.
+ *
+ * Until there are accounts, the bank exists in one browser's IndexedDB and
+ * nowhere else — clearing site data destroys everything the product taught
+ * someone, silently and unrecoverably. This is the way out.
+ *
+ * Versioned from the first release rather than when it first hurts: a file
+ * written today has to still be readable by whatever reads it back, and a
+ * version field costs nothing now and cannot be added retroactively to files
+ * already on someone's disk.
+ *
+ * Entries are the full records, not a summary. A backup that drops
+ * `timesReused` or `sourceSentence` restores a worse bank than it saved.
+ */
+export const BANK_EXPORT_VERSION = 1;
+
+export const BankExport = z.object({
+  version: z.literal(BANK_EXPORT_VERSION),
+  exportedAt: z.string(),
+  entries: z.array(BankEntry),
+});
+export type BankExport = z.infer<typeof BankExport>;
