@@ -307,3 +307,81 @@ describe('BankPanel practice', () => {
     expect(screen.getByTestId('bank-list')).toBeInTheDocument();
   });
 });
+
+describe('BankPanel export', () => {
+  it('offers the way out whenever there is something to lose', () => {
+    const onExport = jest.fn();
+    render(
+      <BankPanel entries={[]} count={3} onRemove={jest.fn()} onExport={onExport} />,
+    );
+
+    // Offered with the panel collapsed: the moment you reach for this is the
+    // moment you are about to lose the browser, not a moment for expanding.
+    expect(screen.getByTestId('bank-export')).toBeInTheDocument();
+  });
+
+  it('says nothing about exporting an empty bank', () => {
+    render(<BankPanel entries={[]} count={0} onExport={jest.fn()} />);
+
+    expect(screen.queryByTestId('bank-export')).not.toBeInTheDocument();
+  });
+
+  it('hands the click straight through', async () => {
+    const onExport = jest.fn();
+    const user = userEvent.setup();
+    render(<BankPanel entries={[]} count={3} onExport={onExport} />);
+
+    await user.click(screen.getByTestId('bank-export'));
+    expect(onExport).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('BankPanel import', () => {
+  const file = (contents: string) =>
+    new File([contents], 'bank.json', { type: 'application/json' });
+
+  /**
+   * The case a backup exists for is a browser with nothing in it — a fresh
+   * machine, or storage that was cleared. An import control that only appears
+   * next to an existing bank is unreachable exactly when it is needed.
+   */
+  it('offers import with an empty bank', () => {
+    render(<BankPanel entries={[]} count={0} onImport={jest.fn()} />);
+
+    expect(screen.getByTestId('bank-import')).toBeInTheDocument();
+  });
+
+  it('offers it alongside an existing bank too', () => {
+    render(<BankPanel entries={[]} count={5} onImport={jest.fn()} />);
+
+    expect(screen.getByTestId('bank-import')).toBeInTheDocument();
+  });
+
+  it('hands the chosen file over', async () => {
+    const onImport = jest.fn();
+    const user = userEvent.setup();
+    render(<BankPanel entries={[]} count={0} onImport={onImport} />);
+
+    await user.upload(screen.getByTestId('bank-import-input'), file('{}'));
+
+    expect(onImport).toHaveBeenCalledTimes(1);
+    expect((onImport.mock.calls[0][0] as File).name).toBe('bank.json');
+  });
+
+  /**
+   * A file input holds on to its selection, so choosing the same file twice
+   * fires no second change event — which would make a retry after a failed
+   * import look like a dead button.
+   */
+  it('lets the same file be chosen again after a failure', async () => {
+    const onImport = jest.fn();
+    const user = userEvent.setup();
+    render(<BankPanel entries={[]} count={0} onImport={onImport} />);
+
+    const input = screen.getByTestId('bank-import-input');
+    await user.upload(input, file('{}'));
+    await user.upload(input, file('{}'));
+
+    expect(onImport).toHaveBeenCalledTimes(2);
+  });
+});
