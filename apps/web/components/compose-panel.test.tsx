@@ -57,6 +57,9 @@ const setup = () => {
   return { onSubmit, user: userEvent.setup() };
 };
 
+/** The panel remembers the last transform, and jsdom keeps localStorage for the file. */
+beforeEach(() => window.localStorage.clear());
+
 describe('ComposePanel', () => {
   it('counts sentences as they are typed', async () => {
     const { user } = setup();
@@ -242,5 +245,108 @@ describe('ComposePanel', () => {
         'destructive',
       );
     });
+  });
+});
+
+/**
+ * A blank textarea and four verbs is everything a first-time visitor is given.
+ */
+describe('ComposePanel with an empty box', () => {
+  it('offers sentences to start from', () => {
+    setup();
+    expect(screen.getAllByTestId('example').length).toBeGreaterThan(0);
+  });
+
+  /**
+   * Filling the box, not submitting it: choosing a transform is the one thing
+   * a newcomer has to understand, and submitting for them skips it.
+   */
+  it('fills the box from an example without spending a request', async () => {
+    const { user, onSubmit } = setup();
+    const example = screen.getAllByTestId('example')[0];
+    const sentence = example.textContent ?? '';
+
+    await user.click(example);
+
+    expect(screen.getByTestId('compose')).toHaveValue(sentence);
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it('gets out of the way once there is something to work on', async () => {
+    const { user } = setup();
+    await user.click(screen.getAllByTestId('example')[0]);
+
+    expect(screen.queryByTestId('examples')).not.toBeInTheDocument();
+  });
+
+  it('says what each transform does, not just what it is called', () => {
+    setup();
+    expect(screen.getByTestId('option-clearer')).toHaveTextContent(
+      'Untangles sentences that fight themselves.',
+    );
+    expect(screen.getByTestId('option-grammar')).toHaveTextContent(
+      'Only what is actually wrong.',
+    );
+  });
+});
+
+/**
+ * There is no sensible default among four verbs, so the keyboard repeats the
+ * choice you already made rather than making one for you.
+ */
+describe('ComposePanel keyboard submit', () => {
+  it('does nothing before a transform has ever been chosen', async () => {
+    const { user, onSubmit } = setup();
+    await user.type(screen.getByTestId('compose'), 'A sentence.');
+    await user.keyboard('{Meta>}{Enter}{/Meta}');
+
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('repeat-hint')).not.toBeInTheDocument();
+  });
+
+  it('repeats the last transform', async () => {
+    const first = setup();
+    await first.user.type(screen.getByTestId('compose'), 'A sentence.');
+    await first.user.click(screen.getByTestId('option-academic'));
+    expect(first.onSubmit).toHaveBeenCalledWith('A sentence.', 'academic');
+
+    await first.user.clear(screen.getByTestId('compose'));
+    await first.user.type(screen.getByTestId('compose'), 'Another one.');
+    await first.user.keyboard('{Meta>}{Enter}{/Meta}');
+
+    expect(first.onSubmit).toHaveBeenLastCalledWith('Another one.', 'academic');
+  });
+
+  it('takes Ctrl-Enter too, for the people not on a Mac', async () => {
+    const { user, onSubmit } = setup();
+    await user.type(screen.getByTestId('compose'), 'A sentence.');
+    await user.click(screen.getByTestId('option-clearer'));
+    await user.keyboard('{Control>}{Enter}{/Control}');
+
+    expect(onSubmit).toHaveBeenCalledTimes(2);
+    expect(onSubmit).toHaveBeenLastCalledWith('A sentence.', 'clearer');
+  });
+
+  it('says what the shortcut will do, once it will do something', async () => {
+    const { user } = setup();
+    await user.type(screen.getByTestId('compose'), 'A sentence.');
+    await user.click(screen.getByTestId('option-natural'));
+
+    expect(screen.getByTestId('repeat-hint')).toHaveTextContent(
+      'repeats Make it natural',
+    );
+  });
+
+  it('leaves a plain Enter to the textarea', async () => {
+    const { user, onSubmit } = setup();
+    await user.type(screen.getByTestId('compose'), 'A sentence.');
+    await user.click(screen.getByTestId('option-natural'));
+
+    await user.type(screen.getByTestId('compose'), '{Enter}Second line.');
+
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('compose')).toHaveValue(
+      'A sentence.\nSecond line.',
+    );
   });
 });

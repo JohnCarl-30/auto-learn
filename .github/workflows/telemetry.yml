@@ -1,0 +1,68 @@
+# Keeps the counts that decide v2.
+#
+# TelemetryService holds its counters in memory and says so: "persist them when
+# the answer starts mattering to someone other than us." Deploying is when that
+# starts — the host restarts the process on every deploy, and each restart
+# zeroes the numbers that are supposed to say whether anyone engages the gate.
+#
+# So: read the snapshot on a schedule and append it here. `since` is part of
+# every snapshot, so a restart is visible as a new window rather than as a
+# silent drop, and the windows can be summed after the fact.
+name: Telemetry
+
+on:
+  schedule:
+    - cron: '0 * * * *'
+  workflow_dispatch:
+
+# The job commits what it reads.
+permissions:
+  contents: write
+
+concurrency:
+  group: telemetry
+  cancel-in-progress: false
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    # A fork has no API to read and no business writing here.
+    if: github.repository == 'JohnCarl-30/auto-learn'
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Read the snapshot
+        env:
+          API_URL: ${{ vars.API_URL }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${API_URL:-}" ]; then
+            echo "API_URL is not set. Add it under Settings → Secrets and variables → Actions → Variables."
+            exit 1
+          fi
+
+          mkdir -p telemetry
+
+          # --fail so an error page is never mistaken for a reading.
+          snapshot=$(curl --fail --silent --show-error --max-time 30 "$API_URL/telemetry")
+
+          # Stamped with the read time: `since` says when the counters started,
+          # this says when they were looked at, and the pair gives the rate.
+          echo "$snapshot" | jq -c --arg readAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            '. + {readAt: $readAt}' >> telemetry/snapshots.jsonl
+
+      - name: Commit it
+        run: |
+          set -euo pipefail
+
+          if git diff --quiet -- telemetry/snapshots.jsonl; then
+            echo "Nothing new."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add telemetry/snapshots.jsonl
+          git commit -m "chore(telemetry): snapshot"
+          git push

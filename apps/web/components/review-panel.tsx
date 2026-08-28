@@ -1,6 +1,6 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import type {
   GatedSuggestionType,
   ProposeResponse,
@@ -40,6 +40,8 @@ export function ReviewPanel({
   const total = sentences.length;
   const gatedCount = sentences[focused]?.gated.length ?? 0;
 
+  useArrowKeyFocus(focused, total, onFocus);
+
   return (
     <div className="space-y-6" data-testid="review">
       <div className="flex items-center justify-between">
@@ -48,9 +50,19 @@ export function ReviewPanel({
           {gatedCount > 0 &&
             ` · ${gatedCount} ${gatedCount === 1 ? 'suggestion' : 'suggestions'}`}
         </span>
-        <Button variant="ghost" size="sm" onClick={onStartOver}>
-          Start over
-        </Button>
+        <div className="flex items-center gap-2">
+          {total > 1 && (
+            <span
+              className="hidden text-xs text-muted-foreground sm:inline"
+              data-testid="arrow-hint"
+            >
+              ← → to move
+            </span>
+          )}
+          <Button variant="ghost" size="sm" onClick={onStartOver}>
+            Start over
+          </Button>
+        </div>
       </div>
 
       <Separator />
@@ -61,22 +73,46 @@ export function ReviewPanel({
 
           return (
             <div key={sentence.index} className="space-y-4">
-              <div
-                className={cn(
-                  'transition-opacity',
-                  isFocused
-                    ? 'opacity-100'
-                    : 'cursor-pointer opacity-40 hover:opacity-70',
-                )}
-                onClick={isFocused ? undefined : () => onFocus(index)}
-              >
+              {isFocused ? (
                 <SentenceView
                   sentence={sentence}
-                  interactive={isFocused}
+                  interactive
                   onOpenGate={onOpenGate}
                   onLookup={onLookup}
                 />
-              </div>
+              ) : (
+                /*
+                  A real control, not a div with a click handler. Moving between
+                  sentences was mouse-only, which made every gate in every other
+                  sentence unreachable without one — and the dimming was deep
+                  enough to fail contrast on the text it was dimming.
+                */
+                <div
+                  role="button"
+                  tabIndex={0}
+                  data-testid="focus-sentence"
+                  aria-label={`Go to sentence ${index + 1}`}
+                  onClick={() => onFocus(index)}
+                  onKeyDown={(event) => {
+                    if (event.key !== 'Enter' && event.key !== ' ') return;
+                    // Space scrolls the page otherwise, which is the opposite
+                    // of what someone selecting a sentence asked for.
+                    event.preventDefault();
+                    onFocus(index);
+                  }}
+                  className={cn(
+                    'cursor-pointer rounded-md opacity-70 transition-opacity hover:opacity-100',
+                    'outline-none focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring/60',
+                  )}
+                >
+                  <SentenceView
+                    sentence={sentence}
+                    interactive={false}
+                    onOpenGate={onOpenGate}
+                    onLookup={onLookup}
+                  />
+                </div>
+              )}
 
               {isFocused && !cardSlot && (
                 <TeaserList sentence={sentence} onOpenGate={onOpenGate} />
@@ -94,6 +130,55 @@ export function ReviewPanel({
         </p>
       )}
     </div>
+  );
+}
+
+/**
+ * Left and right move between sentences.
+ *
+ * Bound to the window rather than to a container, because by the time you want
+ * the next sentence your focus is usually inside the card you just read. The
+ * guards matter more than the binding: a modifier means a browser shortcut,
+ * and a text field means someone is moving a cursor, not a selection.
+ */
+function useArrowKeyFocus(
+  focused: number,
+  total: number,
+  onFocus: (index: number) => void,
+) {
+  useEffect(() => {
+    if (total < 2) return;
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) {
+        return;
+      }
+      if (isTyping(event.target)) return;
+
+      const next =
+        event.key === 'ArrowRight'
+          ? focused + 1
+          : event.key === 'ArrowLeft'
+            ? focused - 1
+            : null;
+
+      if (next === null || next < 0 || next >= total) return;
+
+      event.preventDefault();
+      onFocus(next);
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [focused, total, onFocus]);
+}
+
+function isTyping(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+
+  return (
+    target.isContentEditable ||
+    ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)
   );
 }
 
@@ -119,7 +204,7 @@ function TeaserList({
             type="button"
             data-testid="teaser"
             onClick={() => onOpenGate(suggestion.id)}
-            className="group flex w-full items-baseline gap-2 text-left text-sm"
+            className="group flex w-full items-baseline gap-2 rounded-sm text-left text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
           >
             <span
               aria-hidden

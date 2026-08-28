@@ -11,3 +11,4 @@ export * from './telemetry';
 export * from './speech';
 export * from './dictate';
 export * from './text';
+export * from './diff';
