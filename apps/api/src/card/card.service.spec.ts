@@ -83,9 +83,8 @@ const sentence = (): StoredSentence => ({
 
 const build = (
   lookupResult: unknown = {
-    word: 'substantial',
-    senses: SENSES,
-    synonyms: ['significant'],
+    status: 'found',
+    entry: { word: 'substantial', senses: SENSES, synonyms: ['significant'] },
   },
 ) => {
   const sessions = new SessionStore();
@@ -206,12 +205,29 @@ describe('CardService target resolution', () => {
 
 describe('CardService grounding', () => {
   it('refuses to guess when the dictionary has no entry', async () => {
-    const { service, sessionId } = build(null);
+    const { service, sessionId } = build({ status: 'absent' });
 
     const error = await errorOf(() =>
       service.build({ kind: 'suggestion', sessionId, suggestionId: 'gate-1' }),
     );
     expect(error.code).toBe('no_dictionary_entry');
+    expect(generate).not.toHaveBeenCalled();
+  });
+
+  /**
+   * The two used to be one answer, and the reader was told a real word did not
+   * exist whenever the dictionary was slow. Saying "I couldn't reach it" is the
+   * difference between an outage and someone doubting their own vocabulary.
+   */
+  it('says the dictionary was unreachable rather than blaming the word', async () => {
+    const { service, sessionId } = build({ status: 'unavailable' });
+
+    const error = await errorOf(() =>
+      service.build({ kind: 'suggestion', sessionId, suggestionId: 'gate-1' }),
+    );
+    expect(error.code).toBe('upstream_failed');
+    expect(error.message).toContain("couldn't reach the dictionary");
+    expect(error.message).not.toContain('substantial');
     expect(generate).not.toHaveBeenCalled();
   });
 

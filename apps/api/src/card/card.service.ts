@@ -98,24 +98,36 @@ export class CardService {
     }
 
     const retrieved = await this.dictionary.lookup(target.word);
-    if (!retrieved) {
+
+    // Two different failures, and telling them apart is the whole point of the
+    // distinction: one is about the word, the other is about us.
+    if (retrieved.status === 'unavailable') {
+      throw this.fail(
+        'upstream_failed',
+        "I couldn't reach the dictionary just now. Try that word again in a moment.",
+      );
+    }
+
+    if (retrieved.status === 'absent') {
       throw this.fail(
         'no_dictionary_entry',
         `I couldn't find "${target.word}" in the dictionary, so I won't guess at what it means.`,
       );
     }
 
+    const entry = retrieved.entry;
+
     const generated = await this.callModel(
       target.word,
       target.sentence,
-      retrieved.senses,
-      retrieved.synonyms,
+      entry.senses,
+      entry.synonyms,
       target.reason,
     );
 
     // Guard the grounding claim: if the model returned a senseId we did not
     // supply, the card is not actually dictionary-backed.
-    const chosen = retrieved.senses.find(
+    const chosen = entry.senses.find(
       (sense) => sense.senseId === generated.senseId,
     );
     if (!chosen) {
@@ -129,7 +141,7 @@ export class CardService {
       kind: 'card',
       card: {
         word: target.word,
-        lemma: retrieved.word,
+        lemma: entry.word,
         partOfSpeech: generated.partOfSpeech,
         definition: generated.definition,
         senseId: generated.senseId,

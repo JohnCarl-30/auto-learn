@@ -33,6 +33,18 @@ test.describe('the stack talks to itself', () => {
   });
 });
 
+/*
+  A card is a reasoning model plus two dictionary round trips, measured between
+  four and thirteen seconds. `data-testid="word-card"` only exists once one has
+  arrived — the loading and error states render without it — so Playwright's
+  five-second default was asking for a card in less time than a card takes, and
+  these assertions were flaky by construction rather than by luck.
+
+  Thirty seconds is inside the API's own 45s budget for the call, so a failure
+  here still means the card never came, not that this file was impatient.
+*/
+const CARD_ARRIVES = { timeout: 30_000 };
+
 test.describe('the gate', () => {
   // These need real proposals. They light up the moment a key exists, and they
   // are the tests that actually check the product's thesis.
@@ -99,7 +111,7 @@ test.describe('the gate', () => {
     const before = await page.getByTestId('finished-text').innerText();
 
     await gate.click();
-    await expect(page.getByTestId('word-card')).toBeVisible();
+    await expect(page.getByTestId('word-card')).toBeVisible(CARD_ARRIVES);
     await page.getByTestId('accept').click();
 
     await expect(page.getByTestId('word-card')).toHaveCount(0);
@@ -115,7 +127,7 @@ test.describe('the gate', () => {
     const original = await gate.innerText();
 
     await gate.click();
-    await expect(page.getByTestId('word-card')).toBeVisible();
+    await expect(page.getByTestId('word-card')).toBeVisible(CARD_ARRIVES);
     await page.getByTestId('reject').click();
 
     await expect(page.getByTestId('word-card')).toHaveCount(0);

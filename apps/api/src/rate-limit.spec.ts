@@ -42,10 +42,18 @@ describe('rate limiting', () => {
    * Spends the whole allowance without asserting on any of it, so a test can
    * rely on the *next* call being refused.
    *
-   * Cheap insurance against a real flake: the window is a minute long, and a
-   * test that inherited an exhausted limiter from the test above it started
-   * failing under parallel load, when a minute could pass between the two.
-   * Re-spending an already-exhausted allowance just collects more 429s.
+   * This exists because the test below used to inherit an exhausted limiter
+   * from the test above it, which is worth removing on its own account: a test
+   * that depends on its neighbour cannot be run alone, and reads as passing
+   * when the neighbour is what is broken.
+   *
+   * It was written believing it also fixed a flake — this file failed twice
+   * under a full parallel run — on the theory that the minute-long window
+   * could roll mid-test. That theory is wrong, and measured: the ten-request
+   * burst takes 33ms idle and 129ms under eight CPU spinners, against a
+   * 60,000ms window. The cause of those two failures is still unknown; the
+   * assertion output was not captured at the time. If it returns, capture the
+   * expected-versus-received before theorising.
    */
   const exhaustPropose = async () => {
     for (let i = 0; i < RATE_LIMITS.propose.limit; i++) await propose();
