@@ -307,3 +307,31 @@ describe('BankPanel practice', () => {
     expect(screen.getByTestId('bank-list')).toBeInTheDocument();
   });
 });
+
+describe('BankPanel export', () => {
+  it('offers the way out whenever there is something to lose', () => {
+    const onExport = jest.fn();
+    render(
+      <BankPanel entries={[]} count={3} onRemove={jest.fn()} onExport={onExport} />,
+    );
+
+    // Offered with the panel collapsed: the moment you reach for this is the
+    // moment you are about to lose the browser, not a moment for expanding.
+    expect(screen.getByTestId('bank-export')).toBeInTheDocument();
+  });
+
+  it('says nothing about exporting an empty bank', () => {
+    render(<BankPanel entries={[]} count={0} onExport={jest.fn()} />);
+
+    expect(screen.queryByTestId('bank-export')).not.toBeInTheDocument();
+  });
+
+  it('hands the click straight through', async () => {
+    const onExport = jest.fn();
+    const user = userEvent.setup();
+    render(<BankPanel entries={[]} count={3} onExport={onExport} />);
+
+    await user.click(screen.getByTestId('bank-export'));
+    expect(onExport).toHaveBeenCalledTimes(1);
+  });
+});
