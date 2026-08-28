@@ -86,10 +86,8 @@ describe('ProposeService cap enforcement', () => {
 });
 
 describe('ProposeService span resolution', () => {
-  const service = new ProposeService(
-    new SessionStore(),
-    new TelemetryService(),
-  );
+  const telemetry = new TelemetryService();
+  const service = new ProposeService(new SessionStore(), telemetry);
   // resolveSentence is private; these tests reach it deliberately because it
   // is where span resolution lives.
   const resolve = (original: string, edits: ModelEdit[]): StoredSentence =>
@@ -134,6 +132,54 @@ describe('ProposeService span resolution', () => {
       },
     ]);
     expect(result.gated).toHaveLength(0);
+  });
+
+  /**
+   * Dropping is right — guessing at a span corrupts the sentence. But it makes
+   * a drifting model look like a well-behaved one that simply found less to
+   * say: fewer gates, no error, nothing in the log. The count is what turns
+   * that from silence into a signal.
+   */
+  it('counts what it dropped, so the silence is measurable', () => {
+    const before = telemetry.snapshot().editsDropped;
+
+    resolve('The results were substantial.', [
+      {
+        type: 'word-choice',
+        original: 'gigantic',
+        replacement: 'large',
+        reason: 'x',
+      },
+      {
+        type: 'typo',
+        original: 'reuslts',
+        replacement: 'results',
+        reason: 'not in this sentence either',
+      },
+    ]);
+
+    expect(telemetry.snapshot().editsDropped).toBe(before + 2);
+  });
+
+  it('counts nothing when every edit lands', () => {
+    const before = telemetry.snapshot().editsDropped;
+
+    resolve('The reuslts were very big.', [
+      {
+        type: 'typo',
+        original: 'reuslts',
+        replacement: 'results',
+        reason: 'spelling',
+      },
+      {
+        type: 'word-choice',
+        original: 'very big',
+        replacement: 'substantial',
+        reason: 'stronger academic word',
+      },
+    ]);
+
+    expect(telemetry.snapshot().editsDropped).toBe(before);
   });
 
   it('never leaks the replacement into the teaser', () => {
