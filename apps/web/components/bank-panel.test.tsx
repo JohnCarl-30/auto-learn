@@ -24,6 +24,13 @@ const entry = (word: string, overrides: Partial<BankEntry> = {}): BankEntry => (
 const many = (n: number) =>
   Array.from({ length: n }, (_, i) => entry(`word${i}`));
 
+/**
+ * The panel remembers whether it was open, and jsdom keeps localStorage for
+ * the whole file — so one test's toggle would otherwise decide the next
+ * test's starting state.
+ */
+beforeEach(() => window.localStorage.clear());
+
 describe('BankPanel when empty', () => {
   it('explains what will collect there', () => {
     render(<BankPanel entries={[]} count={0} />);
@@ -134,5 +141,169 @@ describe('BankPanel removing a word', () => {
     await user.click(screen.getByTestId('bank-toggle'));
 
     expect(screen.queryByTestId('remove-word')).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * A bank you cannot search stops being a bank at about thirty words and
+ * becomes a scroll.
+ */
+describe('BankPanel finding a word', () => {
+  const words = [
+    entry('substantial', {
+      definition: 'Large enough to matter.',
+      sourceSentence: 'The results were very big.',
+    }),
+    entry('nonetheless', {
+      definition: 'In spite of that.',
+      sourceSentence: 'It was late, but she finished.',
+    }),
+  ];
+
+  const open = async () => {
+    const user = userEvent.setup();
+    render(<BankPanel entries={words} count={words.length} />);
+    await user.click(screen.getByTestId('bank-toggle'));
+    return user;
+  };
+
+  it('narrows the list as you type', async () => {
+    const user = await open();
+    await user.type(screen.getByTestId('bank-search'), 'nonethe');
+
+    expect(screen.getByText('nonetheless')).toBeInTheDocument();
+    expect(screen.queryByText('substantial')).not.toBeInTheDocument();
+  });
+
+  /** Half of what you remember about a word is the sentence you met it in. */
+  it('searches the sentence the word came from, not just the word', async () => {
+    const user = await open();
+    await user.type(screen.getByTestId('bank-search'), 'she finished');
+
+    expect(screen.getByText('nonetheless')).toBeInTheDocument();
+    expect(screen.queryByText('substantial')).not.toBeInTheDocument();
+  });
+
+  it('searches the definition too', async () => {
+    const user = await open();
+    await user.type(screen.getByTestId('bank-search'), 'large enough');
+
+    expect(screen.getByText('substantial')).toBeInTheDocument();
+  });
+
+  it('says so when nothing matches, rather than showing an empty list', async () => {
+    const user = await open();
+    await user.type(screen.getByTestId('bank-search'), 'zzzz');
+
+    expect(screen.getByTestId('bank-no-match')).toBeInTheDocument();
+    expect(screen.queryByTestId('bank-list')).not.toBeInTheDocument();
+  });
+});
+
+describe('BankPanel ordering', () => {
+  const words = [
+    entry('beta', { addedAt: '2026-01-02T00:00:00.000Z', timesReused: 1 }),
+    entry('alpha', { addedAt: '2026-01-01T00:00:00.000Z', timesReused: 4 }),
+  ];
+
+  const shown = () =>
+    Array.from(
+      screen.getByTestId('bank-list').querySelectorAll('li > div > span:first-child'),
+      (node) => node.textContent,
+    );
+
+  it('leads with the newest word', async () => {
+    const user = userEvent.setup();
+    render(<BankPanel entries={words} count={2} />);
+    await user.click(screen.getByTestId('bank-toggle'));
+
+    expect(shown()).toEqual(['beta', 'alpha']);
+  });
+
+  it('sorts alphabetically on request', async () => {
+    const user = userEvent.setup();
+    render(<BankPanel entries={words} count={2} />);
+    await user.click(screen.getByTestId('bank-toggle'));
+    await user.selectOptions(screen.getByTestId('bank-sort'), 'alphabetical');
+
+    expect(shown()).toEqual(['alpha', 'beta']);
+  });
+
+  /** The words you have actually used again are the evidence the bank works. */
+  it('can lead with the words the writer has reused most', async () => {
+    const user = userEvent.setup();
+    render(<BankPanel entries={words} count={2} />);
+    await user.click(screen.getByTestId('bank-toggle'));
+    await user.selectOptions(screen.getByTestId('bank-sort'), 'reused');
+
+    expect(shown()).toEqual(['alpha', 'beta']);
+  });
+});
+
+describe('BankPanel remembering whether it was open', () => {
+  it('comes back open once it has been opened', async () => {
+    const user = userEvent.setup();
+    const { unmount } = render(<BankPanel entries={[entry('substantial')]} count={1} />);
+
+    await user.click(screen.getByTestId('bank-toggle'));
+    unmount();
+
+    render(<BankPanel entries={[entry('substantial')]} count={1} />);
+    expect(await screen.findByTestId('bank-list')).toBeInTheDocument();
+  });
+
+  it('stays shut once it has been shut', async () => {
+    const user = userEvent.setup();
+    const { unmount } = render(<BankPanel entries={[entry('substantial')]} count={1} />);
+
+    await user.click(screen.getByTestId('bank-toggle'));
+    await user.click(screen.getByTestId('bank-toggle'));
+    unmount();
+
+    render(<BankPanel entries={[entry('substantial')]} count={1} />);
+    expect(screen.queryByTestId('bank-list')).not.toBeInTheDocument();
+  });
+});
+
+describe('BankPanel practice', () => {
+  it('is not offered on a bank too small to have forgotten anything', async () => {
+    const user = userEvent.setup();
+    render(<BankPanel entries={many(2)} count={2} />);
+    await user.click(screen.getByTestId('bank-toggle'));
+
+    expect(screen.queryByTestId('bank-practice')).not.toBeInTheDocument();
+  });
+
+  it('starts a drill over the words on screen', async () => {
+    const user = userEvent.setup();
+    render(<BankPanel entries={many(5)} count={5} />);
+    await user.click(screen.getByTestId('bank-toggle'));
+    await user.click(screen.getByTestId('bank-practice'));
+
+    expect(screen.getByTestId('drill')).toBeInTheDocument();
+    expect(screen.getByTestId('drill-progress')).toHaveTextContent('1 of 5');
+    expect(screen.queryByTestId('bank-list')).not.toBeInTheDocument();
+  });
+
+  /** A search narrows the drill as well as the list. */
+  it('drills only what the search left', async () => {
+    const user = userEvent.setup();
+    // word1 and word10..word19 — eleven of the twenty.
+    render(<BankPanel entries={many(20)} count={20} />);
+    await user.click(screen.getByTestId('bank-toggle'));
+    await user.type(screen.getByTestId('bank-search'), 'word1');
+    await user.click(screen.getByTestId('bank-practice'));
+
+    expect(screen.getByTestId('drill-progress')).toHaveTextContent('1 of 11');
+  });
+
+  it('gives the list back when the drill is stopped', async () => {
+    const user = userEvent.setup();
+    render(<BankPanel entries={many(5)} count={5} />);
+    await user.click(screen.getByTestId('bank-toggle'));
+    await user.click(screen.getByTestId('bank-practice'));
+    await user.click(screen.getByTestId('drill-stop'));
+
+    expect(screen.getByTestId('bank-list')).toBeInTheDocument();
   });
 });

@@ -26,6 +26,10 @@ const GATE_STYLES: Record<GatedSuggestionType, string> = {
     'decoration-sky-600/70 decoration-dashed hover:bg-sky-500/10 dark:decoration-sky-400/70',
 };
 
+/** Every target in the sentence is reachable by keyboard, and says where it is. */
+const FOCUS_RING =
+  'outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-1 focus-visible:ring-offset-background';
+
 export function SentenceView({
   sentence,
   interactive,
@@ -60,26 +64,46 @@ export function SentenceView({
         }
 
         if (segment.kind === 'gated') {
+          /*
+            An unfocused sentence renders as text, not as a row of disabled
+            buttons. Disabled controls are still announced, so a screen reader
+            walking the review met every gate in every sentence and could act on
+            none of them — and the whole unfocused sentence is one click target
+            in the panel above, which a nested button would fight.
+          */
+          if (!interactive) {
+            return (
+              <span
+                key={`g-${segment.start}`}
+                data-testid="gate"
+                data-gate-type={segment.suggestion.type}
+                className="rounded-sm px-0.5 underline decoration-2 decoration-muted-foreground/40 underline-offset-4"
+              >
+                {segment.suggestion.original}
+              </span>
+            );
+          }
+
           return (
             <button
               key={`g-${segment.start}`}
               type="button"
               data-testid="gate"
               data-gate-type={segment.suggestion.type}
-              disabled={!interactive}
               onClick={() => onOpenGate(segment.suggestion.id)}
               className={cn(
-                'rounded-sm px-0.5 underline decoration-2 underline-offset-4',
-                interactive
-                  ? cn('cursor-pointer', GATE_STYLES[segment.suggestion.type])
-                  : // An unfocused sentence should not compete for attention:
-                    // its marks stay legible but stop shouting.
-                    'decoration-muted-foreground/40',
+                'cursor-pointer rounded-sm px-0.5 underline decoration-2 underline-offset-4',
+                GATE_STYLES[segment.suggestion.type],
+                FOCUS_RING,
               )}
             >
               {segment.suggestion.original}
             </button>
           );
+        }
+
+        if (!interactive) {
+          return <span key={`t-${segment.start}`}>{segment.value}</span>;
         }
 
         // Plain text: every word is individually tappable, so curiosity is
@@ -90,12 +114,10 @@ export function SentenceView({
               key={`w-${token.start}`}
               type="button"
               data-testid="word"
-              disabled={!interactive}
               onClick={() => onLookup(bareWord(token.value))}
               className={cn(
-                'rounded-sm',
-                interactive &&
-                  'cursor-pointer hover:bg-muted hover:underline hover:decoration-dotted hover:underline-offset-4',
+                'cursor-pointer rounded-sm hover:bg-muted hover:underline hover:decoration-dotted hover:underline-offset-4',
+                FOCUS_RING,
               )}
             >
               {token.value}

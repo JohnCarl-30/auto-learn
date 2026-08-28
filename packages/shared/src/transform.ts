@@ -21,6 +21,21 @@ export const TRANSFORM_LABELS: Record<TransformOption, string> = {
   clearer: 'Make it clearer',
 };
 
+/**
+ * One line of user-facing copy per transform.
+ *
+ * Deliberately not TRANSFORM_INSTRUCTIONS, which is prompt text nobody sees.
+ * Four buttons reading "Make it natural", "Make it academic", "Make it
+ * clearer" ask someone to guess the difference between three phrasings of
+ * "improve it" before they have seen a single result.
+ */
+export const TRANSFORM_HINTS: Record<TransformOption, string> = {
+  grammar: 'Only what is actually wrong.',
+  natural: 'Sounds like a person wrote it.',
+  academic: 'Raised to what an essay expects.',
+  clearer: 'Untangles sentences that fight themselves.',
+};
+
 export const TRANSFORM_INSTRUCTIONS: Record<TransformOption, string> = {
   grammar:
     'Correct grammatical errors only. Do not restyle correct sentences.',
