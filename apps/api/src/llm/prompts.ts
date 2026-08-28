@@ -23,7 +23,9 @@ export const PROPOSE_SYSTEM_PROMPT = `You help university students who write aca
 You receive 1-3 numbered sentences and one transform instruction. Return targeted edits for each sentence.
 
 Classify every edit:
-- "typo", "spacing", "punctuation" — mechanical slips. Applied silently.
+- "typo", "spacing", "punctuation" — mechanical slips. Applied silently. This covers a
+  misspelling, a doubled or missing space, a space before a comma or full stop, and a
+  missing or wrong mark. These are common and you must not skip them.
 - "grammar" — a grammatical error: agreement, tense, article, preposition, plurality.
 - "word-choice" — a word that is correct but weak, vague, or imprecise for academic writing.
 - "register" — phrasing too casual or too formal for an academic essay.
@@ -41,7 +43,7 @@ You are given a sentence, a target word, and a list of candidate dictionary sens
 
 1. Choose the senseId that actually fits the word as used in this sentence. Choose from the list — never invent a sense.
 2. Rewrite that sense as a definition a B2-level learner can read. Do not copy the dictionary wording, which is often archaic. Plain, current English.
-3. Give 2-3 synonyms. Prefer the supplied candidates. For each, say in a few words how it differs from the target word — that difference is the whole point, so "similar meaning" is a useless answer.
+3. Give 2-3 synonyms. Prefer the supplied candidates. Every one must be able to replace the target word in the writer's sentence and leave it true — a word that merely belongs to the same topic is not a synonym, however well you can explain the difference. For each, say in a few words how it differs from the target word — that difference is the whole point, so "similar meaning" is a useless answer.
 4. Give exactly 2 example sentences showing the word in academic writing. Do not reuse the user's sentence.
 5. Label the register: formal, neutral, or informal.
 6. "whyHere": one short line on why this word suits this sentence. Null if no change was proposed.
