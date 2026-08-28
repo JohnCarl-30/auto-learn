@@ -53,10 +53,12 @@ export function BankPanel({
   entries,
   count,
   onRemove,
+  onExport,
 }: {
   entries: BankEntry[];
   count: number;
   onRemove?: (id: string) => void;
+  onExport?: () => void;
 }) {
   const [query, setQuery] = useState('');
   const [order, setOrder] = useState<SortOrder>('recent');
@@ -110,6 +112,21 @@ export function BankPanel({
               Practice
             </Button>
           )}
+          {/*
+            Offered whenever there is a bank, not only when the panel is open:
+            the reason to reach for it is that you are about to lose the
+            browser, which is not a moment you spend expanding panels.
+          */}
+          {onExport && (
+            <Button
+              variant="ghost"
+              size="sm"
+              data-testid="bank-export"
+              onClick={onExport}
+            >
+              Export
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="sm"
@@ -131,7 +148,7 @@ export function BankPanel({
           className="mt-4 rounded-md border border-primary/30 bg-primary/5 px-4 py-3 text-sm"
         >
           You have {count} words saved on this device. Create an account to keep
-          them.
+          them — or export them to a file in the meantime.
         </div>
       )}
 
