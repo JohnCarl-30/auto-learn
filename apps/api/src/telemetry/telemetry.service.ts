@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import type { TelemetrySnapshot } from '@auto-learn/shared';
+import { priceCall, type RawUsage } from '../llm/pricing';
 
 /**
  * In-memory counters, reset on restart. That is the right amount of machinery
@@ -21,6 +22,10 @@ export class TelemetryService {
     lookups: 0,
     accepted: 0,
     rejected: 0,
+    inputTokens: 0,
+    cachedInputTokens: 0,
+    outputTokens: 0,
+    spendUsd: 0,
   };
 
   proposal(): void {
@@ -74,7 +79,33 @@ export class TelemetryService {
     this.counts.rejected += 1;
   }
 
+  /**
+   * Tokens and money for one model call.
+   *
+   * Every model this app calls is in the price table by construction — the
+   * table is keyed off the same two constants — so an unpriced call means the
+   * model was changed without its price. Counted in tokens either way, since
+   * losing the tokens too would hide the change completely.
+   */
+  spend(model: string, usage: RawUsage | undefined): void {
+    // Accounting is not worth failing a request over: a provider that omits
+    // usage would otherwise turn a delivered card into a 502.
+    if (!usage) return;
+
+    const call = priceCall(model, usage);
+    this.counts.inputTokens += call.inputTokens;
+    this.counts.cachedInputTokens += call.cachedInputTokens;
+    this.counts.outputTokens += call.outputTokens;
+    this.counts.spendUsd += call.usd ?? 0;
+  }
+
   snapshot(): TelemetrySnapshot {
-    return { ...this.counts, since: this.since };
+    return {
+      ...this.counts,
+      // Fractions of a cent are noise at this scale, and a float that prints
+      // as 0.030000000000000002 reads as a bug in the counter.
+      spendUsd: Number(this.counts.spendUsd.toFixed(4)),
+      since: this.since,
+    };
   }
 }

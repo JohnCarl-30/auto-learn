@@ -8,8 +8,32 @@ export interface RetrievedWord {
   synonyms: string[];
 }
 
+/**
+ * Three outcomes, not two.
+ *
+ * "The dictionary has no entry for this" and "the dictionary did not answer"
+ * used to arrive here as the same empty list, and the reader was told
+ * `I couldn't find "substantial", so I won't guess at what it means` — about a
+ * word with nine entries, while the service was simply unreachable. That is a
+ * false statement dressed as caution, and it sends someone off to doubt their
+ * own vocabulary.
+ */
+export type Retrieval =
+  | { status: 'found'; entry: RetrievedWord }
+  | { status: 'absent' }
+  | { status: 'unavailable' };
+
 const DICTIONARY_URL = 'https://api.dictionaryapi.dev/api/v2/entries/en';
 const DATAMUSE_URL = 'https://api.datamuse.com/words';
+
+/**
+ * Per attempt, and there are two.
+ *
+ * Longer than the 2.5s this used to allow, because by the time a lookup runs
+ * the reader has already opened a gate and would rather wait than be told
+ * their word does not exist. Still far inside the card call's own budget.
+ */
+const TIMEOUT_MS = 5_000;
 
 @Injectable()
 export class DictionaryService {
@@ -32,20 +56,40 @@ export class DictionaryService {
     ttl: 24 * 60 * 60 * 1000,
   });
 
-  async lookup(word: string): Promise<RetrievedWord | null> {
+  async lookup(word: string): Promise<Retrieval> {
     const key = word.toLowerCase();
 
     const cached = this.cache.get(key);
-    if (cached !== undefined) return cached.value;
+    if (cached !== undefined) {
+      return cached.value
+        ? { status: 'found', entry: cached.value }
+        : { status: 'absent' };
+    }
 
-    const [senses, synonyms] = await Promise.all([
-      this.fetchSenses(key),
-      this.fetchSynonyms(key),
-    ]);
+    // Both start together, as they always have — two round trips in sequence
+    // is a second of waiting for nothing. `fetchSynonyms` never rejects, so
+    // leaving it in flight on the failure path below is safe.
+    const pendingSenses = this.fetchSenses(key);
+    const pendingSynonyms = this.fetchSynonyms(key);
 
-    const result = senses.length > 0 ? { word: key, senses, synonyms } : null;
-    this.cache.set(key, { value: result });
-    return result;
+    let senses: DictionarySense[];
+    try {
+      senses = await pendingSenses;
+    } catch (error) {
+      // Deliberately not cached. Caching this would take a thirty-second
+      // outage and turn it into twenty-four hours of telling everyone that a
+      // real word does not exist.
+      this.logger.warn(`dictionary unreachable for "${key}"`, error);
+      return { status: 'unavailable' };
+    }
+
+    // Synonyms are optional by design — the prompt says to supply your own when
+    // none arrive — so their failure is not the lookup's failure.
+    const synonyms = await pendingSynonyms;
+
+    const entry = senses.length > 0 ? { word: key, senses, synonyms } : null;
+    this.cache.set(key, { value: entry });
+    return entry ? { status: 'found', entry } : { status: 'absent' };
   }
 
   /**
@@ -55,16 +99,30 @@ export class DictionaryService {
    * senses and paraphrase it, rather than to invent a definition or to parrot
    * this text back.
    */
+  /**
+   * Throws when the dictionary cannot be reached. Returns an empty list only
+   * when it answered and had nothing — the caller depends on the difference.
+   */
   private async fetchSenses(word: string): Promise<DictionarySense[]> {
+    const url = `${DICTIONARY_URL}/${encodeURIComponent(word)}`;
+
+    let response: Response;
     try {
-      const response = await fetch(
-        `${DICTIONARY_URL}/${encodeURIComponent(word)}`,
-        { signal: AbortSignal.timeout(2_500) },
-      );
+      response = await fetch(url, { signal: AbortSignal.timeout(TIMEOUT_MS) });
+    } catch {
+      // One retry. This endpoint is slow before it is down: a cold entry has
+      // been measured at twenty seconds, so a single miss is more often a
+      // slow start than an outage.
+      response = await fetch(url, { signal: AbortSignal.timeout(TIMEOUT_MS) });
+    }
 
-      // 404 is the ordinary "no entry" answer here, not a failure.
-      if (!response.ok) return [];
+    // 404 is the ordinary "no entry" answer here, not a failure. A 5xx is.
+    if (response.status === 404) return [];
+    if (!response.ok) {
+      throw new Error(`dictionary responded ${response.status}`);
+    }
 
+    try {
       const payload = (await response.json()) as DictionaryApiEntry[];
       if (!Array.isArray(payload)) return [];
 
@@ -87,7 +145,9 @@ export class DictionaryService {
       // harder and the prompt more expensive.
       return senses.slice(0, 12);
     } catch (error) {
-      this.logger.warn(`dictionary lookup failed for "${word}"`, error);
+      // A body that answered but did not parse is not an outage: there is
+      // nothing to retry and nothing to say about the word.
+      this.logger.warn(`dictionary payload unreadable for "${word}"`, error);
       return [];
     }
   }
@@ -96,7 +156,7 @@ export class DictionaryService {
     try {
       const response = await fetch(
         `${DATAMUSE_URL}?rel_syn=${encodeURIComponent(word)}&max=12`,
-        { signal: AbortSignal.timeout(2_500) },
+        { signal: AbortSignal.timeout(TIMEOUT_MS) },
       );
       if (!response.ok) return [];
 
