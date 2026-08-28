@@ -12,6 +12,9 @@ import {
 } from '@auto-learn/shared';
 import {
   CARD_MAX_OUTPUT_TOKENS,
+  CARD_MODEL,
+  CARD_TIMEOUT_MS,
+  MODEL_MAX_RETRIES,
   cardModel,
   cardProviderOptions,
 } from '../llm/models';
@@ -213,14 +216,17 @@ export class CardService {
     const prompt = cardUserPrompt({ word, sentence, senses, synonyms, reason });
 
     try {
-      const { object } = await generateObject({
+      const { object, usage } = await generateObject({
         model: cardModel(),
         schema: ModelCard,
         system: CARD_SYSTEM_PROMPT,
         prompt,
         providerOptions: cardProviderOptions,
         maxOutputTokens: CARD_MAX_OUTPUT_TOKENS,
+        maxRetries: MODEL_MAX_RETRIES,
+        abortSignal: AbortSignal.timeout(CARD_TIMEOUT_MS),
       });
+      this.telemetry.spend(CARD_MODEL, usage);
       return object;
     } catch (error) {
       this.logger.error(`card call failed for "${word}"`, error as Error);

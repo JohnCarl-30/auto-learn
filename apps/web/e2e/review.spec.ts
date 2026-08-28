@@ -52,8 +52,39 @@ test.describe('the gate', () => {
     await page.getByTestId('compose').fill('The results were very big.');
     await page.getByTestId('option-academic').click();
 
-    const body: unknown = await (await proposal).json();
-    expect(JSON.stringify(body)).not.toContain('replacement');
+    /*
+      NDJSON, so read it as text and check every line: the previews sent while
+      the model is still writing, and the payload that closes them.
+
+      Checked per gate rather than by searching the body for "replacement".
+      Tier-1 fixes carry theirs by design — the reader sees those in the diff —
+      so a whole-body search only passes when the test sentence happens to
+      contain no typos, which is luck rather than a test.
+    */
+    const body = await (await proposal).text();
+    const events = body
+      .trim()
+      .split('\n')
+      .map((line) => JSON.parse(line) as Record<string, unknown>);
+
+    const gates = events.filter((event) => event.kind === 'gate');
+    expect(gates.length).toBeGreaterThan(0);
+    for (const gate of gates) {
+      expect(gate).not.toHaveProperty('replacement');
+      expect(gate).not.toHaveProperty('reason');
+    }
+
+    const done = events.at(-1) as {
+      kind: string;
+      response: { sentences: Array<{ gated: Record<string, unknown>[] }> };
+    };
+    expect(done.kind).toBe('done');
+    for (const sentence of done.response.sentences) {
+      for (const gated of sentence.gated) {
+        expect(gated).not.toHaveProperty('replacement');
+        expect(gated).not.toHaveProperty('reason');
+      }
+    }
 
     await expect(page.getByTestId('review')).toBeVisible();
     await expect(page.getByTestId('gate').first()).toBeVisible();
