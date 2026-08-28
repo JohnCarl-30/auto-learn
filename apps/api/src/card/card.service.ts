@@ -10,27 +10,18 @@ import {
   type DictionarySense,
   type GatedSuggestionType,
 } from '@auto-learn/shared';
-import { cardModel, cardProviderOptions } from '../llm/models';
+import {
+  CARD_MAX_OUTPUT_TOKENS,
+  cardModel,
+  cardProviderOptions,
+} from '../llm/models';
+import { CARD_SYSTEM_PROMPT, cardUserPrompt } from '../llm/prompts';
 import { DictionaryService } from '../dictionary/dictionary.service';
 import { SessionStore } from '../session/session.store';
 import { TelemetryService } from '../telemetry/telemetry.service';
 
 /** The cache only ever holds full cards; grammar notes are built on the spot. */
 type CardVariant = Extract<CardResponse, { kind: 'card' }>;
-
-const SYSTEM_PROMPT = `You write vocabulary cards for university students writing academic English as a second language.
-
-You are given a sentence, a target word, and a list of candidate dictionary senses. Your job:
-
-1. Choose the senseId that actually fits the word as used in this sentence. Choose from the list — never invent a sense.
-2. Rewrite that sense as a definition a B2-level learner can read. Do not copy the dictionary wording, which is often archaic. Plain, current English.
-3. Give 2-3 synonyms. Prefer the supplied candidates. For each, say in a few words how it differs from the target word — that difference is the whole point, so "similar meaning" is a useless answer.
-4. Give exactly 2 example sentences showing the word in academic writing. Do not reuse the user's sentence.
-5. Label the register: formal, neutral, or informal.
-6. "whyHere": one short line on why this word suits this sentence. Null if no change was proposed.
-7. "alternative": one other word the writer could reasonably use instead, or null.
-
-Be accurate over impressive. A learner cannot tell when you are wrong.`;
 
 @Injectable()
 export class CardService {
@@ -219,31 +210,16 @@ export class CardService {
     synonyms: string[],
     reason: string | null,
   ) {
-    const senseList = senses
-      .map((s) => `- ${s.senseId} (${s.partOfSpeech}): ${s.definition}`)
-      .join('\n');
-
-    const prompt = [
-      `Sentence: ${sentence}`,
-      `Target word: ${word}`,
-      reason ? `Why it was proposed: ${reason}` : 'No change was proposed.',
-      '',
-      'Candidate senses:',
-      senseList,
-      '',
-      synonyms.length
-        ? `Candidate synonyms: ${synonyms.join(', ')}`
-        : 'No synonym candidates were found; supply your own.',
-    ].join('\n');
+    const prompt = cardUserPrompt({ word, sentence, senses, synonyms, reason });
 
     try {
       const { object } = await generateObject({
         model: cardModel(),
         schema: ModelCard,
-        system: SYSTEM_PROMPT,
+        system: CARD_SYSTEM_PROMPT,
         prompt,
         providerOptions: cardProviderOptions,
-        maxOutputTokens: 1200,
+        maxOutputTokens: CARD_MAX_OUTPUT_TOKENS,
       });
       return object;
     } catch (error) {
