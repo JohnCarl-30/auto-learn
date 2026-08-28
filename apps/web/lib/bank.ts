@@ -1,7 +1,14 @@
 'use client';
 
 import { openDB, type IDBPDatabase } from 'idb';
-import { findReused, type BankEntry, type WordCard } from '@auto-learn/shared';
+import {
+  BANK_EXPORT_VERSION,
+  findReused,
+  mergeBankEntry,
+  type BankEntry,
+  type BankExport,
+  type WordCard,
+} from '@auto-learn/shared';
 
 const DB_NAME = 'auto-learn';
 const DB_VERSION = 1;
@@ -140,6 +147,57 @@ export async function removeWord(id: string): Promise<void> {
 export async function restoreWord(entry: BankEntry): Promise<void> {
   const db = await connect();
   await db.put(STORE, entry);
+}
+
+/**
+ * The whole bank, in the shape a future import can read.
+ *
+ * Sorted by acquisition rather than by id so the file reads as a history — the
+ * order someone met these words in is part of what they are backing up.
+ */
+export async function exportBank(): Promise<BankExport> {
+  const entries = await listBank();
+
+  return {
+    version: BANK_EXPORT_VERSION,
+    exportedAt: new Date().toISOString(),
+    entries: [...entries].sort((a, b) => a.addedAt.localeCompare(b.addedAt)),
+  };
+}
+
+export interface ImportResult {
+  added: number;
+  merged: number;
+}
+
+/**
+ * Restores a bank from a file, without discarding the one already here.
+ *
+ * Never a wholesale replace: someone restoring a backup onto a device they have
+ * since used would lose everything learned in between, which is the opposite of
+ * what reaching for a backup is meant to do. Words present on both sides are
+ * reconciled by `mergeBankEntry`, which keeps the strongest claim from each.
+ */
+export async function importBank(file: BankExport): Promise<ImportResult> {
+  const db = await connect();
+  let added = 0;
+  let merged = 0;
+
+  for (const incoming of file.entries) {
+    const existing = (await db.get(STORE, incoming.id)) as
+      | BankEntry
+      | undefined;
+
+    if (existing) {
+      await db.put(STORE, mergeBankEntry(existing, incoming));
+      merged += 1;
+    } else {
+      await db.put(STORE, incoming);
+      added += 1;
+    }
+  }
+
+  return { added, merged };
 }
 
 /** Whether a word is already banked, so the UI can say "Saved" rather than offer it again. */
