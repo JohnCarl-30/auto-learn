@@ -43,6 +43,19 @@ export const PROPOSE_MAX_OUTPUT_TOKENS = 2000;
 export const CARD_MAX_OUTPUT_TOKENS = 1200;
 
 /**
+ * Failure policy for both calls.
+ *
+ * The SDK retries on its own but bounds nothing in wall-clock terms, so a
+ * connection that opens and then stalls hangs the request until the platform
+ * kills it — and the reader watches a spinner the whole time. The card call
+ * gets longer because it reasons, and because by then the reader has committed
+ * by opening a gate and would rather wait than lose it.
+ */
+export const MODEL_MAX_RETRIES = 2;
+export const PROPOSE_TIMEOUT_MS = 30_000;
+export const CARD_TIMEOUT_MS = 45_000;
+
+/**
  * `promptCacheKey` groups requests that share a prefix so the provider can
  * serve the stable system prompt from cache. Distinct keys per call type
  * because the two prompts differ.

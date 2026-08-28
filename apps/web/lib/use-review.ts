@@ -10,13 +10,20 @@ import {
   type TransformOption,
 } from '@auto-learn/shared';
 import { toast } from 'sonner';
-import { ApiFailure, fetchCard, propose, reportEvent } from './api';
+import {
+  ApiFailure,
+  fetchCard,
+  proposeStream,
+  reportEvent,
+  type ProposePreview,
+} from './api';
 import { bankWord, recordReuse } from './bank';
 import type { CardState } from '@/components/word-card';
 
 export type ReviewState =
   | { status: 'idle' }
-  | { status: 'proposing' }
+  /** `preview` grows as the model writes. Nothing is built from it. */
+  | { status: 'proposing'; preview: ProposePreview[] }
   | { status: 'reviewing'; response: ProposeResponse; focused: number }
   | { status: 'error'; error: ApiError };
 
@@ -57,7 +64,7 @@ export function useReview() {
       setOpen(null);
       setCard(null);
       setReused([]);
-      setState({ status: 'proposing' });
+      setState({ status: 'proposing', preview: [] });
       try {
         // Checked before the model runs: this is plain string matching against
         // the bank, and it costs nothing.
@@ -67,7 +74,17 @@ export function useReview() {
           setBankVersion((v) => v + 1);
         }
 
-        const response = await propose({ text, option });
+        const response = await proposeStream({ text, option }, (preview) => {
+          // Appended, never reconciled. These events are what the wait looks
+          // like; the payload that arrives at the end is what it *is*, and
+          // mixing the two is how a preview bug becomes a review bug.
+          setState((current) =>
+            current.status === 'proposing'
+              ? { ...current, preview: [...current.preview, preview] }
+              : current,
+          );
+        });
+
         setState({ status: 'reviewing', response, focused: 0 });
       } catch (error) {
         setState({ status: 'error', error: toApiError(error) });

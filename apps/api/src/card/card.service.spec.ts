@@ -114,9 +114,16 @@ const errorOf = async (fn: () => Promise<unknown>): Promise<ApiError> => {
   }
 };
 
+/** Usage rides along with every real generation, and the service prices it. */
+const USAGE = {
+  inputTokens: 1_200,
+  outputTokens: 300,
+  inputTokenDetails: { cacheReadTokens: 1_000 },
+};
+
 beforeEach(() => {
   generate.mockReset();
-  generate.mockResolvedValue({ object: MODEL_CARD });
+  generate.mockResolvedValue({ object: MODEL_CARD, usage: USAGE });
 });
 
 describe('CardService target resolution', () => {
@@ -208,10 +215,32 @@ describe('CardService grounding', () => {
     expect(generate).not.toHaveBeenCalled();
   });
 
+  it('prices the call at the card model\u2019s rate, cached input kept apart', async () => {
+    const { service, sessionId, telemetry } = build();
+    await service.build({
+      kind: 'suggestion',
+      sessionId,
+      suggestionId: 'gate-1',
+    });
+
+    const snapshot = telemetry.snapshot();
+    expect(snapshot.inputTokens).toBe(1_200);
+    expect(snapshot.cachedInputTokens).toBe(1_000);
+    // 200 uncached at $2.50/M + 1,000 cached at $0.25/M + 300 out at $15/M,
+    // which is $0.00525 — reported as $0.0053, because the snapshot rounds for
+    // display while the counter behind it keeps full precision.
+    //
+    // Spelled out because the whole point of the split is that billing all
+    // 1,200 input tokens at the uncached rate would read as $0.0075.
+    expect((200 * 2.5 + 1_000 * 0.25 + 300 * 15) / 1_000_000).toBe(0.00525);
+    expect(snapshot.spendUsd).toBe(0.0053);
+  });
+
   it('rejects a card whose sense was never on offer', async () => {
     const { service, sessionId } = build();
     generate.mockResolvedValue({
       object: { ...MODEL_CARD, senseId: 'invented' },
+      usage: USAGE,
     });
 
     const error = await errorOf(() =>

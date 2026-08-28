@@ -1,16 +1,8 @@
-import { MODEL_PRICES } from '../../apps/api/src/llm/config';
+import { priceCall as priceOneCall } from '../../apps/api/src/llm/pricing';
+import type { RawUsage } from '../../apps/api/src/llm/pricing';
 import type { Spend } from './types';
 
-/**
- * The AI SDK's usage object, structurally. Typed here rather than imported so
- * this file stays free of `ai` — see `config.ts` in the API for why the ESM
- * boundary is worth respecting.
- */
-export interface RawUsage {
-  inputTokens?: number | undefined;
-  outputTokens?: number | undefined;
-  inputTokenDetails?: { cacheReadTokens?: number | undefined } | undefined;
-}
+export type { RawUsage };
 
 export const emptySpend = (): Spend => ({
   inputTokens: 0,
@@ -21,28 +13,16 @@ export const emptySpend = (): Spend => ({
 });
 
 /**
- * Prices one call.
+ * Prices one call, using the same function production prices itself with.
  *
- * `inputTokens` from the provider is inclusive of cached tokens, so the
- * uncached count is the difference — bill the two at different rates or a run
- * that is 90% cache reads reads as ten times its real cost.
+ * The harness carried its own copy of this until the API grew a need for it,
+ * and two implementations of the same arithmetic is how a run comes to report
+ * a cost the service disagrees with.
  */
-export function priceCall(model: string, usage: RawUsage): Spend {
-  const inputTokens = usage.inputTokens ?? 0;
-  const cachedInputTokens = usage.inputTokenDetails?.cacheReadTokens ?? 0;
-  const outputTokens = usage.outputTokens ?? 0;
-  const uncached = Math.max(0, inputTokens - cachedInputTokens);
-
-  const price = MODEL_PRICES[model];
-  const usd = price
-    ? (uncached * price.input +
-        cachedInputTokens * price.cachedInput +
-        outputTokens * price.output) /
-      1_000_000
-    : null;
-
-  return { inputTokens, cachedInputTokens, outputTokens, usd, calls: 1 };
-}
+export const priceCall = (model: string, usage: RawUsage): Spend => ({
+  ...priceOneCall(model, usage),
+  calls: 1,
+});
 
 export function addSpend(a: Spend, b: Spend): Spend {
   return {
