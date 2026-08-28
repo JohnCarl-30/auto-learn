@@ -15,5 +15,11 @@
     "noEmit": true,
     "types": ["node"]
   },
-  "include": ["src/**/*", "datasets/**/*"]
+  "include": [
+    "src/**/*",
+    "datasets/**/*",
+    // The harness compiles API source, so it needs the API's ambient
+    // declarations too — `wordpos` ships no types of its own.
+    "../apps/api/src/dictionary/wordpos.d.ts"
+  ]
 }
