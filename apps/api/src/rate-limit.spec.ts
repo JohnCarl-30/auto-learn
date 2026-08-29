@@ -28,6 +28,16 @@ describe('rate limiting', () => {
 
     app = moduleRef.createNestApplication();
     await app.init();
+
+    // Listening before the first request, not per request.
+    //
+    // supertest binds an ephemeral port itself when handed a server that is
+    // not listening, and this file fires over a hundred requests back to back.
+    // At that rate one occasionally lands on a socket from a bind that is
+    // still closing, and comes back empty with a 403 or a 404 and none of
+    // Nest's headers — an answer from nothing at all, which then reads as this
+    // suite's assertion failing. Roughly one run in eight.
+    await app.listen(0);
   });
 
   afterAll(async () => {
@@ -47,13 +57,13 @@ describe('rate limiting', () => {
    * that depends on its neighbour cannot be run alone, and reads as passing
    * when the neighbour is what is broken.
    *
-   * It was written believing it also fixed a flake — this file failed twice
-   * under a full parallel run — on the theory that the minute-long window
-   * could roll mid-test. That theory is wrong, and measured: the ten-request
-   * burst takes 33ms idle and 129ms under eight CPU spinners, against a
-   * 60,000ms window. The cause of those two failures is still unknown; the
-   * assertion output was not captured at the time. If it returns, capture the
-   * expected-versus-received before theorising.
+   * It was not, however, the flake. That was the ephemeral bind above, found
+   * by capturing the failing response instead of reasoning about it: the
+   * status was a 403 one time and a 404 the next, with an empty body and none
+   * of Nest's headers, which no guard in this application produces. The
+   * discarded theory — that the minute-long window rolled mid-test — was
+   * measurably wrong: the burst takes 33ms idle and 129ms under eight CPU
+   * spinners, against 60,000ms.
    */
   const exhaustPropose = async () => {
     for (let i = 0; i < RATE_LIMITS.propose.limit; i++) await propose();

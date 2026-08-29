@@ -34,15 +34,23 @@ export const cardCases: CardCase[] = [
   {
     id: 'address-is-not-a-street',
     word: 'address',
-    sentence: 'The chair addressed the committee before the vote was taken.',
+    sentence: 'This section addresses the limitations of the current design.',
     reason: null,
     expectPartOfSpeech: 'verb',
-    forbidInDefinition: ['street', 'postal', 'residence', 'envelope'],
+    forbidInDefinition: [
+      'street',
+      'postal',
+      'residence',
+      'envelope',
+      'speech',
+      'audience',
+    ],
     why:
       'Noun and verb senses are both common; picking the noun gives a card that is fluent and useless. ' +
-      'The sentence is deliberately about speaking rather than "addresses the limitations" — the ' +
-      'recorded entry has no "deal with a problem" sense at all, so that sentence would have failed on ' +
-      'a dictionary gap rather than on anything the model did.',
+      'This is the sentence the case was written for. It had to be swapped for one about speaking to a ' +
+      'committee while the old dictionary was the source, which carried no "deal with a problem" sense ' +
+      'at all — the case would have failed on a gap in the data rather than on anything the model did. ' +
+      'WordNet has it, so the original is back, and the speaking senses join the wrong-sense tells.',
   },
   {
     id: 'leverage-is-not-a-lever',
