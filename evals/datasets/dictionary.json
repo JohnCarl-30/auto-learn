@@ -1,0 +1,399 @@
+{
+  "address": {
+    "word": "address",
+    "senses": [
+      {
+        "senseId": "s0",
+        "partOfSpeech": "noun",
+        "definition": "(computer science) the code that identifies where a piece of information is stored  "
+      },
+      {
+        "senseId": "s1",
+        "partOfSpeech": "verb",
+        "definition": "speak to",
+        "example": "He addressed the crowd outside the window"
+      },
+      {
+        "senseId": "s2",
+        "partOfSpeech": "noun",
+        "definition": "the place where a person or organization can be found or communicated with  "
+      },
+      {
+        "senseId": "s3",
+        "partOfSpeech": "verb",
+        "definition": "give a speech to",
+        "example": "The chairman addressed the board of trustees"
+      },
+      {
+        "senseId": "s4",
+        "partOfSpeech": "noun",
+        "definition": "the act of delivering a formal spoken communication to an audience",
+        "example": "he listened to an address on minor Roman poets"
+      },
+      {
+        "senseId": "s5",
+        "partOfSpeech": "verb",
+        "definition": "put an address on (an envelope)  "
+      },
+      {
+        "senseId": "s6",
+        "partOfSpeech": "noun",
+        "definition": "the manner of speaking to another individual",
+        "example": "he failed in his manner of address to the captain"
+      },
+      {
+        "senseId": "s7",
+        "partOfSpeech": "verb",
+        "definition": "direct a question at someone  "
+      },
+      {
+        "senseId": "s8",
+        "partOfSpeech": "noun",
+        "definition": "a sign in front of a house or business carrying the conventional form by which its location is described  "
+      },
+      {
+        "senseId": "s9",
+        "partOfSpeech": "verb",
+        "definition": "address or apply oneself to something, direct one's efforts towards something, such as a question  "
+      },
+      {
+        "senseId": "s10",
+        "partOfSpeech": "noun",
+        "definition": "written directions for finding some location",
+        "example": "written on letters or packages that are to be delivered to that location"
+      },
+      {
+        "senseId": "s11",
+        "partOfSpeech": "verb",
+        "definition": "greet, as with a prescribed form, title, or name",
+        "example": "He always addresses me with `Sir'"
+      }
+    ],
+    "synonyms": [
+      "computer address",
+      "reference",
+      "speech",
+      "destination",
+      "name and address",
+      "savoir-faire",
+      "turn to",
+      "speak",
+      "direct",
+      "call",
+      "cover",
+      "treat"
+    ]
+  },
+  "corroborate": {
+    "word": "corroborate",
+    "senses": [
+      {
+        "senseId": "s0",
+        "partOfSpeech": "verb",
+        "definition": "establish or strengthen as with new evidence or facts",
+        "example": "his story confirmed my doubts"
+      },
+      {
+        "senseId": "s1",
+        "partOfSpeech": "verb",
+        "definition": "give evidence for  "
+      },
+      {
+        "senseId": "s2",
+        "partOfSpeech": "verb",
+        "definition": "support with evidence or authority or make more certain or confirm",
+        "example": "The stories and claims were born out by the evidence"
+      }
+    ],
+    "synonyms": [
+      "confirm",
+      "sustain",
+      "substantiate",
+      "support",
+      "affirm",
+      "validate",
+      "underpin",
+      "bear out"
+    ]
+  },
+  "elucidate": {
+    "word": "elucidate",
+    "senses": [
+      {
+        "senseId": "s0",
+        "partOfSpeech": "verb",
+        "definition": "make clear and (more) comprehensible",
+        "example": "clarify the mystery surrounding her death"
+      },
+      {
+        "senseId": "s1",
+        "partOfSpeech": "verb",
+        "definition": "make free from confusion or ambiguity",
+        "example": "make clear"
+      }
+    ],
+    "synonyms": [
+      "clarify",
+      "clear up",
+      "clear",
+      "shed light on",
+      "crystallize",
+      "crystallise",
+      "crystalize",
+      "crystalise",
+      "straighten out",
+      "sort out",
+      "enlighten",
+      "illuminate"
+    ]
+  },
+  "leverage": {
+    "word": "leverage",
+    "senses": [
+      {
+        "senseId": "s0",
+        "partOfSpeech": "verb",
+        "definition": "supplement with leverage",
+        "example": "leverage the money that is already available"
+      },
+      {
+        "senseId": "s1",
+        "partOfSpeech": "noun",
+        "definition": "the mechanical advantage gained by being in a position to use a lever  "
+      },
+      {
+        "senseId": "s2",
+        "partOfSpeech": "verb",
+        "definition": "provide with leverage",
+        "example": "We need to leverage this company"
+      },
+      {
+        "senseId": "s3",
+        "partOfSpeech": "noun",
+        "definition": "strategic advantage",
+        "example": "power to act effectively"
+      },
+      {
+        "senseId": "s4",
+        "partOfSpeech": "noun",
+        "definition": "investing with borrowed money as a way to amplify potential gains (at the risk of greater losses)  "
+      }
+    ],
+    "synonyms": [
+      "purchase",
+      "leveraging"
+    ]
+  },
+  "mitigate": {
+    "word": "mitigate",
+    "senses": [
+      {
+        "senseId": "s0",
+        "partOfSpeech": "verb",
+        "definition": "lessen or to try to lessen the seriousness or extent of",
+        "example": "The circumstances extenuate the crime"
+      },
+      {
+        "senseId": "s1",
+        "partOfSpeech": "verb",
+        "definition": "make less severe or harsh",
+        "example": "mitigating circumstances"
+      }
+    ],
+    "synonyms": [
+      "extenuate",
+      "palliate"
+    ]
+  },
+  "novel": {
+    "word": "novel",
+    "senses": [
+      {
+        "senseId": "s0",
+        "partOfSpeech": "adjective",
+        "definition": "original and of a kind not seen before",
+        "example": "the computer produced a completely novel proof of a well-known theorem"
+      },
+      {
+        "senseId": "s1",
+        "partOfSpeech": "noun",
+        "definition": "an extended fictional work in prose",
+        "example": "usually in the form of a story"
+      },
+      {
+        "senseId": "s2",
+        "partOfSpeech": "adjective",
+        "definition": "pleasantly new or different",
+        "example": "common sense of a most refreshing sort"
+      },
+      {
+        "senseId": "s3",
+        "partOfSpeech": "noun",
+        "definition": "a printed and bound book that is an extended work of fiction",
+        "example": "his bookcases were filled with nothing but novels"
+      }
+    ],
+    "synonyms": [
+      "fresh",
+      "new",
+      "refreshing"
+    ]
+  },
+  "robust": {
+    "word": "robust",
+    "senses": [
+      {
+        "senseId": "s0",
+        "partOfSpeech": "adjective",
+        "definition": "sturdy and strong in form, constitution, or construction",
+        "example": "a robust body"
+      },
+      {
+        "senseId": "s1",
+        "partOfSpeech": "adjective",
+        "definition": "marked by richness and fullness of flavor",
+        "example": "a rich ruby port"
+      },
+      {
+        "senseId": "s2",
+        "partOfSpeech": "adjective",
+        "definition": "strong enough to withstand or overcome intellectual challenges or adversity",
+        "example": "the experiment yielded robust results"
+      },
+      {
+        "senseId": "s3",
+        "partOfSpeech": "adjective",
+        "definition": "rough and crude",
+        "example": "a robust tale"
+      }
+    ],
+    "synonyms": [
+      "full-bodied",
+      "racy",
+      "rich"
+    ]
+  },
+  "salient": {
+    "word": "salient",
+    "senses": [
+      {
+        "senseId": "s0",
+        "partOfSpeech": "noun",
+        "definition": "(military) the part of the line of battle that projects closest to the enemy  "
+      },
+      {
+        "senseId": "s1",
+        "partOfSpeech": "adjective",
+        "definition": "having a quality that thrusts itself into attention",
+        "example": "an outstanding fact of our time is that nations poisoned by anti semitism proved less fortunate in regard to their own freedom"
+      },
+      {
+        "senseId": "s2",
+        "partOfSpeech": "adjective",
+        "definition": "(of angles) pointing outward at an angle of less than 180 degrees  "
+      },
+      {
+        "senseId": "s3",
+        "partOfSpeech": "adjective",
+        "definition": "represented as leaping (rampant but leaning forward)  "
+      }
+    ],
+    "synonyms": [
+      "outstanding",
+      "prominent",
+      "spectacular",
+      "striking",
+      "salient(ip)"
+    ]
+  },
+  "significant": {
+    "word": "significant",
+    "senses": [
+      {
+        "senseId": "s0",
+        "partOfSpeech": "adjective",
+        "definition": "important in effect or meaning",
+        "example": "a significant change in tax laws"
+      },
+      {
+        "senseId": "s1",
+        "partOfSpeech": "adjective",
+        "definition": "of considerable importance, size, or worth",
+        "example": "won by a substantial margin"
+      },
+      {
+        "senseId": "s2",
+        "partOfSpeech": "adjective",
+        "definition": "too closely correlated to be attributed to chance and therefore indicating a systematic relation",
+        "example": "the interaction effect is significant at the .01 level"
+      },
+      {
+        "senseId": "s3",
+        "partOfSpeech": "adjective",
+        "definition": "rich in significance or implication",
+        "example": "a meaning look"
+      }
+    ],
+    "synonyms": [
+      "important",
+      "substantial",
+      "meaning(a)",
+      "pregnant"
+    ]
+  },
+  "substantial": {
+    "word": "substantial",
+    "senses": [
+      {
+        "senseId": "s0",
+        "partOfSpeech": "adjective",
+        "definition": "of considerable importance, size, or worth",
+        "example": "won by a substantial margin"
+      },
+      {
+        "senseId": "s1",
+        "partOfSpeech": "adjective",
+        "definition": "of or relating to the real nature or essential elements of something",
+        "example": "a substantial argument"
+      },
+      {
+        "senseId": "s2",
+        "partOfSpeech": "adjective",
+        "definition": "having substance or capable of being treated as fact",
+        "example": "not imaginary"
+      },
+      {
+        "senseId": "s3",
+        "partOfSpeech": "adjective",
+        "definition": "providing abundant nourishment",
+        "example": "a hearty meal"
+      },
+      {
+        "senseId": "s4",
+        "partOfSpeech": "adjective",
+        "definition": "of good quality and condition",
+        "example": "solidly built"
+      },
+      {
+        "senseId": "s5",
+        "partOfSpeech": "adjective",
+        "definition": "having an abundant supply of money or possessions of value",
+        "example": "an affluent banker"
+      }
+    ],
+    "synonyms": [
+      "significant",
+      "substantive",
+      "real",
+      "material",
+      "hearty",
+      "satisfying",
+      "solid",
+      "square",
+      "strong",
+      "affluent",
+      "flush",
+      "loaded"
+    ]
+  }
+}

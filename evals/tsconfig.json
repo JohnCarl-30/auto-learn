@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    // `preserve` + `bundler` so extensionless relative imports typecheck the
+    // way tsx runs them. The harness is never compiled to disk — tsx reads the
+    // TypeScript directly, which is also how it can import `apps/api/src`.
+    "module": "preserve",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": true,
+    "types": ["node"]
+  },
+  "include": [
+    "src/**/*",
+    "datasets/**/*",
+    // The harness compiles API source, so it needs the API's ambient
+    // declarations too — `wordpos` ships no types of its own.
+    "../apps/api/src/dictionary/wordpos.d.ts"
+  ]
+}

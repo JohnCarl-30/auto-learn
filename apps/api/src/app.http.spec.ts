@@ -2,6 +2,7 @@
 // runtime cannot load them.
 jest.mock('ai', () => ({
   generateObject: jest.fn(),
+  streamObject: jest.fn(),
   generateSpeech: jest.fn(),
   transcribe: jest.fn(),
 }));
@@ -14,13 +15,13 @@ import { INestApplication } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
-import { generateSpeech, transcribe } from 'ai';
-import {
-  MAX_RECORDING_BYTES,
-  type ApiError,
-  type DictateResponse,
-  type SpeakResponse,
-  type TelemetrySnapshot,
+import { generateSpeech, streamObject, transcribe } from 'ai';
+import { MAX_RECORDING_BYTES, ProposeStreamEvent } from '@auto-learn/shared';
+import type {
+  ApiError,
+  DictateResponse,
+  SpeakResponse,
+  TelemetrySnapshot,
 } from '@auto-learn/shared';
 import { AppModule } from './app.module';
 
@@ -56,6 +57,14 @@ describe('HTTP surface', () => {
 
     app = moduleRef.createNestApplication();
     await app.init();
+
+    // Listening before the first request, not per request. supertest binds an
+    // ephemeral port itself when handed a server that is not listening, and
+    // this file fires enough requests back to back that one occasionally lands
+    // on a socket from a bind that is still closing — coming back empty with a
+    // 403 or a 404 and none of Nest's headers. Diagnosed in `rate-limit.spec`,
+    // which had the same intermittent failure for the same reason.
+    await app.listen(0);
   });
 
   afterAll(async () => {
@@ -115,6 +124,107 @@ describe('HTTP surface', () => {
         .expect(400);
 
       expect((response.body as ApiError).code).toBe('invalid_request');
+    });
+  });
+
+  describe('POST /propose/stream', () => {
+    const withheld = 'substantial';
+
+    beforeEach(() => {
+      (streamObject as unknown as jest.Mock).mockReturnValue({
+        partialObjectStream: (async function* () {
+          // Its own tick, as a chunk off a socket would be.
+          await Promise.resolve();
+          yield {
+            sentences: [
+              {
+                index: 0,
+                edits: [
+                  {
+                    type: 'word-choice',
+                    original: 'big',
+                    replacement: withheld,
+                    reason: 'More precise.',
+                  },
+                ],
+              },
+            ],
+          };
+        })(),
+        object: Promise.resolve({
+          sentences: [
+            {
+              index: 0,
+              edits: [
+                {
+                  type: 'word-choice',
+                  original: 'big',
+                  replacement: withheld,
+                  reason: 'More precise.',
+                },
+              ],
+            },
+          ],
+        }),
+        usage: Promise.resolve({ inputTokens: 10, outputTokens: 5 }),
+      });
+    });
+
+    /**
+     * The strongest test in this file, and the streaming counterpart of the
+     * one in the Playwright suite. Everything else about the stream is a
+     * convenience; this is the product's central claim, asserted against the
+     * actual bytes rather than against a parsed object that could have been
+     * built by the assertion itself.
+     */
+    it('never puts the withheld wording on the wire, in any line', async () => {
+      const response = await request(server())
+        .post('/propose/stream')
+        .send({ text: 'The policy had a big effect.', option: 'academic' })
+        .expect(200);
+
+      expect(response.headers['content-type']).toContain(
+        'application/x-ndjson',
+      );
+      expect(response.text).toContain('"kind":"gate"');
+      expect(response.text).not.toContain(withheld);
+    });
+
+    it('closes with the same payload the non-streaming route returns', async () => {
+      const response = await request(server())
+        .post('/propose/stream')
+        .send({ text: 'The policy had a big effect.', option: 'academic' });
+
+      // Parsed with the shared schema rather than matched loosely: every line
+      // has to be an event the client would accept, and the last one has to be
+      // the payload.
+      const events = response.text
+        .trim()
+        .split('\n')
+        .map((line) => ProposeStreamEvent.parse(JSON.parse(line) as unknown));
+
+      const last = events.at(-1);
+      expect(last?.kind).toBe('done');
+      if (last?.kind === 'done') {
+        expect(last.response.sessionId).toBeTruthy();
+        expect(last.response.sentences).toHaveLength(1);
+      }
+    });
+
+    /**
+     * Once a byte of an NDJSON body is out there is no status code left to
+     * send, so validation has to run before the headers flush. A refusal that
+     * arrives as a 200 with an error line inside is one a client can miss
+     * entirely.
+     */
+    it('still refuses an over-cap paste with a status code, not a stream', async () => {
+      const response = await request(server())
+        .post('/propose/stream')
+        .send({ text: 'One. Two. Three. Four.', option: 'grammar' })
+        .expect(400);
+
+      expect((response.body as ApiError).code).toBe('too_many_sentences');
+      expect(response.headers['content-type']).not.toContain('ndjson');
     });
   });
 

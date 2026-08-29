@@ -55,6 +55,19 @@ export const TelemetrySnapshot = z.object({
   dictationsFailed: z.number().int(),
   accepted: z.number().int(),
   rejected: z.number().int(),
+  /**
+   * What the model calls have actually cost since this process started.
+   *
+   * Kept beside the engagement counts because the two only mean anything
+   * together: cards delivered is a success number until you divide it by what
+   * the cards cost. Cached input is broken out separately because it is nine
+   * tenths cheaper, and a total that hides it makes the prompt-cache work look
+   * like it did nothing.
+   */
+  inputTokens: z.number().int(),
+  cachedInputTokens: z.number().int(),
+  outputTokens: z.number().int(),
+  spendUsd: z.number(),
   since: z.string(),
 });
 export type TelemetrySnapshot = z.infer<typeof TelemetrySnapshot>;
