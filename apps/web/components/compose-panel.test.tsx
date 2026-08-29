@@ -1,8 +1,37 @@
-import { render, screen } from '@testing-library/react';
+/**
+ * The hook is mocked so these tests stay about the panel: what the mic button
+ * does to the draft, and what the panel shows while it is listening. The
+ * recorder itself — permissions, the length cap, cleanup — is exercised
+ * against real browser stubs in lib/use-dictation.test.tsx.
+ */
+jest.mock('../lib/use-dictation', () => ({ useDictation: jest.fn() }));
+
+import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import type { TransformOption } from '@auto-learn/shared';
+import { useDictation } from '../lib/use-dictation';
 import { ComposePanel } from './compose-panel';
+
+const dictation = useDictation as jest.Mock;
+
+/** Lets a test play the part of the recorder finishing a transcript. */
+let deliver: (transcript: string) => void = () => undefined;
+
+const listening = (
+  status: 'idle' | 'recording' | 'transcribing' = 'idle',
+  problem: { message: string; code: string | null } | null = null,
+) => {
+  dictation.mockImplementation((onTranscript: (t: string) => void) => {
+    deliver = onTranscript;
+    return { status, problem, start: jest.fn(), stop: jest.fn() };
+  });
+};
+
+beforeEach(() => {
+  dictation.mockReset();
+  listening();
+});
 
 /** The panel is controlled, so a test needs someone to hold the text. */
 function Harness({
@@ -141,6 +170,81 @@ describe('ComposePanel', () => {
     await user.click(screen.getByTestId('option-clearer'));
 
     expect(onSubmit).toHaveBeenCalledWith('A sentence.', 'clearer');
+  });
+
+  describe('dictation', () => {
+    /**
+     * The bug worth pinning. Overwriting the box would destroy typed work, and
+     * a programmatic change to a controlled textarea leaves no undo entry to
+     * get it back with.
+     */
+    it('adds what was said to what was already typed', async () => {
+      const { user } = setup();
+      await user.type(screen.getByTestId('compose'), 'I wrote this myself.');
+
+      act(() => deliver('And I said this.'));
+
+      expect(screen.getByTestId('compose')).toHaveValue(
+        'I wrote this myself. And I said this.',
+      );
+    });
+
+    it('is the whole draft when nothing was typed', () => {
+      setup();
+
+      act(() => deliver('I only spoke.'));
+
+      expect(screen.getByTestId('compose')).toHaveValue('I only spoke.');
+    });
+
+    it('says it is listening rather than leaving the button ambiguous', () => {
+      listening('recording');
+      setup();
+
+      expect(screen.getByTestId('sentence-count')).toHaveTextContent(
+        'Listening…',
+      );
+      expect(screen.getByTestId('dictate')).toHaveAccessibleName(
+        'Stop recording',
+      );
+    });
+
+    it('will not take a second recording while writing down the first', () => {
+      listening('transcribing');
+      setup();
+
+      expect(screen.getByTestId('dictate')).toBeDisabled();
+    });
+
+    it('shows a denied microphone as guidance, not as a breakage', () => {
+      listening('idle', {
+        message: 'I need permission to use your microphone.',
+        code: null,
+      });
+      setup();
+
+      const notice = screen.getByTestId('dictation-notice');
+      expect(notice).toHaveTextContent('I need permission');
+      expect(notice.className).toContain('amber');
+    });
+
+    /**
+     * The distinction the tone rules exist for. "Allow your microphone" is
+     * something the reader can act on; "the provider fell over" is not, and
+     * dressing the second as gentle advice tells them to retry something that
+     * will keep failing.
+     */
+    it('shows a provider failure in red instead', () => {
+      listening('idle', {
+        message: "I couldn't make out that recording.",
+        code: 'upstream_failed',
+      });
+      setup();
+
+      expect(screen.getByTestId('dictation-notice').className).toContain(
+        'destructive',
+      );
+    });
   });
 });
 

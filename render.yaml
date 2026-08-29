@@ -28,5 +28,11 @@ services:
         sync: false # Set in the dashboard. Never in this file.
       - key: WEB_ORIGIN
         sync: false # The Vercel URL, once the web app has one.
+      # Voice. Without these, dictation and spoken pronunciation refuse;
+      # everything else — including the dictionary's own recordings — works.
+      - key: ELEVENLABS_API_KEY
+        sync: false
+      - key: ELEVENLABS_VOICE_ID
+        sync: false
       - key: NODE_VERSION
         value: 22

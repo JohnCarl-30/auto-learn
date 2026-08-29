@@ -22,6 +22,10 @@ reads it. What the file cannot carry:
 
 - `OPENAI_API_KEY` — set it in the dashboard, `sync: false` keeps it out of git.
 - `WEB_ORIGIN` — you do not have it yet. Step 3.
+- `ELEVENLABS_API_KEY` and `ELEVENLABS_VOICE_ID` — voice. Leave them unset and
+  dictation and spoken pronunciation refuse, with everything else working; the
+  API says which are missing at boot. The voice id is account-scoped, so take it
+  from My Voices rather than reusing one from anywhere else.
 
 The plan is `starter` rather than `free` deliberately. Free instances sleep when
 idle, and every wake is a fresh process with zeroed telemetry counters — which
@@ -84,6 +88,11 @@ Read `cardsDelivered`, not `cardsRequested`: the two differ whenever the model
 or the dictionary fails, and a failure is not engagement. `cardsFailed` is the
 one to watch for a different reason — if it climbs, the gate is breaking rather
 than teaching.
+
+`dictations` against `dictationsFailed` says whether voice works for the people
+trying it. Read together, always: a feature that is failing produces the same
+low success count as a feature nobody wants, and those two call for opposite
+decisions.
 
 `editsDropped` is the fourth number, and it qualifies the other three. An edit
 whose span cannot be located verbatim is discarded rather than guessed at, so a

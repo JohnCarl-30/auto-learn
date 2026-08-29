@@ -1,15 +1,19 @@
 'use client';
 
 import { useEffect, useMemo, useSyncExternalStore } from 'react';
+import { LoaderCircleIcon, MicIcon, SquareIcon } from 'lucide-react';
 import {
   MAX_SENTENCES,
   TRANSFORM_HINTS,
   TRANSFORM_LABELS,
   TransformOption,
+  joinDictation,
   splitSentences,
 } from '@auto-learn/shared';
+import { Notice, toneFor } from '@/components/notice';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { useDictation } from '@/lib/use-dictation';
 
 const OPTIONS = TransformOption.options;
 
@@ -94,6 +98,15 @@ export function ComposePanel({
   disabled: boolean;
   onSubmit: (text: string, option: TransformOption) => void;
 }) {
+  // Appends rather than replaces. Setting a controlled textarea's value from
+  // code pushes no browser undo entry, so overwriting a draft would destroy
+  // typed work with nothing to recover it with.
+  const dictation = useDictation((transcript) =>
+    onTextChange(joinDictation(text, transcript)),
+  );
+  const recording = dictation.status === 'recording';
+  const transcribing = dictation.status === 'transcribing';
+
   const count = useMemo(() => splitSentences(text).length, [text]);
   const overCap = count > MAX_SENTENCES;
   const empty = count === 0;
@@ -148,21 +161,59 @@ export function ComposePanel({
         aria-label="Sentences to review"
       />
 
-      <div className="flex min-h-5 items-center justify-between text-sm">
+      <div className="flex min-h-5 items-center justify-between gap-3 text-sm">
         <span
           data-testid="sentence-count"
           className={overCap ? 'text-amber-600' : 'text-muted-foreground'}
         >
-          {empty
-            ? 'One to three sentences.'
-            : `${count} ${count === 1 ? 'sentence' : 'sentences'}`}
+          {recording
+            ? 'Listening…'
+            : transcribing
+              ? 'Writing that down…'
+              : empty
+                ? 'One to three sentences.'
+                : `${count} ${count === 1 ? 'sentence' : 'sentences'}`}
         </span>
-        {overCap && (
-          <span className="text-amber-600">
-            That&apos;s more than I take at once.
-          </span>
-        )}
+
+        <div className="flex items-center gap-3">
+          {overCap && (
+            <span className="text-amber-600">
+              That&apos;s more than I take at once.
+            </span>
+          )}
+          <Button
+            type="button"
+            data-testid="dictate"
+            variant={recording ? 'secondary' : 'ghost'}
+            size="sm"
+            disabled={disabled || transcribing}
+            aria-label={recording ? 'Stop recording' : 'Dictate instead'}
+            onClick={() => (recording ? dictation.stop() : void dictation.start())}
+          >
+            {transcribing ? (
+              <LoaderCircleIcon className="animate-spin" />
+            ) : recording ? (
+              <SquareIcon />
+            ) : (
+              <MicIcon />
+            )}
+          </Button>
+        </div>
       </div>
+
+      {dictation.problem && (
+        <Notice
+          message={dictation.problem.message}
+          // A denied microphone is guidance; a provider that fell over is not.
+          // Same rules the rest of the app already uses.
+          tone={
+            dictation.problem.code
+              ? toneFor(dictation.problem.code)
+              : 'guidance'
+          }
+          testId="dictation-notice"
+        />
+      )}
 
       {/*
         Tapping an example fills the box and stops there. Submitting for you

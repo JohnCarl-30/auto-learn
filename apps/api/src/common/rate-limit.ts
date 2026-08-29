@@ -23,6 +23,18 @@ export const RATE_LIMITS = {
   default: { ttl: minutes(1), limit: 120 },
   propose: { ttl: minutes(1), limit: 10 },
   card: { ttl: minutes(1), limit: 60 },
+  /**
+   * One dictation stands in for one paste, so it gets the same allowance as
+   * the /propose it is about to feed. Speaking is slower than pasting; anyone
+   * meeting this is not dictating sentences.
+   */
+  dictate: { ttl: minutes(1), limit: 10 },
+  /**
+   * Looser, like /card and for the same reason: hearing every word you are
+   * taught is the good case. Most of these never reach a provider at all,
+   * because the audio is either the dictionary's own URL or already cached.
+   */
+  speak: { ttl: minutes(1), limit: 60 },
 } as const;
 
 /**

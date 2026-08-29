@@ -1,7 +1,13 @@
 // Same ESM boundary as every other *.spec.ts here: jest's CJS runtime cannot
-// load `ai`, so the stream is driven by a mocked `streamObject`.
+// load `ai` or either provider package, so the stream is driven by a mocked
+// `streamObject`. ElevenLabs is mocked despite nothing here speaking, because
+// `llm/models` imports it for the voice routes and one unmocked ESM import
+// fails the whole file at parse time.
 jest.mock('ai', () => ({ generateObject: jest.fn(), streamObject: jest.fn() }));
 jest.mock('@ai-sdk/openai', () => ({ openai: jest.fn() }));
+jest.mock('@ai-sdk/elevenlabs', () => ({
+  elevenLabs: { speech: jest.fn(), transcription: jest.fn() },
+}));
 
 import { streamObject } from 'ai';
 import type { ModelProposal, ProposeStreamEvent } from '@auto-learn/shared';

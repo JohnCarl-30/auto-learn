@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PronounceButton } from '@/components/pronounce-button';
 
 export type CardState =
   | { status: 'loading' }
@@ -161,6 +162,34 @@ function CardBody({
     <>
       <div className="flex flex-wrap items-baseline gap-2">
         <h3 className="text-lg font-semibold">{card.word}</h3>
+        {/*
+          Written pronunciation, which exists for far more words than the
+          recordings do — so a word nobody read aloud still tells you how to
+          say it.
+        */}
+        {card.pronunciation.ipa && (
+          <span
+            data-testid="ipa"
+            className="text-sm text-muted-foreground"
+            aria-label={`Pronounced ${card.pronunciation.ipa}`}
+          >
+            {card.pronunciation.ipa}
+          </span>
+        )}
+        {/*
+          Keyed by the word, because everything this button remembers — the
+          source it resolved, whether playing it failed — is about *that* word
+          and must not outlive it. A card currently passes through a loading
+          state between words, which unmounts this anyway, but that is an
+          accident of how the page renders rather than a guarantee. Without the
+          key, the day that stops being true is the day the button plays the
+          previous word.
+        */}
+        <PronounceButton
+          key={card.word}
+          word={card.word}
+          pronunciation={card.pronunciation}
+        />
         <span className="text-sm text-muted-foreground">
           {card.partOfSpeech}
         </span>

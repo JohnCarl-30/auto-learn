@@ -117,6 +117,11 @@ export class CardService {
 
     const entry = retrieved.entry;
 
+    // Started here and awaited below. It comes from a different source over
+    // the network, and the generation about to run takes several seconds —
+    // long enough to cover it for free.
+    const pendingSound = this.dictionary.pronunciation(target.word);
+
     const generated = await this.callModel(
       target.word,
       target.sentence,
@@ -149,6 +154,10 @@ export class CardService {
         useCases: generated.useCases,
         register: generated.register,
         whyHere: target.kind === 'lookup' ? null : generated.whyHere,
+        // Word-derived, not request-derived — so unlike `replacement` below,
+        // this is safe to keep on the cached variant and needs no re-stitching
+        // when the next reader meets the same word in a different sentence.
+        pronunciation: await pendingSound,
       },
       replacement: target.replacement,
       alternative: generated.alternative,

@@ -73,3 +73,66 @@ export const cardProviderOptions = {
     promptCacheKey: 'auto-learn:card:v1',
   },
 } as const;
+
+// --- Voice ------------------------------------------------------------------
+// A different provider, and deliberately so: OpenAI is where the reasoning
+// happens, ElevenLabs is where the speaking happens. Both go through the same
+// AI SDK functions, so the vendor is these constants rather than an
+// architecture — swapping back is this file and its wiring, and nothing else.
+
+/**
+ * Transcription sits where PROPOSE sits: someone is watching a spinner while
+ * their own speech turns into text, so it takes the fast tier.
+ */
+export const TRANSCRIBE_MODEL = 'scribe_v2';
+
+/**
+ * Speech does not: it fires on a click, for a single word, and the result is
+ * cached for a week afterwards. The quality tier costs almost nothing at that
+ * scale, and a mispronounced word teaches a learner something false — the same
+ * reason CARD is allowed to think.
+ */
+export const SPEECH_MODEL = 'eleven_v3';
+
+/**
+ * From the environment rather than a constant, because a voice id is
+ * account-scoped rather than universal: ElevenLabs' shared Default voices are
+ * withdrawn at the end of 2026 and are unavailable to newer accounts already,
+ * so a hardcoded id is a deployment that stops working on a date nobody
+ * remembers choosing.
+ */
+export const speechVoice = () => process.env.ELEVENLABS_VOICE_ID ?? '';
+
+export const transcribeProviderOptions = {
+  elevenlabs: {
+    /**
+     * The important one. Left to auto-detect, a strongly accented English
+     * utterance can be identified as another language and come back
+     * *translated* rather than transcribed — silently, and worst for exactly
+     * the learners this product is for.
+     */
+    languageCode: 'en',
+    /**
+     * Off, or the transcript arrives with "[laughter]" and "[background
+     * noise]" in it — annotations that are useful for captioning and are
+     * vandalism inside someone's draft sentence.
+     */
+    tagAudioEvents: false,
+    // One person dictating one sentence: no speakers to separate, no timings
+    // to carry. Both cost tokens and neither is ever read.
+    diarize: false,
+    timestampsGranularity: 'none',
+  },
+} as const;
+
+export const speechProviderOptions = {
+  elevenlabs: {
+    languageCode: 'en',
+    /**
+     * Fixed so that a word re-synthesised after falling out of the cache comes
+     * back identical. Without it the same word drifts between renderings, and
+     * a learner who replays it hears something subtly different each time.
+     */
+    seed: 20260821,
+  },
+} as const;

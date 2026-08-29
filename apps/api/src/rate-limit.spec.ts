@@ -1,6 +1,14 @@
-// `ai` and `@ai-sdk/openai` are ESM-only; jest's CJS runtime cannot load them.
-jest.mock('ai', () => ({ generateObject: jest.fn() }));
+// `ai`, `@ai-sdk/openai` and `@ai-sdk/elevenlabs` are ESM-only; jest's CJS
+// runtime cannot load them.
+jest.mock('ai', () => ({
+  generateObject: jest.fn(),
+  generateSpeech: jest.fn(),
+  transcribe: jest.fn(),
+}));
 jest.mock('@ai-sdk/openai', () => ({ openai: jest.fn() }));
+jest.mock('@ai-sdk/elevenlabs', () => ({
+  elevenLabs: { speech: jest.fn(), transcription: jest.fn() },
+}));
 
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
@@ -113,5 +121,26 @@ describe('rate limiting', () => {
       .expect(204);
 
     await request(server()).get('/telemetry').expect(200);
+  });
+
+  /**
+   * Dictation spends a provider call per recording, so it arrives limited like
+   * every other route that costs money — and separately, so that exhausting it
+   * cannot take pronunciation down with it. Someone who has recorded ten times
+   * in a minute should still be able to hear the words they are being taught.
+   */
+  it('gives dictation its own allowance, and does not spend it on speaking', async () => {
+    const dictate = () => request(server()).post('/dictate').send();
+
+    for (let i = 0; i < RATE_LIMITS.dictate.limit; i++) {
+      await dictate().expect(400);
+    }
+
+    const refused = await dictate().expect(429);
+    expect(ApiError.safeParse(refused.body).data?.code).toBe('rate_limited');
+
+    // /speak is untouched by the burst above. A 400 here is the word schema
+    // refusing, which is the proof it reached the route at all.
+    await request(server()).get('/speak/not%20one%20word').expect(400);
   });
 });
