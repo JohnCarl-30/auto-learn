@@ -151,6 +151,22 @@ function useEscapeToDismiss(onDismiss: () => void) {
   }, [onDismiss]);
 }
 
+/**
+ * A small, quiet heading for the three things below the definition.
+ *
+ * The card used to be one flat stack at a single size: the word being taught,
+ * its definition, the nuance lines and the examples all read at the same
+ * weight, so nothing announced itself and everything had to be read in order
+ * to be understood. These labels are what let the eye skip.
+ */
+function SectionLabel({ children }: { children: string }) {
+  return (
+    <h4 className="text-muted-foreground text-xs font-medium tracking-widest uppercase">
+      {children}
+    </h4>
+  );
+}
+
 function CardBody({
   response,
 }: {
@@ -160,71 +176,106 @@ function CardBody({
 
   return (
     <>
-      <div className="flex flex-wrap items-baseline gap-2">
-        <h3 className="text-lg font-semibold">{card.word}</h3>
-        {/*
-          Written pronunciation, which exists for far more words than the
-          recordings do — so a word nobody read aloud still tells you how to
-          say it.
-        */}
-        {card.pronunciation.ipa && (
-          <span
-            data-testid="ipa"
-            className="text-sm text-muted-foreground"
-            aria-label={`Pronounced ${card.pronunciation.ipa}`}
-          >
-            {card.pronunciation.ipa}
-          </span>
-        )}
-        {/*
-          Keyed by the word, because everything this button remembers — the
-          source it resolved, whether playing it failed — is about *that* word
-          and must not outlive it. A card currently passes through a loading
-          state between words, which unmounts this anyway, but that is an
-          accident of how the page renders rather than a guarantee. Without the
-          key, the day that stops being true is the day the button plays the
-          previous word.
-        */}
-        <PronounceButton
-          key={card.word}
-          word={card.word}
-          pronunciation={card.pronunciation}
-        />
-        <span className="text-sm text-muted-foreground">
-          {card.partOfSpeech}
-        </span>
-        <Badge variant="secondary" className="ml-auto">
+      {/*
+        The word is the hero.
+        
+        A card exists to teach one word, and at the old size it was a heading
+        among headings — the reader had to work out what the card was *about*.
+        Everything else on the card is now support for the line below.
+      */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="space-y-1">
+          <h3 className="text-3xl leading-none font-semibold tracking-tight">
+            {card.word}
+          </h3>
+
+          <div className="text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+            {/*
+              Written pronunciation, which exists for far more words than the
+              recordings do — so a word nobody read aloud still tells you how
+              to say it.
+            */}
+            {card.pronunciation.ipa && (
+              <span
+                data-testid="ipa"
+                aria-label={`Pronounced ${card.pronunciation.ipa}`}
+              >
+                {card.pronunciation.ipa}
+              </span>
+            )}
+            {card.pronunciation.ipa && <span aria-hidden>·</span>}
+            <span>{card.partOfSpeech}</span>
+            {/*
+              Keyed by the word, because everything this button remembers — the
+              source it resolved, whether playing it failed — is about *that*
+              word and must not outlive it. A card currently passes through a
+              loading state between words, which unmounts this anyway, but that
+              is an accident of how the page renders rather than a guarantee.
+              Without the key, the day that stops being true is the day the
+              button plays the previous word.
+            */}
+            <PronounceButton
+              key={card.word}
+              word={card.word}
+              pronunciation={card.pronunciation}
+            />
+          </div>
+        </div>
+
+        <Badge variant="secondary" className="shrink-0">
           {card.register}
         </Badge>
       </div>
 
-      <p className="text-sm leading-relaxed">{curlyQuotes(card.definition)}</p>
+      {/*
+        The line the reader came for, and sized to say so: a step above the
+        supporting detail below it rather than level with it.
+      */}
+      <p className="text-lg leading-relaxed">{curlyQuotes(card.definition)}</p>
+
+      {/* Identity above, everything that supports it below. */}
+      <Separator />
 
       {card.whyHere && (
-        <p className="text-sm text-muted-foreground italic">
-          {curlyQuotes(card.whyHere)}
-        </p>
+        <div className="space-y-1.5">
+          <SectionLabel>Why here</SectionLabel>
+          <p className="text-sm leading-relaxed">
+            {curlyQuotes(card.whyHere)}
+          </p>
+        </div>
       )}
 
-      <div className="space-y-1">
-        {card.synonyms.map((synonym) => (
-          <p key={synonym.word} className="text-sm">
-            <span className="font-medium">{synonym.word}</span>
-            <span className="text-muted-foreground">
-              {' — '}
-              {curlyQuotes(synonym.nuance)}
-            </span>
-          </p>
-        ))}
+      {/*
+        One row per synonym, and the nuance on its own line under the word.
+        
+        That difference is the only thing on this card a dictionary would not
+        have given the reader, and as a dash-joined run-on it read like a
+        footnote to the word rather than the point of listing it.
+      */}
+      <div className="space-y-1.5">
+        <SectionLabel>Instead of</SectionLabel>
+        <ul className="divide-border/70 divide-y overflow-hidden rounded-md border">
+          {card.synonyms.map((synonym) => (
+            <li key={synonym.word} className="space-y-0.5 px-3 py-2">
+              <p className="text-sm font-medium">{synonym.word}</p>
+              <p className="text-muted-foreground text-sm leading-snug">
+                {curlyQuotes(synonym.nuance)}
+              </p>
+            </li>
+          ))}
+        </ul>
       </div>
 
-      <ul className="space-y-1 border-l-2 pl-3">
-        {card.useCases.map((useCase) => (
-          <li key={useCase} className="text-sm text-muted-foreground">
-            {curlyQuotes(useCase)}
-          </li>
-        ))}
-      </ul>
+      <div className="space-y-1.5">
+        <SectionLabel>In use</SectionLabel>
+        <ul className="space-y-1.5 border-l-2 pl-3">
+            {card.useCases.map((useCase) => (
+            <li key={useCase} className="text-muted-foreground text-sm leading-relaxed">
+              {curlyQuotes(useCase)}
+            </li>
+          ))}
+        </ul>
+      </div>
     </>
   );
 }
