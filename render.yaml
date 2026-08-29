@@ -1,11 +1,25 @@
 # Render blueprint for the API. The web app goes to Vercel — see docs/deploy.md.
 #
-# Why Render, and why one instance: the session store, the telemetry counters
-# and the rate-limiter state are all in memory. A second instance would answer
-# a card request without the session that /propose created on the first, and
-# opening that card is the product's central mechanic. One process until there
-# is a Redis.
+# Why Render: the API cannot be serverless — it holds a session between
+# /propose writing a proposal and /card opening one of its gates.
+#
+# `numInstances: 1` is now a choice rather than a constraint. Sessions live in
+# Redis when REDIS_URL is set, so a card request can land in a process that
+# never saw the proposal. Telemetry counters and rate-limiter state are still
+# per-process: the counters would under-report across instances and the limits
+# would be per-instance, neither of which breaks anything the way a missing
+# session did. Raise the count when there is traffic to justify it.
 services:
+  - type: keyvalue
+    name: auto-learn-sessions
+    plan: starter
+    region: oregon
+    # Sessions only. Nothing here needs to survive the instance itself, and an
+    # eviction is a resubmit rather than lost work.
+    maxmemoryPolicy: allkeys-lru
+    ipAllowList: []
+
+
   - type: web
     name: auto-learn-api
     runtime: node
@@ -36,3 +50,10 @@ services:
         sync: false
       - key: NODE_VERSION
         value: 22
+      # Without this the API keeps sessions in memory and still works —
+      # correctly, on exactly one instance.
+      - key: REDIS_URL
+        fromService:
+          name: auto-learn-sessions
+          type: keyvalue
+          property: connectionString
