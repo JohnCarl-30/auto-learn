@@ -38,7 +38,12 @@ describe('proposeUserPrompt', () => {
 
 describe('cardUserPrompt', () => {
   const senses = [
-    { senseId: 's0', partOfSpeech: 'adjective', definition: 'Of real worth.' },
+    {
+      senseId: 's0',
+      partOfSpeech: 'adjective',
+      definition: 'Of real worth.',
+      example: 'a substantial contribution',
+    },
     { senseId: 's1', partOfSpeech: 'noun', definition: 'A material thing.' },
   ];
 
@@ -51,8 +56,13 @@ describe('cardUserPrompt', () => {
       reason: 'stronger than "big"',
     });
 
-    expect(prompt).toContain('- s0 (adjective): Of real worth.');
+    expect(prompt).toContain(
+      '- s0 (adjective): Of real worth. — used as: "a substantial contribution"',
+    );
+    // A sense without an example is listed without one, rather than with an
+    // empty pair of quotes the model would have to interpret.
     expect(prompt).toContain('- s1 (noun): A material thing.');
+    expect(prompt).not.toContain('A material thing. — used as');
     expect(prompt).toContain('Candidate synonyms: considerable');
     expect(prompt).toContain('Why it was proposed: stronger than "big"');
   });
