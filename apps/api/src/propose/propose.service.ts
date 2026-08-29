@@ -54,7 +54,7 @@ export class ProposeService {
   async propose(request: ProposeRequest): Promise<ProposeResponse> {
     const sentences = this.prepare(request);
     const proposal = await this.callModel(sentences, request.option);
-    return this.finish(sentences, proposal, request.option);
+    return await this.finish(sentences, proposal, request.option);
   }
 
   /**
@@ -130,7 +130,7 @@ export class ProposeService {
       this.telemetry.spend(PROPOSE_MODEL, await result.usage);
       yield {
         kind: 'done',
-        response: this.finish(sentences, proposal, request.option),
+        response: await this.finish(sentences, proposal, request.option),
       };
     } catch (error) {
       // A reader who left is not a failure, and there is nobody to tell.
@@ -217,11 +217,11 @@ export class ProposeService {
   }
 
   /** Resolves offsets, opens the session, and drops what the gate withholds. */
-  private finish(
+  private async finish(
     sentences: string[],
     proposal: ModelProposal,
     option: ProposeRequest['option'],
-  ): ProposeResponse {
+  ): Promise<ProposeResponse> {
     const stored = sentences.map((sentence, index) =>
       this.resolveSentence(
         index,
@@ -230,7 +230,7 @@ export class ProposeService {
       ),
     );
 
-    const session = this.sessions.create(option, stored);
+    const session = await this.sessions.create(option, stored);
     this.telemetry.proposal();
 
     return {

@@ -10,7 +10,10 @@ import { HttpException } from '@nestjs/common';
 import { generateObject } from 'ai';
 import type { ApiError, CardResponse, ModelCard } from '@auto-learn/shared';
 import type { DictionaryService } from '../dictionary/dictionary.service';
-import { SessionStore, type StoredSentence } from '../session/session.store';
+import {
+  MemorySessionStore,
+  type StoredSentence,
+} from '../session/session.store';
 import { TelemetryService } from '../telemetry/telemetry.service';
 import { CardService } from './card.service';
 
@@ -90,7 +93,7 @@ const PRONUNCIATION = {
   audioUrl: 'https://api.dictionaryapi.dev/media/substantial-us.mp3',
 };
 
-const build = (
+const build = async (
   lookupResult: unknown = {
     status: 'found',
     entry: { word: 'substantial', senses: SENSES, synonyms: ['significant'] },
@@ -99,14 +102,14 @@ const build = (
   // WordNet on disk and sound comes from Free Dictionary over the network.
   heard: unknown = PRONUNCIATION,
 ) => {
-  const sessions = new SessionStore();
+  const sessions = new MemorySessionStore();
   // Held as their own references so assertions never pass an unbound method.
   const lookup = jest.fn().mockResolvedValue(lookupResult);
   const pronunciation = jest.fn().mockResolvedValue(heard);
   const dictionary = { lookup, pronunciation } as unknown as DictionaryService;
   const telemetry = new TelemetryService();
   const service = new CardService(sessions, dictionary, telemetry);
-  const session = sessions.create('academic', [sentence()]);
+  const session = await sessions.create('academic', [sentence()]);
   return {
     service,
     sessions,
@@ -140,7 +143,7 @@ beforeEach(() => {
 
 describe('CardService target resolution', () => {
   it('builds the card for the replacement word, not the one being replaced', async () => {
-    const { service, sessionId, lookup } = build();
+    const { service, sessionId, lookup } = await build();
 
     const result = await service.build({
       kind: 'suggestion',
@@ -153,7 +156,7 @@ describe('CardService target resolution', () => {
   });
 
   it('releases the withheld replacement only with the card', async () => {
-    const { service, sessionId } = build();
+    const { service, sessionId } = await build();
 
     const result = await service.build({
       kind: 'suggestion',
@@ -165,7 +168,7 @@ describe('CardService target resolution', () => {
   });
 
   it('returns no replacement for a plain lookup', async () => {
-    const { service, sessionId } = build();
+    const { service, sessionId } = await build();
 
     const result = await service.build({
       kind: 'lookup',
@@ -179,7 +182,7 @@ describe('CardService target resolution', () => {
   });
 
   it('rejects a lookup for a word that is not in the sentence', async () => {
-    const { service, sessionId } = build();
+    const { service, sessionId } = await build();
 
     const error = await errorOf(() =>
       service.build({
@@ -193,7 +196,7 @@ describe('CardService target resolution', () => {
   });
 
   it('rejects an unknown suggestion id', async () => {
-    const { service, sessionId } = build();
+    const { service, sessionId } = await build();
 
     const error = await errorOf(() =>
       service.build({ kind: 'suggestion', sessionId, suggestionId: 'nope' }),
@@ -202,7 +205,7 @@ describe('CardService target resolution', () => {
   });
 
   it('rejects an expired session', async () => {
-    const { service } = build();
+    const { service } = await build();
 
     const error = await errorOf(() =>
       service.build({
@@ -218,7 +221,7 @@ describe('CardService target resolution', () => {
 
 describe('CardService grounding', () => {
   it('refuses to guess when the dictionary has no entry', async () => {
-    const { service, sessionId } = build({ status: 'absent' });
+    const { service, sessionId } = await build({ status: 'absent' });
 
     const error = await errorOf(() =>
       service.build({ kind: 'suggestion', sessionId, suggestionId: 'gate-1' }),
@@ -233,7 +236,7 @@ describe('CardService grounding', () => {
    * difference between an outage and someone doubting their own vocabulary.
    */
   it('says the dictionary was unreachable rather than blaming the word', async () => {
-    const { service, sessionId } = build({ status: 'unavailable' });
+    const { service, sessionId } = await build({ status: 'unavailable' });
 
     const error = await errorOf(() =>
       service.build({ kind: 'suggestion', sessionId, suggestionId: 'gate-1' }),
@@ -245,7 +248,7 @@ describe('CardService grounding', () => {
   });
 
   it('prices the call at the card model\u2019s rate, cached input kept apart', async () => {
-    const { service, sessionId, telemetry } = build();
+    const { service, sessionId, telemetry } = await build();
     await service.build({
       kind: 'suggestion',
       sessionId,
@@ -272,8 +275,8 @@ describe('CardService grounding', () => {
    * ever answer.
    */
   it('opens a phrase gate on the word it introduces, not the phrase', async () => {
-    const { service, sessions, lookup } = build();
-    const session = sessions.create('academic', [
+    const { service, sessions, lookup } = await build();
+    const session = await sessions.create('academic', [
       {
         index: 0,
         original: 'The policy had a big effect.',
@@ -306,7 +309,7 @@ describe('CardService grounding', () => {
   });
 
   it('rejects a card whose sense was never on offer', async () => {
-    const { service, sessionId } = build();
+    const { service, sessionId } = await build();
     generate.mockResolvedValue({
       object: { ...MODEL_CARD, senseId: 'invented' },
       usage: USAGE,
@@ -319,7 +322,7 @@ describe('CardService grounding', () => {
   });
 
   it('keeps the chosen senseId on the card for traceability', async () => {
-    const { service, sessionId } = build();
+    const { service, sessionId } = await build();
 
     const result = await service.build({
       kind: 'suggestion',
@@ -332,7 +335,7 @@ describe('CardService grounding', () => {
 
 describe('CardService caching', () => {
   it('does not call the model twice for the same word and sentence', async () => {
-    const { service, sessionId } = build();
+    const { service, sessionId } = await build();
 
     await service.build({
       kind: 'suggestion',
@@ -349,7 +352,7 @@ describe('CardService caching', () => {
   });
 
   it('still releases the replacement on a cache hit', async () => {
-    const { service, sessionId } = build();
+    const { service, sessionId } = await build();
 
     await service.build({
       kind: 'suggestion',
@@ -368,7 +371,7 @@ describe('CardService caching', () => {
 
 describe('CardService grammar gates', () => {
   it('returns a note, not a vocabulary card', async () => {
-    const { service, sessionId } = build();
+    const { service, sessionId } = await build();
 
     const result = await service.build({
       kind: 'suggestion',
@@ -381,7 +384,7 @@ describe('CardService grammar gates', () => {
   });
 
   it('still releases the withheld correction, so the gate holds', async () => {
-    const { service, sessionId } = build();
+    const { service, sessionId } = await build();
 
     const result = await service.build({
       kind: 'suggestion',
@@ -393,7 +396,7 @@ describe('CardService grammar gates', () => {
   });
 
   it('costs no dictionary lookup and no model call', async () => {
-    const { service, sessionId, lookup } = build();
+    const { service, sessionId, lookup } = await build();
 
     await service.build({
       kind: 'suggestion',
@@ -408,7 +411,7 @@ describe('CardService grammar gates', () => {
 
 describe('CardService engagement accounting', () => {
   it('counts a delivered card as both requested and delivered', async () => {
-    const { service, sessionId, telemetry } = build();
+    const { service, sessionId, telemetry } = await build();
 
     await service.build({
       kind: 'suggestion',
@@ -425,7 +428,7 @@ describe('CardService engagement accounting', () => {
   it('does not count a failed card as delivered', async () => {
     // The bug this replaced: a card that never rendered still counted as
     // engagement, inflating cardsRequested/proposals with failures.
-    const { service, sessionId, telemetry } = build({ status: 'absent' });
+    const { service, sessionId, telemetry } = await build({ status: 'absent' });
 
     await service
       .build({ kind: 'suggestion', sessionId, suggestionId: 'gate-1' })
@@ -438,7 +441,7 @@ describe('CardService engagement accounting', () => {
   });
 
   it('does not count a failed model call as delivered', async () => {
-    const { service, sessionId, telemetry } = build();
+    const { service, sessionId, telemetry } = await build();
     generate.mockRejectedValue(new Error('model exploded'));
 
     await service
@@ -451,7 +454,7 @@ describe('CardService engagement accounting', () => {
   });
 
   it('leaves card counters alone for a grammar note', async () => {
-    const { service, sessionId, telemetry } = build();
+    const { service, sessionId, telemetry } = await build();
 
     await service.build({
       kind: 'suggestion',
@@ -475,7 +478,7 @@ describe('CardService pronunciation', () => {
    * unexpected". This is the test that notices.
    */
   it('carries what the dictionary heard through to the card', async () => {
-    const { service, sessionId } = build();
+    const { service, sessionId } = await build();
 
     const result = await service.build({
       kind: 'suggestion',
@@ -487,7 +490,7 @@ describe('CardService pronunciation', () => {
   });
 
   it('still carries it on a second reader hitting the cache', async () => {
-    const { service, sessionId, lookup } = build();
+    const { service, sessionId, lookup } = await build();
     const request = {
       kind: 'suggestion',
       sessionId,
@@ -504,7 +507,7 @@ describe('CardService pronunciation', () => {
   });
 
   it('reports a word nobody recorded without pretending it is missing', async () => {
-    const { service, sessionId } = build(undefined, {
+    const { service, sessionId } = await build(undefined, {
       ipa: '/səbˈstænʃəl/',
       audioUrl: null,
     });

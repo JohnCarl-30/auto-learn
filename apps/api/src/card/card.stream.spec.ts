@@ -10,7 +10,10 @@ jest.mock('@ai-sdk/elevenlabs', () => ({
 import { streamObject } from 'ai';
 import type { CardStreamEvent, DictionarySense } from '@auto-learn/shared';
 import { DictionaryService } from '../dictionary/dictionary.service';
-import { SessionStore, type StoredSentence } from '../session/session.store';
+import {
+  MemorySessionStore,
+  type StoredSentence,
+} from '../session/session.store';
 import { TelemetryService } from '../telemetry/telemetry.service';
 import { CardService } from './card.service';
 
@@ -68,8 +71,8 @@ function streaming(partials: unknown[], final: unknown = FULL) {
   });
 }
 
-function build() {
-  const sessions = new SessionStore();
+async function build() {
+  const sessions = new MemorySessionStore();
   const telemetry = new TelemetryService();
   const lookup = jest.fn().mockResolvedValue({
     status: 'found',
@@ -80,7 +83,7 @@ function build() {
     .mockResolvedValue({ ipa: '/səbˈstænʃəl/', audioUrl: null });
   const dictionary = { lookup, pronunciation } as unknown as DictionaryService;
   const service = new CardService(sessions, dictionary, telemetry);
-  const session = sessions.create('academic', [sentence()]);
+  const session = await sessions.create('academic', [sentence()]);
 
   const run = async (partials: unknown[]): Promise<CardStreamEvent[]> => {
     streaming(partials);
@@ -101,7 +104,7 @@ beforeEach(() => asMock.mockReset());
 
 describe('the card, while the model is still writing', () => {
   it('sends the definition as soon as it is finished', async () => {
-    const { run } = build();
+    const { run } = await build();
 
     const events = await run([
       // `synonyms` having begun is what proves `definition` is closed.
@@ -128,7 +131,7 @@ describe('the card, while the model is still writing', () => {
    * after, when it would have to be taken back.
    */
   it('sends nothing at all when the sense was never on offer', async () => {
-    const { run } = build();
+    const { run } = await build();
 
     const events = await run([
       {
@@ -143,7 +146,7 @@ describe('the card, while the model is still writing', () => {
   });
 
   it('waits for the next field before trusting the one before it', async () => {
-    const { run } = build();
+    const { run } = await build();
 
     const events = await run([
       // Definition still being written: nothing follows it yet.
@@ -164,7 +167,7 @@ describe('the card, while the model is still writing', () => {
   });
 
   it('sends each synonym once the one after it has started', async () => {
-    const { run } = build();
+    const { run } = await build();
 
     const events = await run([
       {
@@ -184,7 +187,7 @@ describe('the card, while the model is still writing', () => {
   });
 
   it('releases the last synonym and example once the field after them starts', async () => {
-    const { run } = build();
+    const { run } = await build();
 
     const events = await run([
       {
@@ -202,7 +205,7 @@ describe('the card, while the model is still writing', () => {
   });
 
   it('ends with the payload the non-streaming route would have returned', async () => {
-    const { run } = build();
+    const { run } = await build();
     const done = (await run([])).at(-1);
 
     expect(done).toMatchObject({
@@ -212,10 +215,10 @@ describe('the card, while the model is still writing', () => {
   });
 
   it('answers a grammar note in one line, having generated nothing', async () => {
-    const { service, sessions } = build();
+    const { service, sessions } = await build();
     const withGrammar = sentence();
     withGrammar.gated[0].type = 'grammar';
-    const session = sessions.create('grammar', [withGrammar]);
+    const session = await sessions.create('grammar', [withGrammar]);
 
     const prepared = await service.prepare({
       kind: 'suggestion',
@@ -231,7 +234,7 @@ describe('the card, while the model is still writing', () => {
   });
 
   it('reports a failure in the body, because the status line is long gone', async () => {
-    const { service, session } = build();
+    const { service, session } = await build();
     asMock.mockImplementation(() => {
       throw new Error('model exploded');
     });
