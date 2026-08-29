@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { diffWords, originalOf, revisedOf } from './diff';
+import { diffWords, originalOf, revisedOf, wordToTeach } from './diff';
 
 const text = (parts: ReturnType<typeof diffWords>) =>
   parts.map((part) => `${part.kind}:${part.value}`);
@@ -94,5 +94,40 @@ describe('diffWords', () => {
     expect(text(parts)).toEqual([`removed:${before}`, `added:${after}`]);
     expect(originalOf(parts)).toBe(before);
     expect(revisedOf(parts)).toBe(after);
+  });
+});
+
+describe('wordToTeach', () => {
+  it('takes the one word a phrase gate introduces', () => {
+    // The case that made this necessary: the card behind this gate was looked
+    // up as "significant effect", which no dictionary carries.
+    expect(wordToTeach('big effect', 'significant effect')).toBe('significant');
+  });
+
+  it('is a no-op when the gate is already a single word', () => {
+    expect(wordToTeach('big', 'substantial')).toBe('substantial');
+  });
+
+  it('ignores the words that merely went away', () => {
+    expect(wordToTeach('lots of people', 'many people')).toBe('many');
+  });
+
+  it('falls back to the replacement when the change removes rather than adds', () => {
+    expect(wordToTeach('because of the fact that', 'because')).toBe('because');
+  });
+
+  it('does not mistake punctuation for the lesson', () => {
+    expect(wordToTeach('big, effect', 'substantial effect')).toBe('substantial');
+  });
+
+  /**
+   * Two new words is a phrase, and there is no single card to write for it.
+   * Returning the phrase means the lookup fails and says so, which is better
+   * than teaching one half of a change the reader is being offered whole.
+   */
+  it('keeps the phrase when the change is genuinely more than one word', () => {
+    expect(wordToTeach('big effect', 'far greater effect')).toBe(
+      'far greater effect',
+    );
   });
 });

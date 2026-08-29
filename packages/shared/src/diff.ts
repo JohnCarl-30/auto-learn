@@ -143,3 +143,33 @@ export function revisedOf(parts: readonly DiffPart[]): string {
     .map((part) => part.value)
     .join('');
 }
+
+/**
+ * The single word a gated suggestion is actually teaching.
+ *
+ * A gate can cover a phrase — the model returns "big effect" → "significant
+ * effect" as readily as "big" → "significant" — and the card that opens behind
+ * it is looked up in a dictionary, which has entries for words and not for
+ * phrases. So a phrase gate used to render a marker the reader could click and
+ * nothing could ever answer: a dead end in the one interaction the product is
+ * built around.
+ *
+ * The word being taught is the word the diff *adds*. "big effect" becomes
+ * "significant effect" by adding one word, and that word is the lesson; the
+ * rest of the phrase is context that happened to sit inside the span.
+ *
+ * Falls back to the whole replacement when the change is not one word —
+ * "because of the fact that" → "because" adds nothing, and "because" is the
+ * right answer there anyway. A genuinely multi-word coinage still fails to
+ * find an entry, which is honest: there is no card to write for it.
+ */
+export function wordToTeach(original: string, replacement: string): string {
+  const added = diffWords(original, replacement)
+    .filter((part) => part.kind === 'added')
+    .flatMap((part) => part.value.split(/\s+/))
+    // Punctuation moves around inside a span without being the lesson.
+    .map((token) => token.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, ''))
+    .filter((token) => /\p{L}/u.test(token));
+
+  return added.length === 1 ? added[0] : replacement.trim();
+}
