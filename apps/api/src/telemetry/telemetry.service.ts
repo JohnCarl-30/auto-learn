@@ -20,6 +20,8 @@ export class TelemetryService {
     editsDropped: 0,
     notesOpened: 0,
     lookups: 0,
+    dictations: 0,
+    dictationsFailed: 0,
     accepted: 0,
     rejected: 0,
     inputTokens: 0,
@@ -69,6 +71,29 @@ export class TelemetryService {
 
   lookup(): void {
     this.counts.lookups += 1;
+  }
+
+  /**
+   * Someone spoke instead of typing. The one voice number worth keeping: it
+   * answers whether the feature is used at all, which is what decides if it
+   * earns more investment. Plays are not counted — most are served straight
+   * from the dictionary's own URLs and never reach us, so any figure here
+   * would undercount in a way that misleads rather than informs.
+   */
+  dictation(): void {
+    this.counts.dictations += 1;
+  }
+
+  /**
+   * A recording arrived and no transcript went back — the provider fell over,
+   * or there was nothing audible in it.
+   *
+   * Counted whichever end was at fault. From where the reader sits both are
+   * "I spoke and it did not work", and it is their willingness to try again
+   * that this is measuring.
+   */
+  dictationFailed(): void {
+    this.counts.dictationsFailed += 1;
   }
 
   accepted(): void {

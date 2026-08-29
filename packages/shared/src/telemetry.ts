@@ -42,6 +42,17 @@ export const TelemetrySnapshot = z.object({
   editsDropped: z.number().int(),
   notesOpened: z.number().int(),
   lookups: z.number().int(),
+  /**
+   * Whether anyone speaks rather than types.
+   *
+   * A pair for the same reason cards are one: a dictation that produced no
+   * transcript is not someone declining to use the feature, it is the feature
+   * not working for them. Counting only the successes would make a voice
+   * feature that is failing look exactly like one nobody wants — which is the
+   * decision these numbers exist to inform.
+   */
+  dictations: z.number().int(),
+  dictationsFailed: z.number().int(),
   accepted: z.number().int(),
   rejected: z.number().int(),
   /**

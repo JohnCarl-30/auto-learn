@@ -7,6 +7,8 @@ import { HealthModule } from './health/health.module';
 import { SessionModule } from './session/session.module';
 import { ProposeModule } from './propose/propose.module';
 import { CardModule } from './card/card.module';
+import { SpeechModule } from './speech/speech.module';
+import { DictateModule } from './dictate/dictate.module';
 import { TelemetryModule } from './telemetry/telemetry.module';
 
 @Module({
@@ -20,6 +22,8 @@ import { TelemetryModule } from './telemetry/telemetry.module';
     SessionModule,
     ProposeModule,
     CardModule,
+    SpeechModule,
+    DictateModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ApiThrottlerGuard }],
 })

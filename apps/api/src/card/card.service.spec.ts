@@ -1,6 +1,10 @@
-// `ai` and `@ai-sdk/openai` are ESM-only; jest's CJS runtime cannot load them.
+// `ai`, `@ai-sdk/openai` and `@ai-sdk/elevenlabs` are ESM-only; jest's CJS
+// runtime cannot load them.
 jest.mock('ai', () => ({ generateObject: jest.fn() }));
 jest.mock('@ai-sdk/openai', () => ({ openai: jest.fn() }));
+jest.mock('@ai-sdk/elevenlabs', () => ({
+  elevenLabs: { speech: jest.fn(), transcription: jest.fn() },
+}));
 
 import { HttpException } from '@nestjs/common';
 import { generateObject } from 'ai';
@@ -81,16 +85,25 @@ const sentence = (): StoredSentence => ({
   ],
 });
 
+const PRONUNCIATION = {
+  ipa: '/səbˈstænʃəl/',
+  audioUrl: 'https://api.dictionaryapi.dev/media/substantial-us.mp3',
+};
+
 const build = (
   lookupResult: unknown = {
     status: 'found',
     entry: { word: 'substantial', senses: SENSES, synonyms: ['significant'] },
   },
+  // Its own argument now, because it has its own source: senses come from
+  // WordNet on disk and sound comes from Free Dictionary over the network.
+  heard: unknown = PRONUNCIATION,
 ) => {
   const sessions = new SessionStore();
-  // Held as its own reference so assertions never pass an unbound method.
+  // Held as their own references so assertions never pass an unbound method.
   const lookup = jest.fn().mockResolvedValue(lookupResult);
-  const dictionary = { lookup } as unknown as DictionaryService;
+  const pronunciation = jest.fn().mockResolvedValue(heard);
+  const dictionary = { lookup, pronunciation } as unknown as DictionaryService;
   const telemetry = new TelemetryService();
   const service = new CardService(sessions, dictionary, telemetry);
   const session = sessions.create('academic', [sentence()]);
@@ -410,5 +423,61 @@ describe('CardService engagement accounting', () => {
     expect(snapshot.notesOpened).toBe(1);
     expect(snapshot.cardsRequested).toBe(0);
     expect(snapshot.cardsDelivered).toBe(0);
+  });
+});
+
+describe('CardService pronunciation', () => {
+  /**
+   * The stub here is cast through `unknown`, so a card that forgot to carry
+   * pronunciation would typecheck and pass every other test in this file — and
+   * then fail in the browser, where the response is re-parsed with the same
+   * schema and an undefined field reads as "the server sent back something
+   * unexpected". This is the test that notices.
+   */
+  it('carries what the dictionary heard through to the card', async () => {
+    const { service, sessionId } = build();
+
+    const result = await service.build({
+      kind: 'suggestion',
+      sessionId,
+      suggestionId: 'gate-1',
+    });
+
+    expect(asCard(result).card.pronunciation).toEqual(PRONUNCIATION);
+  });
+
+  it('still carries it on a second reader hitting the cache', async () => {
+    const { service, sessionId, lookup } = build();
+    const request = {
+      kind: 'suggestion',
+      sessionId,
+      suggestionId: 'gate-1',
+    } as const;
+
+    await service.build(request);
+    const cached = await service.build(request);
+
+    // Word-derived rather than request-derived, so unlike `replacement` it
+    // needs no re-stitching — but only if it was cached in the first place.
+    expect(lookup).toHaveBeenCalledTimes(1);
+    expect(asCard(cached).card.pronunciation).toEqual(PRONUNCIATION);
+  });
+
+  it('reports a word nobody recorded without pretending it is missing', async () => {
+    const { service, sessionId } = build(undefined, {
+      ipa: '/səbˈstænʃəl/',
+      audioUrl: null,
+    });
+
+    const result = await service.build({
+      kind: 'suggestion',
+      sessionId,
+      suggestionId: 'gate-1',
+    });
+
+    expect(asCard(result).card.pronunciation).toEqual({
+      ipa: '/səbˈstænʃəl/',
+      audioUrl: null,
+    });
   });
 });

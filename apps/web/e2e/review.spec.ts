@@ -7,6 +7,16 @@ import { expect, test } from '@playwright/test';
  * component tests, and the API's error codes moved to supertest — both run in
  * milliseconds without booting anything. A browser test that restates them
  * only buys a slower way to learn the same thing.
+ *
+ * Voice is deliberately absent, and the reasoning is the same one applied
+ * above rather than an oversight. A real dictation round-trip needs three
+ * things this suite does not otherwise carry: an audio fixture committed to
+ * the repo, `--use-fake-device-for-media-stream` launch arguments, and a
+ * provider key. What it would then assert — that a recording becomes a
+ * transcript and that the transcript is appended rather than substituted — is
+ * already pinned in lib/use-dictation.test.tsx and compose-panel.test.tsx,
+ * against stubs that fail faster and more legibly. Pronunciation is thinner
+ * still: the free path is an `<audio>` element pointed at somebody else's URL.
  */
 
 test.beforeEach(async ({ page }) => {

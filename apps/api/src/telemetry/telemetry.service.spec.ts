@@ -1,5 +1,8 @@
 jest.mock('ai', () => ({ generateObject: jest.fn() }));
 jest.mock('@ai-sdk/openai', () => ({ openai: jest.fn() }));
+jest.mock('@ai-sdk/elevenlabs', () => ({
+  elevenLabs: { speech: jest.fn(), transcription: jest.fn() },
+}));
 
 import { SessionStore } from '../session/session.store';
 import { ProposeService } from '../propose/propose.service';
