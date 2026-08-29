@@ -265,6 +265,46 @@ describe('CardService grounding', () => {
     expect(snapshot.spendUsd).toBe(0.0053);
   });
 
+  /**
+   * A gate can cover a phrase, and a dictionary cannot. Before this the card
+   * behind such a gate was looked up as "significant effect", found nothing,
+   * and returned a 422 — a marker the reader could click that nothing could
+   * ever answer.
+   */
+  it('opens a phrase gate on the word it introduces, not the phrase', async () => {
+    const { service, sessions, lookup } = build();
+    const session = sessions.create('academic', [
+      {
+        index: 0,
+        original: 'The policy had a big effect.',
+        text: 'The policy had a big effect.',
+        silentFixes: [],
+        gated: [
+          {
+            id: 'gate-phrase',
+            type: 'word-choice',
+            original: 'big effect',
+            start: 18,
+            end: 28,
+            teaser: 'stronger word available',
+            replacement: 'significant effect',
+            reason: 'More precise.',
+          },
+        ],
+      },
+    ]);
+
+    const result = await service.build({
+      kind: 'suggestion',
+      sessionId: session.id,
+      suggestionId: 'gate-phrase',
+    });
+
+    expect(lookup).toHaveBeenCalledWith('significant');
+    // The whole span is still what gets applied to the sentence.
+    expect(asCard(result).replacement).toBe('significant effect');
+  });
+
   it('rejects a card whose sense was never on offer', async () => {
     const { service, sessionId } = build();
     generate.mockResolvedValue({

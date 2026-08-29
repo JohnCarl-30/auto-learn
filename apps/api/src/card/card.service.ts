@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto';
 import { LRUCache } from 'lru-cache';
 import {
   ModelCard,
+  wordToTeach,
   type ApiError,
   type CardRequest,
   type CardResponse,
@@ -193,8 +194,17 @@ export class CardService {
         );
       }
       return {
-        word: found.suggestion.replacement,
+        // The word, not the span. A gate may cover a phrase — "big effect"
+        // becomes "significant effect" — and a dictionary has entries for
+        // words. Looking up the phrase produced a marker the reader could
+        // click and nothing could answer.
+        word: wordToTeach(
+          found.suggestion.original,
+          found.suggestion.replacement,
+        ),
         sentence: found.sentence.text,
+        // Unchanged: what gets spliced into the sentence is still the whole
+        // replacement. Only the card's subject narrows.
         replacement: found.suggestion.replacement,
         reason: found.suggestion.reason,
         kind: 'suggestion',
