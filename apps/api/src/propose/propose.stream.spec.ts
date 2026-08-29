@@ -11,7 +11,7 @@ jest.mock('@ai-sdk/elevenlabs', () => ({
 
 import { streamObject } from 'ai';
 import type { ModelProposal, ProposeStreamEvent } from '@auto-learn/shared';
-import { SessionStore } from '../session/session.store';
+import { MemorySessionStore } from '../session/session.store';
 import { TelemetryService } from '../telemetry/telemetry.service';
 import { ProposeService } from './propose.service';
 
@@ -70,7 +70,7 @@ async function collect(
 
 function build() {
   const telemetry = new TelemetryService();
-  const service = new ProposeService(new SessionStore(), telemetry);
+  const service = new ProposeService(new MemorySessionStore(), telemetry);
 
   const start = (abandoned?: AbortSignal) =>
     collect(

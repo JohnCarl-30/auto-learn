@@ -95,7 +95,7 @@ export class CardService {
    * a card already in the cache — so both routes handle that the same way.
    */
   async prepare(request: CardRequest): Promise<Prepared> {
-    const target = this.resolveTarget(request);
+    const target = await this.resolveTarget(request);
 
     // A grammar gate costs nothing extra. /propose already wrote the
     // in-context reason — that one line *is* what a grammar fix has to teach,
@@ -373,9 +373,9 @@ export class CardService {
    * For a gated suggestion that is the *replacement* — the word being
    * introduced is the one worth learning, not the one being replaced.
    */
-  private resolveTarget(request: CardRequest): Target {
+  private async resolveTarget(request: CardRequest): Promise<Target> {
     if (request.kind === 'suggestion') {
-      const found = this.sessions.findSuggestion(
+      const found = await this.sessions.findSuggestion(
         request.sessionId,
         request.suggestionId,
       );
@@ -404,7 +404,7 @@ export class CardService {
       };
     }
 
-    const sentence = this.sessions.findSentence(
+    const sentence = await this.sessions.findSentence(
       request.sessionId,
       request.sentenceIndex,
     );

@@ -12,8 +12,15 @@ server-side and withholds it from the wire, and opening a card is what releases
 it. On a second instance, the card request lands in a process that never saw the
 proposal, and the product's central mechanic returns `session_not_found`.
 
-`session.store.ts` says the same thing: it becomes Redis when there is more than
-one instance. Until then, one process.
+Sessions now live in Redis when `REDIS_URL` is set, which `render.yaml`
+provisions and wires. Without it the API keeps them in memory and works
+correctly on exactly one instance — that is still the right setup for a
+checkout, and it is what the tests run against.
+
+Telemetry counters and rate-limiter state remain per-process. Neither breaks
+across instances the way a missing session did: the counts under-report and the
+limits become per-instance. Worth fixing when there is enough traffic for
+either to matter.
 
 ## 1. API → Render
 
