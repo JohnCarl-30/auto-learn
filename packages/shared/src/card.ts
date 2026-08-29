@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ApiError } from './errors';
 import { Pronunciation } from './speech';
 
 export const PartOfSpeech = z.enum([
@@ -128,3 +129,60 @@ export const ModelCard = z.object({
   alternative: z.string().nullable(),
 });
 export type ModelCard = z.infer<typeof ModelCard>;
+
+// --- Streaming ----------------------------------------------------------------
+// `/card/stream` sends these as NDJSON while the model is still writing. The
+// gate is not involved: by the time this call runs the reader has already
+// opened it, and the withheld wording is released with the payload either way.
+// What this buys is the wait — a card takes between four and thirteen seconds,
+// and the definition is finished long before the examples are.
+//
+// As with `/propose/stream`, these are a preview: nothing is built from them,
+// and `done` carries the same payload the non-streaming route returns.
+
+/**
+ * The line the reader came for, sent as soon as it is complete.
+ *
+ * Carries the word and its part of speech too, because a definition arriving
+ * alone would render under a heading that is not there yet.
+ */
+export const StreamedDefinition = z.object({
+  kind: z.literal('definition'),
+  word: z.string(),
+  partOfSpeech: PartOfSpeech,
+  definition: z.string(),
+});
+export type StreamedDefinition = z.infer<typeof StreamedDefinition>;
+
+export const StreamedSynonym = SynonymNuance.extend({
+  kind: z.literal('synonym'),
+});
+export type StreamedSynonym = z.infer<typeof StreamedSynonym>;
+
+export const StreamedUseCase = z.object({
+  kind: z.literal('example'),
+  text: z.string(),
+});
+export type StreamedUseCase = z.infer<typeof StreamedUseCase>;
+
+/** The real payload: the whole card, the released wording, and the register. */
+export const StreamedCard = z.object({
+  kind: z.literal('done'),
+  response: CardResponse,
+});
+export type StreamedCard = z.infer<typeof StreamedCard>;
+
+export const StreamedCardError = z.object({
+  kind: z.literal('error'),
+  error: ApiError,
+});
+export type StreamedCardError = z.infer<typeof StreamedCardError>;
+
+export const CardStreamEvent = z.discriminatedUnion('kind', [
+  StreamedDefinition,
+  StreamedSynonym,
+  StreamedUseCase,
+  StreamedCard,
+  StreamedCardError,
+]);
+export type CardStreamEvent = z.infer<typeof CardStreamEvent>;
