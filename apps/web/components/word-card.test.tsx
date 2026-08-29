@@ -426,3 +426,49 @@ describe('WordCard leaving by keyboard', () => {
     expect(onReject).not.toHaveBeenCalled();
   });
 });
+
+describe('while the card is still being written', () => {
+  const partial = {
+    word: 'substantial',
+    partOfSpeech: 'adjective' as const,
+    definition: 'Large enough to matter.',
+    synonyms: [{ word: 'considerable', nuance: 'stresses amount' }],
+    useCases: [] as string[],
+  };
+
+  const render_ = (state: Parameters<typeof WordCard>[0]['state']) =>
+    render(
+      <WordCard
+        state={state}
+        onAccept={() => {}}
+        onReject={() => {}}
+        onDismiss={() => {}}
+      />,
+    );
+
+  it('shows the definition the moment it arrives', () => {
+    render_({ status: 'streaming', partial });
+
+    expect(screen.getByText('substantial')).toBeInTheDocument();
+    expect(screen.getByText('Large enough to matter.')).toBeInTheDocument();
+  });
+
+  /**
+   * The wording to apply arrives with the payload, so a button here would
+   * either do nothing or apply something still being written.
+   */
+  it('offers nothing to accept until the card is finished', () => {
+    render_({ status: 'streaming', partial });
+
+    expect(screen.queryByTestId('accept')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('reject')).not.toBeInTheDocument();
+  });
+
+  it('leaves out what has not arrived rather than standing in for it', () => {
+    render_({ status: 'streaming', partial });
+
+    // No examples yet, so no "In use" heading promising some.
+    expect(screen.queryByText('In use')).not.toBeInTheDocument();
+    expect(screen.getByText('Instead of')).toBeInTheDocument();
+  });
+});

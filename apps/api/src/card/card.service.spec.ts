@@ -425,7 +425,7 @@ describe('CardService engagement accounting', () => {
   it('does not count a failed card as delivered', async () => {
     // The bug this replaced: a card that never rendered still counted as
     // engagement, inflating cardsRequested/proposals with failures.
-    const { service, sessionId, telemetry } = build(null);
+    const { service, sessionId, telemetry } = build({ status: 'absent' });
 
     await service
       .build({ kind: 'suggestion', sessionId, suggestionId: 'gate-1' })

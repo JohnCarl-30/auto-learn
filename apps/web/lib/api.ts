@@ -1,14 +1,17 @@
 import {
   ApiError,
   CardResponse,
+  CardStreamEvent,
   DictateResponse,
   ProposeResponse,
   ProposeStreamEvent,
   SpeakResponse,
   type CardRequest,
   type ProposeRequest,
+  type PartOfSpeech,
   type StreamedFix,
   type StreamedGate,
+  type SynonymNuance,
   type TelemetryEvent,
 } from '@auto-learn/shared';
 import type { ZodType } from 'zod';
@@ -104,14 +107,18 @@ export type ProposePreview = StreamedFix | StreamedGate;
  * entirely would still be correct. That is deliberate: it keeps the gate's
  * guarantee in one place instead of spread across a progressive render.
  */
-export async function proposeStream(
-  body: ProposeRequest,
-  onPreview: (preview: ProposePreview) => void,
-): Promise<ProposeResponse> {
+/**
+ * Opens a streaming POST, or throws the refusal it came back with.
+ *
+ * Both streaming routes validate before writing a byte, precisely so a refusal
+ * is still an ordinary status code here rather than a line buried in a body a
+ * client may have stopped reading.
+ */
+async function openStream(path: string, body: unknown): Promise<Response> {
   let response: Response;
 
   try {
-    response = await fetch(`${BASE_URL}/propose/stream`, {
+    response = await fetch(`${BASE_URL}${path}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
@@ -120,8 +127,6 @@ export async function proposeStream(
     throw new ApiFailure(unreachable);
   }
 
-  // Refusals still arrive as ordinary status codes: the server validates
-  // before it writes a byte, precisely so this branch stays possible.
   if (!response.ok) {
     const payload: unknown = await response.json().catch(() => null);
     const parsed = ApiError.safeParse(payload);
@@ -129,14 +134,27 @@ export async function proposeStream(
   }
 
   if (!response.body) throw new ApiFailure(malformed);
+  return response;
+}
 
-  const reader = response.body.getReader();
+/**
+ * One validated event per line.
+ *
+ * A chunk can split a line anywhere, so only what precedes the last newline is
+ * complete; the remainder waits for the next read. Every line is checked
+ * against the same schema the server built it from, so a drifted contract
+ * fails here rather than as a blank render.
+ */
+async function* ndjson<T>(
+  response: Response,
+  schema: ZodType<T>,
+): AsyncGenerator<T> {
+  const reader = response.body!.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
-  let finished: ProposeResponse | null = null;
 
-  const consume = (line: string): void => {
-    if (!line.trim()) return;
+  const parse = (line: string): T | null => {
+    if (!line.trim()) return null;
 
     let payload: unknown;
     try {
@@ -145,22 +163,9 @@ export async function proposeStream(
       throw new ApiFailure(malformed);
     }
 
-    // Validated with the same schema the server built it from, exactly like
-    // the non-streaming path. A drifted contract fails loudly here.
-    const event = ProposeStreamEvent.safeParse(payload);
+    const event = schema.safeParse(payload);
     if (!event.success) throw new ApiFailure(malformed);
-
-    switch (event.data.kind) {
-      case 'fix':
-      case 'gate':
-        onPreview(event.data);
-        return;
-      case 'done':
-        finished = event.data.response;
-        return;
-      case 'error':
-        throw new ApiFailure(event.data.error);
-    }
+    return event.data;
   };
 
   for (;;) {
@@ -168,19 +173,114 @@ export async function proposeStream(
     if (done) break;
 
     buffer += decoder.decode(value, { stream: true });
-
-    // A chunk can split a line anywhere, so only what precedes the last
-    // newline is complete. The remainder waits for the next read.
     const lines = buffer.split('\n');
     buffer = lines.pop() ?? '';
-    for (const line of lines) consume(line);
+    for (const line of lines) {
+      const event = parse(line);
+      if (event) yield event;
+    }
   }
 
-  consume(buffer);
+  const last = parse(buffer);
+  if (last) yield last;
+}
+
+/**
+ * The proposal, read as it arrives.
+ *
+ * Resolves with exactly what `propose` returns — the events before it are a
+ * preview and nothing is built from them, so a client that ignored `onPreview`
+ * entirely would still be correct. That is deliberate: it keeps the gate's
+ * guarantee in one place instead of spread across a progressive render.
+ */
+export async function proposeStream(
+  body: ProposeRequest,
+  onPreview: (preview: ProposePreview) => void,
+): Promise<ProposeResponse> {
+  const response = await openStream('/propose/stream', body);
+  let finished: ProposeResponse | null = null;
+
+  for await (const event of ndjson(response, ProposeStreamEvent)) {
+    switch (event.kind) {
+      case 'fix':
+      case 'gate':
+        onPreview(event);
+        break;
+      case 'done':
+        finished = event.response;
+        break;
+      case 'error':
+        throw new ApiFailure(event.error);
+    }
+  }
 
   // The stream ended without the payload: the server died mid-generation, or
   // something in between truncated it. Either way there is nothing to review,
   // and pretending otherwise would show a half-proposal as a finished one.
+  if (!finished) throw new ApiFailure(malformed);
+  return finished;
+}
+
+/** What a card looks like before it is finished. Every field may still be empty. */
+export interface PartialCard {
+  word: string | null;
+  partOfSpeech: PartOfSpeech | null;
+  definition: string | null;
+  synonyms: SynonymNuance[];
+  useCases: string[];
+}
+
+export const emptyCard = (): PartialCard => ({
+  word: null,
+  partOfSpeech: null,
+  definition: null,
+  synonyms: [],
+  useCases: [],
+});
+
+/**
+ * The card, read as it is written.
+ *
+ * A card takes between four and thirteen seconds and the definition is
+ * finished long before the examples are, so the line the reader clicked for
+ * can be on screen while the rest is still being written. Same contract as
+ * above: `onPreview` is a courtesy, and the resolved value is the card.
+ */
+export async function fetchCardStream(
+  body: CardRequest,
+  onPreview: (partial: PartialCard) => void,
+): Promise<CardResponse> {
+  const response = await openStream('/card/stream', body);
+  const partial = emptyCard();
+  let finished: CardResponse | null = null;
+
+  for await (const event of ndjson(response, CardStreamEvent)) {
+    switch (event.kind) {
+      case 'definition':
+        partial.word = event.word;
+        partial.partOfSpeech = event.partOfSpeech;
+        partial.definition = event.definition;
+        onPreview({ ...partial });
+        break;
+      case 'synonym':
+        partial.synonyms = [
+          ...partial.synonyms,
+          { word: event.word, nuance: event.nuance },
+        ];
+        onPreview({ ...partial });
+        break;
+      case 'example':
+        partial.useCases = [...partial.useCases, event.text];
+        onPreview({ ...partial });
+        break;
+      case 'done':
+        finished = event.response;
+        break;
+      case 'error':
+        throw new ApiFailure(event.error);
+    }
+  }
+
   if (!finished) throw new ApiFailure(malformed);
   return finished;
 }
