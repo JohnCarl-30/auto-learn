@@ -1,21 +1,30 @@
 import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
-import { generateObject } from 'ai';
+import { generateObject, streamObject, type DeepPartial } from 'ai';
 import { randomUUID } from 'node:crypto';
 import {
+  GatedSuggestionType,
   MAX_SENTENCES,
   ModelProposal,
   SILENT_TYPES,
-  TRANSFORM_INSTRUCTIONS,
+  SilentFixType,
+  TEASERS,
   locateSpan,
   splitSentences,
   type ApiError,
-  type GatedSuggestionType,
   type ProposeRequest,
   type ProposeResponse,
+  type ProposeStreamEvent,
   type SilentFix,
-  type SilentFixType,
 } from '@auto-learn/shared';
-import { proposeModel, proposeProviderOptions } from '../llm/models';
+import {
+  MODEL_MAX_RETRIES,
+  PROPOSE_MAX_OUTPUT_TOKENS,
+  PROPOSE_MODEL,
+  PROPOSE_TIMEOUT_MS,
+  proposeModel,
+  proposeProviderOptions,
+} from '../llm/models';
+import { PROPOSE_SYSTEM_PROMPT, proposeUserPrompt } from '../llm/prompts';
 import { TelemetryService } from '../telemetry/telemetry.service';
 import {
   SessionStore,
@@ -23,22 +32,15 @@ import {
   type StoredSentence,
 } from '../session/session.store';
 
-const SYSTEM_PROMPT = `You help university students who write academic English as a second language.
-
-You receive 1-3 numbered sentences and one transform instruction. Return targeted edits for each sentence.
-
-Classify every edit:
-- "typo", "spacing", "punctuation" — mechanical slips. Applied silently.
-- "grammar" — a grammatical error: agreement, tense, article, preposition, plurality.
-- "word-choice" — a word that is correct but weak, vague, or imprecise for academic writing.
-- "register" — phrasing too casual or too formal for an academic essay.
-
-Rules:
-- "original" MUST be an exact, verbatim substring of that sentence. Copy it character for character.
-- Prefer the shortest span that captures the change. Never rewrite a whole sentence as one edit.
-- Never remove content. Every claim the writer made must survive.
-- If a sentence needs nothing, return an empty edits array for it. Do not invent changes to seem useful.
-- "reason" is one short line a learner can understand. No jargon.`;
+/**
+ * The half-written shapes `partialObjectStream` hands back. Every field is
+ * optional and every string may be a fragment — including the enums, which is
+ * why `preview` parses them rather than casting.
+ */
+type PartialProposal = DeepPartial<ModelProposal>;
+type PartialEdit = NonNullable<
+  NonNullable<NonNullable<PartialProposal['sentences']>[number]>['edits']
+>[number];
 
 @Injectable()
 export class ProposeService {
@@ -50,6 +52,21 @@ export class ProposeService {
   ) {}
 
   async propose(request: ProposeRequest): Promise<ProposeResponse> {
+    const sentences = this.prepare(request);
+    const proposal = await this.callModel(sentences, request.option);
+    return this.finish(sentences, proposal, request.option);
+  }
+
+  /**
+   * Everything that can refuse a request, done before any work starts.
+   *
+   * Separate from `propose` because the streaming route has to run these while
+   * it can still send a status line. Once the first byte of an NDJSON body is
+   * out, a 400 is no longer available and the refusal would have to be
+   * smuggled into the stream — where a client that stopped reading never sees
+   * it.
+   */
+  prepare(request: ProposeRequest): string[] {
     const sentences = splitSentences(request.text);
 
     if (sentences.length === 0) {
@@ -67,7 +84,144 @@ export class ProposeService {
       );
     }
 
-    const proposal = await this.callModel(sentences, request.option);
+    return sentences;
+  }
+
+  /**
+   * Streams the proposal as the model writes it.
+   *
+   * What crosses the wire early is a *preview*: no offsets, and nothing
+   * withheld is included. Offsets cannot be settled until every silent fix has
+   * been applied, and the gate's whole design is that the client never holds a
+   * tier-2 replacement — so the events carry neither, and `done` carries the
+   * same payload `propose` returns. A bug here can make the wait less
+   * informative. It cannot change what the reader ends up reviewing.
+   */
+  async *stream(
+    request: ProposeRequest,
+    sentences: string[],
+    /** Aborted when the reader goes away, so an abandoned tab stops billing. */
+    abandoned?: AbortSignal,
+  ): AsyncGenerator<ProposeStreamEvent> {
+    const emitted = new Map<number, number>();
+
+    try {
+      const result = streamObject({
+        model: proposeModel(),
+        schema: ModelProposal,
+        system: PROPOSE_SYSTEM_PROMPT,
+        prompt: proposeUserPrompt(sentences, request.option),
+        providerOptions: proposeProviderOptions,
+        maxOutputTokens: PROPOSE_MAX_OUTPUT_TOKENS,
+        maxRetries: MODEL_MAX_RETRIES,
+        abortSignal: abandoned
+          ? AbortSignal.any([
+              abandoned,
+              AbortSignal.timeout(PROPOSE_TIMEOUT_MS),
+            ])
+          : AbortSignal.timeout(PROPOSE_TIMEOUT_MS),
+      });
+
+      for await (const partial of result.partialObjectStream) {
+        yield* this.preview(partial, emitted);
+      }
+
+      const proposal = await result.object;
+      this.telemetry.spend(PROPOSE_MODEL, await result.usage);
+      yield {
+        kind: 'done',
+        response: this.finish(sentences, proposal, request.option),
+      };
+    } catch (error) {
+      // A reader who left is not a failure, and there is nobody to tell.
+      if (abandoned?.aborted) return;
+
+      // The status line is long gone, so the failure travels in the body.
+      this.logger.error('propose stream failed', error as Error);
+      yield {
+        kind: 'error',
+        error: {
+          code: 'upstream_failed',
+          message: 'Could not reach the language model.',
+        },
+      };
+    }
+  }
+
+  /**
+   * Turns a half-written object into events that are safe to send.
+   *
+   * A streamed value can be a fragment: `type` may read "word-cho" and
+   * `original` may be the first half of the writer's phrase. The rule
+   * throughout is that a field is only trustworthy once the *next* one has
+   * begun — JSON is written in order, so `replacement` existing at all is the
+   * proof that `original` is closed. Every type is parsed rather than trusted,
+   * because a fragment that is not yet a known type must not be classified,
+   * and classification is what decides whether a replacement may be sent.
+   */
+  private *preview(
+    partial: PartialProposal,
+    emitted: Map<number, number>,
+  ): Generator<ProposeStreamEvent> {
+    for (const sentence of partial.sentences ?? []) {
+      if (!sentence || typeof sentence.index !== 'number') continue;
+
+      const edits = sentence.edits ?? [];
+      let next = emitted.get(sentence.index) ?? 0;
+
+      for (; next < edits.length; next++) {
+        const event = this.toEvent(sentence.index, edits[next]);
+        // Order matters more than throughput: an edit that is not yet safe to
+        // send stops the sentence rather than being skipped over.
+        if (!event) break;
+        emitted.set(sentence.index, next + 1);
+        yield event;
+      }
+    }
+  }
+
+  private toEvent(
+    sentence: number,
+    edit: PartialEdit,
+  ): ProposeStreamEvent | null {
+    if (!edit || typeof edit.original !== 'string') return null;
+
+    const silent = SilentFixType.safeParse(edit.type);
+    if (silent.success) {
+      // `reason` having begun is what proves `replacement` is finished.
+      if (typeof edit.replacement !== 'string' || edit.reason === undefined) {
+        return null;
+      }
+      return {
+        kind: 'fix',
+        sentence,
+        type: silent.data,
+        original: edit.original,
+        replacement: edit.replacement,
+      };
+    }
+
+    const gated = GatedSuggestionType.safeParse(edit.type);
+    if (!gated.success) return null;
+    // Nothing withheld is read here, so `replacement` merely having started is
+    // enough — its value is never sent.
+    if (edit.replacement === undefined) return null;
+
+    return {
+      kind: 'gate',
+      sentence,
+      type: gated.data,
+      original: edit.original,
+      teaser: TEASERS[gated.data],
+    };
+  }
+
+  /** Resolves offsets, opens the session, and drops what the gate withholds. */
+  private finish(
+    sentences: string[],
+    proposal: ModelProposal,
+    option: ProposeRequest['option'],
+  ): ProposeResponse {
     const stored = sentences.map((sentence, index) =>
       this.resolveSentence(
         index,
@@ -76,7 +230,7 @@ export class ProposeService {
       ),
     );
 
-    const session = this.sessions.create(request.option, stored);
+    const session = this.sessions.create(option, stored);
     this.telemetry.proposal();
 
     return {
@@ -103,17 +257,18 @@ export class ProposeService {
     sentences: string[],
     option: ProposeRequest['option'],
   ) {
-    const numbered = sentences.map((s, i) => `${i}. ${s}`).join('\n');
-
     try {
-      const { object } = await generateObject({
+      const { object, usage } = await generateObject({
         model: proposeModel(),
         schema: ModelProposal,
-        system: SYSTEM_PROMPT,
-        prompt: `Transform: ${TRANSFORM_INSTRUCTIONS[option]}\n\nSentences:\n${numbered}`,
+        system: PROPOSE_SYSTEM_PROMPT,
+        prompt: proposeUserPrompt(sentences, option),
         providerOptions: proposeProviderOptions,
-        maxOutputTokens: 2000,
+        maxOutputTokens: PROPOSE_MAX_OUTPUT_TOKENS,
+        maxRetries: MODEL_MAX_RETRIES,
+        abortSignal: AbortSignal.timeout(PROPOSE_TIMEOUT_MS),
       });
+      this.telemetry.spend(PROPOSE_MODEL, usage);
       return object;
     } catch (error) {
       this.logger.error('propose call failed', error as Error);
@@ -210,9 +365,3 @@ export class ProposeService {
     return new HttpException(body, status);
   }
 }
-
-const TEASERS: Record<GatedSuggestionType, string> = {
-  grammar: 'grammar fix available',
-  'word-choice': 'stronger word available',
-  register: 'register could be more academic',
-};

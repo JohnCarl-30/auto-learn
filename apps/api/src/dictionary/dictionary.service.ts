@@ -1,147 +1,123 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { LRUCache } from 'lru-cache';
-import type { DictionarySense, Pronunciation } from '@auto-learn/shared';
+import type { Pronunciation } from '@auto-learn/shared';
 import { pickPronunciation, type PhoneticSource } from './phonetics';
+import { lookupWord, type RetrievedWord } from './wordnet';
 
-export interface RetrievedWord {
-  word: string;
-  senses: DictionarySense[];
-  synonyms: string[];
-  /**
-   * Rides along with the senses at no cost — Free Dictionary returns it in the
-   * same response we were already making, and we were discarding it. No extra
-   * request, no extra latency, and the cache below covers it for free.
-   */
-  pronunciation: Pronunciation;
-}
+export type { RetrievedWord };
 
-const NOTHING_HEARD: Pronunciation = { ipa: null, audioUrl: null };
+/**
+ * Three outcomes, not two.
+ *
+ * "WordNet has no entry for this" and "the lookup did not work" are different
+ * facts, and collapsing them told a reader `I couldn't find "substantial", so
+ * I won't guess at what it means` about a word with six entries — a false
+ * statement dressed as caution, which sends someone off to doubt their own
+ * vocabulary.
+ */
+export type Retrieval =
+  | { status: 'found'; entry: RetrievedWord }
+  | { status: 'absent' }
+  | { status: 'unavailable' };
 
 const DICTIONARY_URL = 'https://api.dictionaryapi.dev/api/v2/entries/en';
-const DATAMUSE_URL = 'https://api.datamuse.com/words';
+const NOTHING_HEARD: Pronunciation = { ipa: null, audioUrl: null };
 
+/**
+ * Two sources, and which is which is the whole design.
+ *
+ * Senses come from WordNet, on local disk, because a card cannot be written
+ * without them — the grounding *is* the anti-hallucination mechanism, and when
+ * that lookup went over the network an outage meant no cards at all.
+ *
+ * Pronunciation comes from Free Dictionary, over the network, because it can
+ * be missing without costing the reader the card. Words the dictionary has a
+ * recording for get a real human voice for free; the rest fall through to
+ * synthesis. The network sits where its failure is cosmetic, which is the
+ * lesson the sense lookup taught the expensive way.
+ */
 @Injectable()
 export class DictionaryService {
   private readonly logger = new Logger(DictionaryService.name);
 
-  /**
-   * Caching the *retrieval* is the reliable win. Academic vocabulary repeats
-   * heavily across users, this saves two network round trips per card, and
-   * unlike the generated card it is keyed by something we know before we call
-   * anything. Nothing here is user-specific, so cross-user sharing is safe.
-   */
-  // Wrapped in an object because LRUCache values must extend `{}` — a bare
-  // null cannot be stored, and misses are exactly what we most want to cache
-  // (see the timeout note below).
   private readonly cache = new LRUCache<
     string,
     { value: RetrievedWord | null }
-  >({
+  >({ max: 10_000, ttl: 24 * 60 * 60 * 1000 });
+
+  /** Separate, because it is filled from a different source that may not answer. */
+  private readonly sounds = new LRUCache<string, Pronunciation>({
     max: 10_000,
     ttl: 24 * 60 * 60 * 1000,
   });
 
-  async lookup(word: string): Promise<RetrievedWord | null> {
+  async lookup(word: string): Promise<Retrieval> {
     const key = word.toLowerCase();
 
     const cached = this.cache.get(key);
-    if (cached !== undefined) return cached.value;
+    if (cached !== undefined) {
+      return cached.value
+        ? { status: 'found', entry: cached.value }
+        : { status: 'absent' };
+    }
 
-    const [entry, synonyms] = await Promise.all([
-      this.fetchEntry(key),
-      this.fetchSynonyms(key),
-    ]);
+    let entry: RetrievedWord | null;
+    try {
+      entry = await lookupWord(key);
+    } catch (error) {
+      // Deliberately not cached. A failure held for a day would outlive
+      // whatever caused it by a very long way.
+      this.logger.error(`WordNet unreadable for "${key}"`, error as Error);
+      return { status: 'unavailable' };
+    }
 
-    const result =
-      entry.senses.length > 0
-        ? {
-            word: key,
-            senses: entry.senses,
-            synonyms,
-            pronunciation: entry.pronunciation,
-          }
-        : null;
-    this.cache.set(key, { value: result });
-    return result;
+    this.cache.set(key, { value: entry });
+    return entry ? { status: 'found', entry } : { status: 'absent' };
   }
 
   /**
-   * Free Dictionary returns Wiktionary-flavoured prose — "substantial" comes
-   * back as "Corporeal; material; firm." That is accurate and useless to a
-   * learner, which is exactly why the model's job is to *select* one of these
-   * senses and paraphrase it, rather than to invent a definition or to parrot
-   * this text back.
+   * Best effort, and it never throws.
+   *
+   * Every failure here is silence — no IPA, no recording — and silence is
+   * exactly what the card already handles: it falls back to synthesis, which
+   * is what it does for the many words that have no recording anyway. Nothing
+   * a reader sees depends on this arriving, so nothing about it is allowed to
+   * fail a request.
+   *
+   * Start it before the model call and await it after; it costs no wall clock
+   * that the generation was not already spending.
    */
-  private async fetchEntry(
-    word: string,
-  ): Promise<{ senses: DictionarySense[]; pronunciation: Pronunciation }> {
+  async pronunciation(word: string): Promise<Pronunciation> {
+    const key = word.toLowerCase();
+
+    const cached = this.sounds.get(key);
+    if (cached !== undefined) return cached;
+
     try {
       const response = await fetch(
-        `${DICTIONARY_URL}/${encodeURIComponent(word)}`,
+        `${DICTIONARY_URL}/${encodeURIComponent(key)}`,
         { signal: AbortSignal.timeout(2_500) },
       );
 
-      // 404 is the ordinary "no entry" answer here, not a failure. So is a
-      // 502, which this API returns intermittently — and which arrives as
-      // plain text, so parsing it as JSON would throw rather than degrade.
-      if (!response.ok) return { senses: [], pronunciation: NOTHING_HEARD };
-
-      const payload = (await response.json()) as DictionaryApiEntry[];
-      if (!Array.isArray(payload)) {
-        return { senses: [], pronunciation: NOTHING_HEARD };
+      // 404 is a real answer — this word has no recording — and worth keeping.
+      if (response.status === 404) {
+        this.sounds.set(key, NOTHING_HEARD);
+        return NOTHING_HEARD;
       }
 
-      const senses: DictionarySense[] = [];
-      for (const entry of payload) {
-        for (const meaning of entry.meanings ?? []) {
-          for (const definition of meaning.definitions ?? []) {
-            if (!definition.definition) continue;
-            senses.push({
-              senseId: `s${senses.length}`,
-              partOfSpeech: meaning.partOfSpeech ?? 'other',
-              definition: definition.definition,
-              example: definition.example,
-            });
-          }
-        }
-      }
+      // Anything else says nothing about the word, so it is not cached: a
+      // thirty-second outage should not mute a word for a day.
+      if (!response.ok) return NOTHING_HEARD;
 
-      return {
-        // A long tail of near-duplicate archaic senses only makes the choice
-        // harder and the prompt more expensive.
-        senses: senses.slice(0, 12),
-        pronunciation: pickPronunciation(payload),
-      };
+      const payload = (await response.json()) as PhoneticSource[];
+      if (!Array.isArray(payload)) return NOTHING_HEARD;
+
+      const heard = pickPronunciation(payload);
+      this.sounds.set(key, heard);
+      return heard;
     } catch (error) {
-      this.logger.warn(`dictionary lookup failed for "${word}"`, error);
-      return { senses: [], pronunciation: NOTHING_HEARD };
+      this.logger.warn(`no pronunciation for "${key}"`, error);
+      return NOTHING_HEARD;
     }
   }
-
-  private async fetchSynonyms(word: string): Promise<string[]> {
-    try {
-      const response = await fetch(
-        `${DATAMUSE_URL}?rel_syn=${encodeURIComponent(word)}&max=12`,
-        { signal: AbortSignal.timeout(2_500) },
-      );
-      if (!response.ok) return [];
-
-      const payload = (await response.json()) as Array<{ word?: string }>;
-      if (!Array.isArray(payload)) return [];
-
-      return payload
-        .map((item) => item.word)
-        .filter((value): value is string => Boolean(value));
-    } catch (error) {
-      this.logger.warn(`synonym lookup failed for "${word}"`, error);
-      return [];
-    }
-  }
-}
-
-interface DictionaryApiEntry extends PhoneticSource {
-  meanings?: Array<{
-    partOfSpeech?: string;
-    definitions?: Array<{ definition?: string; example?: string }>;
-  }>;
 }

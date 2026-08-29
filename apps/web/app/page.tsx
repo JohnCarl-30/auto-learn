@@ -6,9 +6,9 @@ import { ReviewPanel } from '@/components/review-panel';
 import { WordCard } from '@/components/word-card';
 import { BankPanel } from '@/components/bank-panel';
 import { FinishedText } from '@/components/finished-text';
+import { ProposingPanel } from '@/components/proposing-panel';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { ApiNotice } from '@/components/notice';
-import { Skeleton } from '@/components/ui/skeleton';
 import { useReview } from '@/lib/use-review';
 import { useBank } from '@/lib/use-bank';
 
@@ -59,12 +59,7 @@ export default function Page() {
       )}
 
       {state.status === 'proposing' && (
-        <div className="space-y-4" data-testid="proposing">
-          <Skeleton className="h-6 w-40" />
-          <Skeleton className="h-7 w-full" />
-          <Skeleton className="h-7 w-11/12" />
-          <Skeleton className="h-7 w-4/6" />
-        </div>
+        <ProposingPanel preview={state.preview} />
       )}
 
       {reused.length > 0 && <ReuseNotice entries={reused} />}

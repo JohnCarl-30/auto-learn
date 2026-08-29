@@ -1,6 +1,7 @@
 packages:
   - 'apps/*'
   - 'packages/*'
+  - 'evals'
 
 # Moved up from apps/web/pnpm-workspace.yaml, which create-next-app generated.
 # A pnpm-workspace.yaml inside a package makes pnpm treat that directory as its
@@ -8,3 +9,10 @@ packages:
 ignoredBuiltDependencies:
   - sharp
   - unrs-resolver
+
+# wordpos builds a secondary index over the WordNet database at install time,
+# and since 1.0 that index cannot be turned off — without it, every lookup
+# throws and every card fails. Listed explicitly because pnpm blocks install
+# scripts by default, which is the right default and the wrong answer here.
+onlyBuiltDependencies:
+  - wordpos

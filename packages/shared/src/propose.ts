@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ApiError } from './errors';
 import { TransformOption } from './transform';
 
 /**
@@ -113,3 +114,84 @@ export const SILENT_TYPES: ReadonlySet<string> = new Set([
   'spacing',
   'punctuation',
 ]);
+
+// --- Streaming ----------------------------------------------------------------
+// `/propose/stream` sends these as NDJSON, one per line, while the model is
+// still generating. They exist so the reader sees work on their own words in
+// about a second instead of watching a spinner for six.
+//
+// The gate has to survive being streamed. Offsets are not settled until every
+// silent fix has been applied, so nothing here carries one: these events are a
+// progressive *preview*, and `done` carries the same authoritative payload the
+// non-streaming route returns. A bug in the preview can therefore make the
+// wait less informative, but it cannot corrupt what the reader ends up
+// reviewing.
+
+/**
+ * A tier-1 fix, as it lands. Safe in full: the reader sees these in the diff
+ * anyway.
+ *
+ * No `note`. A streamed string can arrive half-written, and a preview that
+ * flashes the first few words of an explanation and then never completes it is
+ * worse than one that shows only the change. The note arrives with `done`.
+ */
+export const StreamedFix = z.object({
+  kind: z.literal('fix'),
+  sentence: z.number().int(),
+  type: SilentFixType,
+  original: z.string(),
+  replacement: z.string(),
+});
+export type StreamedFix = z.infer<typeof StreamedFix>;
+
+/**
+ * A tier-2 suggestion, as it lands.
+ *
+ * `original` is the reader's own words, so echoing it gives nothing away.
+ * There is no `replacement` and no `reason` — the gate is the same here as it
+ * is in `ProposeResponse`, and it is enforced the same way: by the field not
+ * existing rather than by a flag saying not to look.
+ */
+export const StreamedGate = z.object({
+  kind: z.literal('gate'),
+  sentence: z.number().int(),
+  type: GatedSuggestionType,
+  original: z.string(),
+  teaser: z.string(),
+});
+export type StreamedGate = z.infer<typeof StreamedGate>;
+
+/** The real payload, once every span has a settled offset. */
+export const StreamedDone = z.object({
+  kind: z.literal('done'),
+  response: ProposeResponse,
+});
+export type StreamedDone = z.infer<typeof StreamedDone>;
+
+/**
+ * A failure after the response has begun.
+ *
+ * The status line is long gone by then, so the error has to travel in the body
+ * like everything else. Same shape the non-streaming route returns, so the
+ * client branches on `code` either way.
+ */
+export const StreamedError = z.object({
+  kind: z.literal('error'),
+  error: ApiError,
+});
+export type StreamedError = z.infer<typeof StreamedError>;
+
+export const ProposeStreamEvent = z.discriminatedUnion('kind', [
+  StreamedFix,
+  StreamedGate,
+  StreamedDone,
+  StreamedError,
+]);
+export type ProposeStreamEvent = z.infer<typeof ProposeStreamEvent>;
+
+/** What the gate says without saying it. Shared so the stream and the final payload agree. */
+export const TEASERS: Record<GatedSuggestionType, string> = {
+  grammar: 'grammar fix available',
+  'word-choice': 'stronger word available',
+  register: 'register could be more academic',
+};

@@ -1,4 +1,8 @@
 import '@testing-library/jest-dom';
+import {
+  TextDecoder as NodeTextDecoder,
+  TextEncoder as NodeTextEncoder,
+} from 'node:util';
 
 /**
  * jsdom does not implement matchMedia, and next-themes asks it what the OS
@@ -18,4 +22,15 @@ Object.defineProperty(window, 'matchMedia', {
     removeListener: () => {},
     dispatchEvent: () => false,
   }),
+});
+
+/**
+ * jsdom ships neither `TextEncoder` nor `TextDecoder`, and every browser does.
+ * The NDJSON reader in `lib/api.ts` decodes stream chunks with one, so without
+ * these the code under test cannot run at all — the absence is jsdom's, not
+ * the browser's.
+ */
+Object.assign(global, {
+  TextEncoder: NodeTextEncoder,
+  TextDecoder: NodeTextDecoder,
 });

@@ -92,16 +92,18 @@ const PRONUNCIATION = {
 
 const build = (
   lookupResult: unknown = {
-    word: 'substantial',
-    senses: SENSES,
-    synonyms: ['significant'],
-    pronunciation: PRONUNCIATION,
+    status: 'found',
+    entry: { word: 'substantial', senses: SENSES, synonyms: ['significant'] },
   },
+  // Its own argument now, because it has its own source: senses come from
+  // WordNet on disk and sound comes from Free Dictionary over the network.
+  heard: unknown = PRONUNCIATION,
 ) => {
   const sessions = new SessionStore();
-  // Held as its own reference so assertions never pass an unbound method.
+  // Held as their own references so assertions never pass an unbound method.
   const lookup = jest.fn().mockResolvedValue(lookupResult);
-  const dictionary = { lookup } as unknown as DictionaryService;
+  const pronunciation = jest.fn().mockResolvedValue(heard);
+  const dictionary = { lookup, pronunciation } as unknown as DictionaryService;
   const telemetry = new TelemetryService();
   const service = new CardService(sessions, dictionary, telemetry);
   const session = sessions.create('academic', [sentence()]);
@@ -124,9 +126,16 @@ const errorOf = async (fn: () => Promise<unknown>): Promise<ApiError> => {
   }
 };
 
+/** Usage rides along with every real generation, and the service prices it. */
+const USAGE = {
+  inputTokens: 1_200,
+  outputTokens: 300,
+  inputTokenDetails: { cacheReadTokens: 1_000 },
+};
+
 beforeEach(() => {
   generate.mockReset();
-  generate.mockResolvedValue({ object: MODEL_CARD });
+  generate.mockResolvedValue({ object: MODEL_CARD, usage: USAGE });
 });
 
 describe('CardService target resolution', () => {
@@ -209,7 +218,7 @@ describe('CardService target resolution', () => {
 
 describe('CardService grounding', () => {
   it('refuses to guess when the dictionary has no entry', async () => {
-    const { service, sessionId } = build(null);
+    const { service, sessionId } = build({ status: 'absent' });
 
     const error = await errorOf(() =>
       service.build({ kind: 'suggestion', sessionId, suggestionId: 'gate-1' }),
@@ -218,10 +227,49 @@ describe('CardService grounding', () => {
     expect(generate).not.toHaveBeenCalled();
   });
 
+  /**
+   * The two used to be one answer, and the reader was told a real word did not
+   * exist whenever the dictionary was slow. Saying "I couldn't reach it" is the
+   * difference between an outage and someone doubting their own vocabulary.
+   */
+  it('says the dictionary was unreachable rather than blaming the word', async () => {
+    const { service, sessionId } = build({ status: 'unavailable' });
+
+    const error = await errorOf(() =>
+      service.build({ kind: 'suggestion', sessionId, suggestionId: 'gate-1' }),
+    );
+    expect(error.code).toBe('upstream_failed');
+    expect(error.message).toContain("couldn't reach the dictionary");
+    expect(error.message).not.toContain('substantial');
+    expect(generate).not.toHaveBeenCalled();
+  });
+
+  it('prices the call at the card model\u2019s rate, cached input kept apart', async () => {
+    const { service, sessionId, telemetry } = build();
+    await service.build({
+      kind: 'suggestion',
+      sessionId,
+      suggestionId: 'gate-1',
+    });
+
+    const snapshot = telemetry.snapshot();
+    expect(snapshot.inputTokens).toBe(1_200);
+    expect(snapshot.cachedInputTokens).toBe(1_000);
+    // 200 uncached at $2.50/M + 1,000 cached at $0.25/M + 300 out at $15/M,
+    // which is $0.00525 — reported as $0.0053, because the snapshot rounds for
+    // display while the counter behind it keeps full precision.
+    //
+    // Spelled out because the whole point of the split is that billing all
+    // 1,200 input tokens at the uncached rate would read as $0.0075.
+    expect((200 * 2.5 + 1_000 * 0.25 + 300 * 15) / 1_000_000).toBe(0.00525);
+    expect(snapshot.spendUsd).toBe(0.0053);
+  });
+
   it('rejects a card whose sense was never on offer', async () => {
     const { service, sessionId } = build();
     generate.mockResolvedValue({
       object: { ...MODEL_CARD, senseId: 'invented' },
+      usage: USAGE,
     });
 
     const error = await errorOf(() =>
@@ -416,11 +464,9 @@ describe('CardService pronunciation', () => {
   });
 
   it('reports a word nobody recorded without pretending it is missing', async () => {
-    const { service, sessionId } = build({
-      word: 'substantial',
-      senses: SENSES,
-      synonyms: ['significant'],
-      pronunciation: { ipa: '/səbˈstænʃəl/', audioUrl: null },
+    const { service, sessionId } = build(undefined, {
+      ipa: '/səbˈstænʃəl/',
+      audioUrl: null,
     });
 
     const result = await service.build({
