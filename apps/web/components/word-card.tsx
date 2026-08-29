@@ -7,10 +7,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
+import type { PartialCard } from '@/lib/api';
 import { PronounceButton } from '@/components/pronounce-button';
 
 export type CardState =
   | { status: 'loading' }
+  /** The model is still writing. Whatever has arrived is real; the rest is not here yet. */
+  | { status: 'streaming'; partial: PartialCard }
   | { status: 'ready'; response: CardResponse }
   | { status: 'error'; error: ApiError };
 
@@ -36,9 +39,19 @@ export function WordCard({
     return (
       <Card>
         <CardContent className="space-y-3 py-5">
-          <Skeleton className="h-5 w-48" />
+          <Skeleton className="h-8 w-40" />
           <Skeleton className="h-4 w-full" />
           <Skeleton className="h-4 w-5/6" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (state.status === 'streaming') {
+    return (
+      <Card data-testid="card-streaming">
+        <CardContent className="flex flex-col gap-5 py-5">
+          <StreamingBody partial={state.partial} />
         </CardContent>
       </Card>
     );
@@ -149,6 +162,86 @@ function useEscapeToDismiss(onDismiss: () => void) {
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [onDismiss]);
+}
+
+/**
+ * The card as it is being written.
+ *
+ * Deliberately the same shapes in the same order as the finished card below,
+ * because this is the same card — anything that moved when the last section
+ * landed would read as the answer changing its mind. What has not arrived is
+ * simply absent rather than a skeleton standing in for it: a placeholder the
+ * width of a definition promises a definition of that width.
+ */
+function StreamingBody({ partial }: { partial: PartialCard }) {
+  return (
+    <>
+      <div className="space-y-1">
+        {partial.word ? (
+          <h3 className="text-3xl leading-none font-semibold tracking-tight">
+            {partial.word}
+          </h3>
+        ) : (
+          <Skeleton className="h-8 w-40" />
+        )}
+        {partial.partOfSpeech && (
+          <p className="text-muted-foreground text-sm">{partial.partOfSpeech}</p>
+        )}
+      </div>
+
+      {partial.definition ? (
+        <p className="text-lg leading-relaxed">
+          {curlyQuotes(partial.definition)}
+        </p>
+      ) : (
+        <div className="space-y-2">
+          <Skeleton className="h-5 w-full" />
+          <Skeleton className="h-5 w-4/6" />
+        </div>
+      )}
+
+      {partial.synonyms.length > 0 && (
+        <div className="space-y-1.5">
+          <SectionLabel>Instead of</SectionLabel>
+          <ul className="divide-border/70 divide-y overflow-hidden rounded-md border">
+            {partial.synonyms.map((synonym) => (
+              <li key={synonym.word} className="space-y-0.5 px-3 py-2">
+                <p className="text-sm font-medium">{synonym.word}</p>
+                <p className="text-muted-foreground text-sm leading-snug">
+                  {curlyQuotes(synonym.nuance)}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {partial.useCases.length > 0 && (
+        <div className="space-y-1.5">
+          <SectionLabel>In use</SectionLabel>
+          <ul className="space-y-1.5 border-l-2 pl-3">
+            {partial.useCases.map((useCase) => (
+              <li
+                key={useCase}
+                className="text-muted-foreground text-sm leading-relaxed"
+              >
+                {curlyQuotes(useCase)}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/*
+        No buttons until the card is finished. `replacement` arrives with the
+        payload, so a "Use it" here would either do nothing or apply something
+        that is still being written.
+      */}
+      <p className="text-muted-foreground text-sm" role="status">
+        Writing the card…
+      </p>
+    </>
+  );
 }
 
 /**

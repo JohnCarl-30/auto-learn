@@ -1,4 +1,4 @@
-import { ApiFailure, proposeStream } from './api';
+import { ApiFailure, fetchCardStream, proposeStream } from './api';
 
 /**
  * The NDJSON reader.
@@ -160,5 +160,110 @@ describe('proposeStream', () => {
     await expect(
       proposeStream({ text: 'A sentence.', option: 'grammar' }, () => {}),
     ).rejects.toBeInstanceOf(ApiFailure);
+  });
+});
+
+const CARD_DONE = {
+  kind: 'done',
+  response: {
+    kind: 'card',
+    card: {
+      word: 'substantial',
+      lemma: 'substantial',
+      partOfSpeech: 'adjective',
+      definition: 'Large enough to matter.',
+      senseId: 's0',
+      synonyms: [
+        { word: 'considerable', nuance: 'stresses amount' },
+        { word: 'significant', nuance: 'stresses effect' },
+      ],
+      useCases: ['A substantial rise.', 'A substantial share.'],
+      register: 'formal',
+      whyHere: null,
+      pronunciation: { ipa: null, audioUrl: null },
+    },
+    replacement: 'substantial',
+    alternative: null,
+  },
+};
+
+describe('fetchCardStream', () => {
+  const request = {
+    kind: 'lookup' as const,
+    sessionId: 'session-1',
+    sentenceIndex: 0,
+    word: 'substantial',
+  };
+
+  it('builds the card up one event at a time', async () => {
+    respond([
+      line({
+        kind: 'definition',
+        word: 'substantial',
+        partOfSpeech: 'adjective',
+        definition: 'Large enough to matter.',
+      }),
+      line({ kind: 'synonym', word: 'considerable', nuance: 'stresses amount' }),
+      line({ kind: 'example', text: 'A substantial rise.' }),
+      line(CARD_DONE),
+    ]);
+
+    const seen: unknown[] = [];
+    await fetchCardStream(request, (partial) => seen.push(partial));
+
+    // Each callback carries everything so far, not just the newest piece —
+    // the view renders one object rather than accumulating its own.
+    expect(seen).toHaveLength(3);
+    expect(seen[0]).toMatchObject({
+      word: 'substantial',
+      definition: 'Large enough to matter.',
+      synonyms: [],
+    });
+    expect(seen[2]).toMatchObject({
+      synonyms: [{ word: 'considerable' }],
+      useCases: ['A substantial rise.'],
+    });
+  });
+
+  it('resolves with the payload, not with what it showed on the way', async () => {
+    respond([
+      line({
+        kind: 'definition',
+        word: 'substantial',
+        partOfSpeech: 'adjective',
+        definition: 'A partial thought.',
+      }),
+      line(CARD_DONE),
+    ]);
+
+    const card = await fetchCardStream(request, () => {});
+    expect(card.kind).toBe('card');
+    if (card.kind === 'card') {
+      expect(card.card.definition).toBe('Large enough to matter.');
+      expect(card.replacement).toBe('substantial');
+    }
+  });
+
+  it('refuses a stream that ends before the payload', async () => {
+    respond([
+      line({
+        kind: 'definition',
+        word: 'substantial',
+        partOfSpeech: 'adjective',
+        definition: 'Large enough to matter.',
+      }),
+    ]);
+
+    await expect(fetchCardStream(request, () => {})).rejects.toBeInstanceOf(
+      ApiFailure,
+    );
+  });
+
+  it('still reads an ordinary refusal from the status code', async () => {
+    respond([], { ok: false, status: 422 });
+
+    await expect(fetchCardStream(request, () => {})).rejects.toMatchObject({
+      detail: { code: 'too_many_sentences' },
+    });
   });
 });
