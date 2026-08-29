@@ -10,7 +10,10 @@ jest.mock('@ai-sdk/elevenlabs', () => ({
 import { HttpException } from '@nestjs/common';
 import { locateSpan, splitSentences } from '@auto-learn/shared';
 import type { ApiError, ModelEdit } from '@auto-learn/shared';
-import { SessionStore, type StoredSentence } from '../session/session.store';
+import {
+  MemorySessionStore,
+  type StoredSentence,
+} from '../session/session.store';
 import { TelemetryService } from '../telemetry/telemetry.service';
 import { ProposeService } from './propose.service';
 
@@ -58,7 +61,7 @@ describe('locateSpan', () => {
 
 describe('ProposeService cap enforcement', () => {
   const service = new ProposeService(
-    new SessionStore(),
+    new MemorySessionStore(),
     new TelemetryService(),
   );
 
@@ -90,7 +93,7 @@ describe('ProposeService cap enforcement', () => {
 
 describe('ProposeService span resolution', () => {
   const telemetry = new TelemetryService();
-  const service = new ProposeService(new SessionStore(), telemetry);
+  const service = new ProposeService(new MemorySessionStore(), telemetry);
   // resolveSentence is private; these tests reach it deliberately because it
   // is where span resolution lives.
   const resolve = (original: string, edits: ModelEdit[]): StoredSentence =>

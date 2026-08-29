@@ -40,41 +40,37 @@ export interface ProposalSession {
   sentences: StoredSentence[];
 }
 
+/**
+ * Where a proposal lives between /propose writing it and /card opening it.
+ *
+ * Abstract because there are two, chosen at boot by whether REDIS_URL is set.
+ * The methods are async for the sake of the one that talks over a socket —
+ * the in-memory implementation answers immediately and pays nothing for the
+ * signature.
+ */
 @Injectable()
-export class SessionStore {
-  /**
-   * In-memory is correct for v1: a session is meaningful only while the user
-   * is reviewing one paste, and losing it on restart costs a re-submit. It
-   * becomes Redis when there is more than one API instance.
-   */
-  private readonly cache = new LRUCache<string, ProposalSession>({
-    max: 5_000,
-    ttl: 60 * 60 * 1000,
-  });
-
-  create(
+export abstract class SessionStore {
+  abstract create(
     option: TransformOption,
     sentences: StoredSentence[],
-  ): ProposalSession {
-    const session: ProposalSession = {
-      id: randomUUID(),
-      option,
-      createdAt: Date.now(),
-      sentences,
-    };
-    this.cache.set(session.id, session);
-    return session;
-  }
+  ): Promise<ProposalSession>;
 
-  get(sessionId: string): ProposalSession | undefined {
-    return this.cache.get(sessionId);
-  }
+  abstract get(sessionId: string): Promise<ProposalSession | undefined>;
 
-  findSuggestion(
+  /**
+   * Both lookups below are derived from `get` rather than stored separately.
+   *
+   * A suggestion index would be a second thing to expire, and a session whose
+   * index outlived its sentences would hand the card service a replacement
+   * with no sentence to put it in.
+   */
+  async findSuggestion(
     sessionId: string,
     suggestionId: string,
-  ): { sentence: StoredSentence; suggestion: StoredGated } | undefined {
-    const session = this.cache.get(sessionId);
+  ): Promise<
+    { sentence: StoredSentence; suggestion: StoredGated } | undefined
+  > {
+    const session = await this.get(sessionId);
     if (!session) return undefined;
 
     for (const sentence of session.sentences) {
@@ -84,7 +80,50 @@ export class SessionStore {
     return undefined;
   }
 
-  findSentence(sessionId: string, index: number): StoredSentence | undefined {
-    return this.cache.get(sessionId)?.sentences.find((s) => s.index === index);
+  async findSentence(
+    sessionId: string,
+    index: number,
+  ): Promise<StoredSentence | undefined> {
+    const session = await this.get(sessionId);
+    return session?.sentences.find((s) => s.index === index);
+  }
+
+  protected build(
+    option: TransformOption,
+    sentences: StoredSentence[],
+  ): ProposalSession {
+    return { id: randomUUID(), option, createdAt: Date.now(), sentences };
+  }
+}
+
+/** An hour: a session is meaningful only while someone reviews one paste. */
+export const SESSION_TTL_MS = 60 * 60 * 1000;
+
+/**
+ * The default, and correct whenever there is one API process.
+ *
+ * Losing a session on restart costs a re-submit, which is a fair price for
+ * having no infrastructure at all. It stops being fair the moment there are
+ * two instances: the card request lands in a process that never saw the
+ * proposal, and the gate — the whole mechanic — returns session_not_found.
+ */
+@Injectable()
+export class MemorySessionStore extends SessionStore {
+  private readonly cache = new LRUCache<string, ProposalSession>({
+    max: 5_000,
+    ttl: SESSION_TTL_MS,
+  });
+
+  create(
+    option: TransformOption,
+    sentences: StoredSentence[],
+  ): Promise<ProposalSession> {
+    const session = this.build(option, sentences);
+    this.cache.set(session.id, session);
+    return Promise.resolve(session);
+  }
+
+  get(sessionId: string): Promise<ProposalSession | undefined> {
+    return Promise.resolve(this.cache.get(sessionId));
   }
 }

@@ -4,7 +4,7 @@ jest.mock('@ai-sdk/elevenlabs', () => ({
   elevenLabs: { speech: jest.fn(), transcription: jest.fn() },
 }));
 
-import { SessionStore } from '../session/session.store';
+import { MemorySessionStore } from '../session/session.store';
 import { ProposeService } from '../propose/propose.service';
 import { TelemetryService } from './telemetry.service';
 
@@ -17,7 +17,7 @@ describe('TelemetryService', () => {
 
   it('counts an over-cap paste without counting it as a proposal', async () => {
     const telemetry = new TelemetryService();
-    const service = new ProposeService(new SessionStore(), telemetry);
+    const service = new ProposeService(new MemorySessionStore(), telemetry);
 
     await service
       .propose({ text: 'A. B. C. D. E.', option: 'academic' })
