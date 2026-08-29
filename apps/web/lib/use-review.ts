@@ -12,7 +12,7 @@ import {
 import { toast } from 'sonner';
 import {
   ApiFailure,
-  fetchCard,
+  fetchCardStream,
   proposeStream,
   reportEvent,
   type ProposePreview,
@@ -102,12 +102,16 @@ export function useReview() {
   }, []);
 
   const load = useCallback(
-    async (target: OpenTarget, request: Parameters<typeof fetchCard>[0]) => {
+    async (target: OpenTarget, request: Parameters<typeof fetchCardStream>[0]) => {
       setOpen(target);
       setSaved(false);
       setCard({ status: 'loading' });
       try {
-        const response = await fetchCard(request);
+        const response = await fetchCardStream(request, (partial) => {
+          // Appended, never reconciled — the payload below is the card, and
+          // this is only what the wait looks like.
+          setCard({ status: 'streaming', partial });
+        });
         setCard({ status: 'ready', response });
 
         // Deliberately does *not* bank here. Tapping a word is often just
