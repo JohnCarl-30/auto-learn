@@ -2,6 +2,7 @@ import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { generateSpeech } from 'ai';
 import { LRUCache } from 'lru-cache';
 import type { ApiError, SpeakResponse } from '@auto-learn/shared';
+import { TelemetryService } from '../telemetry/telemetry.service';
 import {
   SPEECH_MODEL,
   speechModel,
@@ -12,6 +13,8 @@ import {
 @Injectable()
 export class SpeechService {
   private readonly logger = new Logger(SpeechService.name);
+
+  constructor(private readonly telemetry: TelemetryService) {}
 
   /**
    * Sized in bytes rather than entries.
@@ -44,6 +47,10 @@ export class SpeechService {
    * state of the feature rather than something synthesis introduced.
    */
   async speak(word: string): Promise<SpeakResponse> {
+    // Before anything can fail or hit the cache: this counts the asking, which
+    // is what says whether the button is worth its paid call at all.
+    this.telemetry.pronunciation();
+
     const voice = speechVoice();
     if (!voice) {
       this.logger.error('ELEVENLABS_VOICE_ID is not set; cannot synthesise.');
@@ -78,6 +85,9 @@ export class SpeechService {
         mediaType: result.audio.mediaType,
       };
 
+      // Only what was really synthesised. A cache hit above costs nothing,
+      // and counting it here would price the cache out of its own saving.
+      this.telemetry.spoke(word.length);
       this.cache.set(key, response);
       return response;
     } catch (error) {

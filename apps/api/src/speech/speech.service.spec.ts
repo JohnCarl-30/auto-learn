@@ -10,6 +10,7 @@ jest.mock('@ai-sdk/elevenlabs', () => ({
 import { HttpException } from '@nestjs/common';
 import { generateSpeech } from 'ai';
 import type { ApiError } from '@auto-learn/shared';
+import { TelemetryService } from '../telemetry/telemetry.service';
 import { SpeechService } from './speech.service';
 
 const speak = generateSpeech as unknown as jest.Mock;
@@ -35,7 +36,9 @@ beforeEach(() => {
 
 describe('SpeechService', () => {
   it('says the word', async () => {
-    const result = await new SpeechService().speak('ubiquitous');
+    const result = await new SpeechService(new TelemetryService()).speak(
+      'ubiquitous',
+    );
 
     expect(result).toEqual({
       word: 'ubiquitous',
@@ -50,7 +53,7 @@ describe('SpeechService', () => {
    * second person to meet "ubiquitous" should cost nothing.
    */
   it('only pays for a word once', async () => {
-    const service = new SpeechService();
+    const service = new SpeechService(new TelemetryService());
 
     await service.speak('ubiquitous');
     const second = await service.speak('ubiquitous');
@@ -60,7 +63,7 @@ describe('SpeechService', () => {
   });
 
   it('treats the same word in different cases as the same word', async () => {
-    const service = new SpeechService();
+    const service = new SpeechService(new TelemetryService());
 
     await service.speak('ubiquitous');
     await service.speak('Ubiquitous');
@@ -74,7 +77,7 @@ describe('SpeechService', () => {
    * a week — long enough that nobody would connect the two.
    */
   it('does not serve the old voice after the voice changes', async () => {
-    const service = new SpeechService();
+    const service = new SpeechService(new TelemetryService());
     await service.speak('ubiquitous');
 
     process.env.ELEVENLABS_VOICE_ID = 'voice-two';
@@ -88,13 +91,15 @@ describe('SpeechService', () => {
   it('reports a provider failure as an upstream failure, not a bad request', async () => {
     speak.mockRejectedValue(new Error('elevenlabs is down'));
 
-    const error = await errorOf(() => new SpeechService().speak('ubiquitous'));
+    const error = await errorOf(() =>
+      new SpeechService(new TelemetryService()).speak('ubiquitous'),
+    );
 
     expect(error.code).toBe('upstream_failed');
   });
 
   it('does not cache a failure', async () => {
-    const service = new SpeechService();
+    const service = new SpeechService(new TelemetryService());
     speak.mockRejectedValueOnce(new Error('transient'));
 
     await errorOf(() => service.speak('ubiquitous'));
@@ -111,9 +116,43 @@ describe('SpeechService', () => {
   it('refuses before calling out when no voice is configured', async () => {
     delete process.env.ELEVENLABS_VOICE_ID;
 
-    const error = await errorOf(() => new SpeechService().speak('ubiquitous'));
+    const error = await errorOf(() =>
+      new SpeechService(new TelemetryService()).speak('ubiquitous'),
+    );
 
     expect(error.code).toBe('upstream_failed');
     expect(speak).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * The gap this closed: speech had no telemetry at all, so nothing recorded
+ * whether the button was used — on a route that pays a provider per character.
+ */
+describe('what a pronunciation costs', () => {
+  it('counts the asking separately from the synthesising', async () => {
+    const telemetry = new TelemetryService();
+    const service = new SpeechService(telemetry);
+
+    await service.speak('salient');
+    await service.speak('salient');
+
+    const snapshot = telemetry.snapshot();
+    // Both readers asked; only the first was billed for.
+    expect(snapshot.pronunciations).toBe(2);
+    expect(snapshot.charactersSpoken).toBe('salient'.length);
+    expect(speak).toHaveBeenCalledTimes(1);
+  });
+
+  it('counts the asking even when it could not answer', async () => {
+    const telemetry = new TelemetryService();
+    speak.mockRejectedValue(new Error('provider down'));
+
+    await new SpeechService(telemetry).speak('salient').catch(() => undefined);
+
+    const snapshot = telemetry.snapshot();
+    expect(snapshot.pronunciations).toBe(1);
+    // Nothing was synthesised, so nothing is claimed to have been.
+    expect(snapshot.charactersSpoken).toBe(0);
   });
 });
