@@ -24,6 +24,10 @@ export class TelemetryService {
     dictationsFailed: 0,
     accepted: 0,
     rejected: 0,
+    drillsStarted: 0,
+    drillsFinished: 0,
+    wordsRecalled: 0,
+    wordsForgotten: 0,
     inputTokens: 0,
     cachedInputTokens: 0,
     outputTokens: 0,
@@ -105,6 +109,24 @@ export class TelemetryService {
 
   rejected(): void {
     this.counts.rejected += 1;
+  }
+
+  /** A drill was begun. Against `drillFinished`, this is how many are abandoned. */
+  drillStarted(): void {
+    this.counts.drillsStarted += 1;
+  }
+
+  drillFinished(): void {
+    this.counts.drillsFinished += 1;
+  }
+
+  /** Self-marked at the card, after the word was shown. */
+  wordRecalled(): void {
+    this.counts.wordsRecalled += 1;
+  }
+
+  wordForgotten(): void {
+    this.counts.wordsForgotten += 1;
   }
 
   /**

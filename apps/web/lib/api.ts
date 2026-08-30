@@ -331,10 +331,19 @@ export function speak(word: string): Promise<SpeakResponse> {
  * count is not worth failing a user action over.
  */
 export function reportEvent(event: TelemetryEvent['event']): void {
-  void fetch(`${BASE_URL}/telemetry`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ event }),
-    keepalive: true,
-  }).catch(() => undefined);
+  // The `.catch` covers a request that fails; this covers `fetch` not being
+  // there to make one. The promise was the only thing guarded, so a missing
+  // fetch threw straight through the caller — and this is called from inside
+  // a drill answer and an accept, where a lost count must not cost the action
+  // it was counting.
+  try {
+    void fetch(`${BASE_URL}/telemetry`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event }),
+      keepalive: true,
+    }).catch(() => undefined);
+  } catch {
+    // Nothing to do and nobody to tell: this is a counter, not the product.
+  }
 }

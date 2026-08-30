@@ -18,7 +18,14 @@ import { z } from 'zod';
  * Everything else the server already sees.
  */
 export const TelemetryEvent = z.object({
-  event: z.enum(['suggestion_accepted', 'suggestion_rejected']),
+  event: z.enum([
+    'suggestion_accepted',
+    'suggestion_rejected',
+    'drill_started',
+    'drill_finished',
+    'word_recalled',
+    'word_forgotten',
+  ]),
 });
 export type TelemetryEvent = z.infer<typeof TelemetryEvent>;
 
@@ -55,6 +62,27 @@ export const TelemetrySnapshot = z.object({
   dictationsFailed: z.number().int(),
   accepted: z.number().int(),
   rejected: z.number().int(),
+  /**
+   * The fourth question, which nothing answered.
+   *
+   * The three above decide whether people arrive, engage the gate and take
+   * what it offers. This product's claim is the one after that — you keep the
+   * word — and the drill is the only place it could be observed. It reported
+   * nothing at all, on the mechanic the product is named for.
+   *
+   * Started against finished is whether a drill is worth doing; recalled
+   * against forgotten is whether the bank sticks. Both are self-marked, which
+   * makes them softer than the counts above and still the only evidence there
+   * is.
+   *
+   * One caveat worth holding: the bank is per-browser, so until it syncs these
+   * describe one device, and a low recall rate may be someone's second device
+   * rather than their memory.
+   */
+  drillsStarted: z.number().int(),
+  drillsFinished: z.number().int(),
+  wordsRecalled: z.number().int(),
+  wordsForgotten: z.number().int(),
   /**
    * What the model calls have actually cost since this process started.
    *
