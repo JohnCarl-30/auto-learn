@@ -1,6 +1,9 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { BankEntry } from '@auto-learn/shared';
+jest.mock('../lib/api', () => ({ reportEvent: jest.fn() }));
+
+import { reportEvent } from '../lib/api';
 import { RecallDrill } from './recall-drill';
 
 const entry = (word: string, overrides: Partial<BankEntry> = {}): BankEntry => ({
@@ -122,5 +125,48 @@ describe('RecallDrill', () => {
     await user.click(screen.getByTestId('drill-knew'));
 
     expect(screen.getByTestId('drill')).not.toHaveTextContent(/saved|progress|streak/i);
+  });
+});
+
+/**
+ * The fourth question the server keeps counts for, and the only one it cannot
+ * observe: whether the words stay. The drill reported nothing at all until
+ * now, on the mechanic the product is named for.
+ */
+describe('what the drill reports', () => {
+  const reported = reportEvent as jest.Mock;
+
+  beforeEach(() => reported.mockClear());
+
+  it('reports a drill starting, once, when it opens', () => {
+    render(<RecallDrill entries={[entry('alpha'), entry('beta')]} onDone={() => {}} />);
+
+    expect(reported).toHaveBeenCalledWith('drill_started');
+    expect(reported).toHaveBeenCalledTimes(1);
+  });
+
+  it('reports each self-marked answer', async () => {
+    const user = userEvent.setup();
+    render(<RecallDrill entries={[entry('alpha'), entry('beta')]} onDone={() => {}} />);
+
+    await user.click(screen.getByTestId('drill-reveal'));
+    await user.click(screen.getByTestId('drill-knew'));
+    await user.click(screen.getByTestId('drill-reveal'));
+    await user.click(screen.getByTestId('drill-missed'));
+
+    expect(reported).toHaveBeenCalledWith('word_recalled');
+    expect(reported).toHaveBeenCalledWith('word_forgotten');
+  });
+
+  it('reports finishing only when the queue runs out', async () => {
+    const user = userEvent.setup();
+    render(<RecallDrill entries={[entry('alpha')]} onDone={() => {}} />);
+
+    expect(reported).not.toHaveBeenCalledWith('drill_finished');
+
+    await user.click(screen.getByTestId('drill-reveal'));
+    await user.click(screen.getByTestId('drill-knew'));
+
+    expect(reported).toHaveBeenCalledWith('drill_finished');
   });
 });
