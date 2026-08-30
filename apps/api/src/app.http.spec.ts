@@ -287,6 +287,36 @@ describe('HTTP surface', () => {
       expect(after.accepted).toBe(before.accepted);
     });
 
+    /**
+     * The drill happens entirely in the browser, against a bank the server has
+     * never held — so these four are the only evidence there is about whether
+     * the words stay. Each is pinned to its own counter because a mapping that
+     * quietly pointed two events at one would be invisible in the totals.
+     */
+    it('records each drill event against its own counter', async () => {
+      const read = async () =>
+        (await request(server()).get('/telemetry').expect(200))
+          .body as TelemetrySnapshot;
+
+      const before = await read();
+
+      for (const event of [
+        'drill_started',
+        'drill_finished',
+        'word_recalled',
+        'word_forgotten',
+        'word_forgotten',
+      ]) {
+        await request(server()).post('/telemetry').send({ event }).expect(204);
+      }
+
+      const after = await read();
+      expect(after.drillsStarted).toBe(before.drillsStarted + 1);
+      expect(after.drillsFinished).toBe(before.drillsFinished + 1);
+      expect(after.wordsRecalled).toBe(before.wordsRecalled + 1);
+      expect(after.wordsForgotten).toBe(before.wordsForgotten + 2);
+    });
+
     it('rejects an unknown event name', async () => {
       await request(server())
         .post('/telemetry')
