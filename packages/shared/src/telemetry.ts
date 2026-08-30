@@ -67,7 +67,27 @@ export const TelemetrySnapshot = z.object({
   inputTokens: z.number().int(),
   cachedInputTokens: z.number().int(),
   outputTokens: z.number().int(),
+  /**
+   * The text models only — propose and card.
+   *
+   * It said "the model calls" until the voice routes were checked against it
+   * and turned out to be missing. They are billed in credits against a monthly
+   * plan rather than per token, so there is no honest per-call dollar figure to
+   * add here; what they cost is measured below in the units the provider
+   * actually counts. A number that quietly excluded them was worse than a
+   * narrower one that says what it covers.
+   */
   spendUsd: z.number(),
+  /**
+   * What the voice routes consumed, in the units they are billed in.
+   *
+   * `pronunciations` counts what the reader asked for and `charactersSpoken`
+   * only what was actually synthesised, so the gap between them is what the
+   * cache saved.
+   */
+  pronunciations: z.number().int(),
+  charactersSpoken: z.number().int(),
+  secondsTranscribed: z.number(),
   since: z.string(),
 });
 export type TelemetrySnapshot = z.infer<typeof TelemetrySnapshot>;
