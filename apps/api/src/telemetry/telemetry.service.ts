@@ -28,6 +28,9 @@ export class TelemetryService {
     cachedInputTokens: 0,
     outputTokens: 0,
     spendUsd: 0,
+    pronunciations: 0,
+    charactersSpoken: 0,
+    secondsTranscribed: 0,
   };
 
   proposal(): void {
@@ -124,12 +127,36 @@ export class TelemetryService {
     this.counts.spendUsd += call.usd ?? 0;
   }
 
+  /**
+   * A word was asked for out loud, whether or not it had to be synthesised.
+   *
+   * Counted separately from the characters below because the two answer
+   * different questions: this one is "does anyone use the button", which
+   * nothing recorded at all, and that one is "what did it cost".
+   */
+  pronunciation(): void {
+    this.counts.pronunciations += 1;
+  }
+
+  /** Characters actually sent for synthesis. A cache hit sends none. */
+  spoke(characters: number): void {
+    if (characters <= 0) return;
+    this.counts.charactersSpoken += characters;
+  }
+
+  /** Audio actually transcribed, in seconds — the unit that route is billed in. */
+  transcribed(seconds: number): void {
+    if (!Number.isFinite(seconds) || seconds <= 0) return;
+    this.counts.secondsTranscribed += seconds;
+  }
+
   snapshot(): TelemetrySnapshot {
     return {
       ...this.counts,
       // Fractions of a cent are noise at this scale, and a float that prints
       // as 0.030000000000000002 reads as a bug in the counter.
       spendUsd: Number(this.counts.spendUsd.toFixed(4)),
+      secondsTranscribed: Number(this.counts.secondsTranscribed.toFixed(1)),
       since: this.since,
     };
   }
