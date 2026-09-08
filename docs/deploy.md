@@ -2,20 +2,25 @@
 
 Two services. The order matters, for one reason given below.
 
+`scripts/deploy.sh` walks the whole procedure interactively — it opens each
+page, says what to click, captures the URLs and keys as they appear, writes
+them where they belong, and checks that health and CORS actually answer before
+moving on. This document is the reasoning behind it; run the script and read
+this when something surprises you.
+
 ## Before anything
 
-The API cannot be serverless, and cannot be scaled past one instance.
+The API cannot be serverless. It holds a session between `/propose` writing a
+proposal and `/card` opening one of its gates: `/propose` stores each
+`replacement` server-side and withholds it from the wire, and opening a card is
+what releases it. It also streams both of those routes, holding a response open
+for seconds at a time, and reads a 36MB WordNet database off disk.
 
-`SessionStore`, `TelemetryService` and the rate limiter all hold state in
-memory. The session one is load-bearing: `/propose` stores each `replacement`
-server-side and withholds it from the wire, and opening a card is what releases
-it. On a second instance, the card request lands in a process that never saw the
-proposal, and the product's central mechanic returns `session_not_found`.
-
-Sessions now live in Redis when `REDIS_URL` is set, which `render.yaml`
-provisions and wires. Without it the API keeps them in memory and works
-correctly on exactly one instance — that is still the right setup for a
-checkout, and it is what the tests run against.
+Sessions live in Redis when `REDIS_URL` is set, which `render.yaml` provisions
+and wires — so a card request may land in a process that never saw the
+proposal. Without it the API keeps them in memory and works correctly on
+exactly one instance, which is the right setup for a checkout and what the
+tests run against.
 
 Telemetry counters and rate-limiter state remain per-process. Neither breaks
 across instances the way a missing session did: the counts under-report and the
