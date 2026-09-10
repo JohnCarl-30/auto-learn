@@ -292,6 +292,55 @@ const mechanicalNotGated: Scorer<ProposeSubject> = {
   },
 };
 
+/**
+ * The text the reader actually leaves with.
+ *
+ * Every other scorer here checks that an edit *happened* — the right span, the
+ * right tier, a locatable original. None of them looked at what the edits
+ * produced, and a half-applied fix passes all of them: the model returned
+ * "employment ," → "employment," for the input "employment ,and", which is a
+ * real spacing fix that leaves "employment,and" behind. A mechanical error
+ * traded for a different mechanical error, in the sentence someone copies out.
+ *
+ * Conservative on purpose. A comma before a digit is a thousands separator, a
+ * full stop before a letter is an abbreviation or a decimal, and neither is
+ * this scorer's business — flagging them would make it noisy enough to ignore.
+ */
+const appliedTextIsClean: Scorer<ProposeSubject> = {
+  name: 'applied-text-is-clean',
+  describe: 'The sentence left behind has no mechanical punctuation faults',
+  score(subject) {
+    const applied = subject.proposal.sentences.flatMap((entry) => {
+      const sentence = subject.sentences[entry.index];
+      if (sentence === undefined) return [];
+      return [applySilentFixes(sentence, entry.edits)];
+    });
+    if (applied.length === 0) return null;
+
+    const faults: string[] = [];
+    for (const text of applied) {
+      const around = (pattern: RegExp, complaint: string) => {
+        const match = pattern.exec(text);
+        if (match) {
+          const at = Math.max(0, match.index - 12);
+          faults.push(`${complaint}: …${text.slice(at, match.index + 14)}…`);
+        }
+      };
+
+      around(/\s[,;:.!?]/, 'space before punctuation');
+      around(/[,;:][A-Za-z]/, 'no space after punctuation');
+      around(/\S {2,}\S/, 'doubled space');
+    }
+
+    return ratioScore(
+      'applied-text-is-clean',
+      applied.length - faults.length,
+      applied.length,
+      { detail: faults.join('; ') },
+    );
+  },
+};
+
 export const proposeScorers: Scorer<ProposeSubject>[] = [
   verbatimSpans,
   noDeletion,
@@ -300,6 +349,7 @@ export const proposeScorers: Scorer<ProposeSubject>[] = [
   noFalsePositives,
   grammarDiscipline,
   mechanicalNotGated,
+  appliedTextIsClean,
 ];
 
 export function scorePropose(subject: ProposeSubject): Score[] {
