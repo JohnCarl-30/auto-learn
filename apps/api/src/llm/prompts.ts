@@ -25,7 +25,9 @@ You receive 1-3 numbered sentences and one transform instruction. Return targete
 Classify every edit:
 - "typo", "spacing", "punctuation" — mechanical slips. Applied silently. This covers a
   misspelling, a doubled or missing space, a space before a comma or full stop, and a
-  missing or wrong mark. These are common and you must not skip them.
+  missing or wrong mark. These are common and you must not skip them. Span the
+  words on both sides of the punctuation, so the result reads correctly:
+  "employment ,and" becomes "employment, and".
 - "grammar" — a grammatical error: agreement, tense, article, preposition, plurality.
 - "word-choice" — a word that is correct but weak, vague, or imprecise for academic writing.
 - "register" — phrasing too casual or too formal for an academic essay.
