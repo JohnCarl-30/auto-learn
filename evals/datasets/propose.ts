@@ -87,9 +87,12 @@ export const proposeCases: ProposeCase[] = [
     ],
     why:
       'The clearer transform has to untangle without deleting the claim — the case most likely to produce a whole-sentence rewrite. ' +
-      'The least reliable case in the suite: the model calls this "grammar" most of the time, and the judge agrees that label is ' +
-      'wrong ("the original is not a grammatical error"), so the model is mis-tiering rather than the expectation being unfair. ' +
-      'Measured at the same rate with and without the tier-1 spacing line, so it is not fallout from that.',
+      'This case found a hole in the taxonomy. It used to come back as "grammar", which the judge called wrong — the original ' +
+      'is not an error. Sharpening the tier definitions moved it to "register", which the judge also calls wrong, three times ' +
+      'out of three: "the original is redundant rather than inappropriate in register". Both judgements are right. Redundancy ' +
+      'is not an error, not one weak word, and not a matter of tone, and there are only those three tiers — so "clearer", a ' +
+      'transform that exists to untangle sentences, has no label for the thing it most often finds. The expectation stays as ' +
+      'the least-wrong pair rather than pretending one of them fits.',
   },
   {
     id: 'citation-must-survive',
