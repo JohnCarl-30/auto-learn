@@ -135,6 +135,15 @@ async function main(): Promise<number> {
       return run;
     });
 
+    const unjudged = recorded.filter((run) => !run.judged).map((run) => run.suite);
+    if (unjudged.length > 0) {
+      process.stderr.write(
+        `The last run of ${unjudged.join(', ')} was unjudged; recording it would\n` +
+          'erase the judge scorers already in the baseline. Run it judged first.\n',
+      );
+      return 2;
+    }
+
     for (const run of recorded) printReport(run, null, options.tolerance);
     updateBaseline(recorded);
     process.stdout.write('\nBaseline updated from the runs already on disk.\n');
@@ -178,6 +187,18 @@ async function main(): Promise<number> {
     });
 
     runs.push(run);
+  }
+
+  // An unjudged run has no judge scorers in it, and recording one would drop
+  // their baselines entirely — quietly, and only noticed the next time someone
+  // wondered where the numbers went. --no-judge is for iterating, not for
+  // deciding what "normal" is.
+  if (options.updateBaseline && !options.judge) {
+    process.stderr.write(
+      'Refusing to record a baseline from a --no-judge run: it would erase the\n' +
+        'judge scorers already recorded. Run it judged, then record.\n',
+    );
+    return 2;
   }
 
   if (options.updateBaseline) {

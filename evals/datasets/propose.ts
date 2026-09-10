@@ -54,7 +54,10 @@ export const proposeCases: ProposeCase[] = [
     text: 'The policy had a big effect on rural employment.',
     option: 'academic',
     expectGated: [{ original: 'big', type: 'word-choice' }],
-    why: 'The core word-choice case: "big" is correct English and wrong for an essay, which is exactly what a card is for.',
+    why:
+      'The core word-choice case: "big" is correct English and wrong for an essay, which is exactly what a card is for. ' +
+      'Known unreliable: the model labels it "register" in roughly a third of runs, and that is arguable enough that the ' +
+      'expectation is left strict — the fix is sharper tier definitions in the prompt, not a looser case here.',
   },
   {
     id: 'informal-hedge-under-academic',
@@ -82,7 +85,11 @@ export const proposeCases: ProposeCase[] = [
     expectGated: [
       { original: 'because of the fact that', type: ['word-choice', 'register'] },
     ],
-    why: 'The clearer transform has to untangle without deleting the claim — the case most likely to produce a whole-sentence rewrite.',
+    why:
+      'The clearer transform has to untangle without deleting the claim — the case most likely to produce a whole-sentence rewrite. ' +
+      'The least reliable case in the suite: the model calls this "grammar" most of the time, and the judge agrees that label is ' +
+      'wrong ("the original is not a grammatical error"), so the model is mis-tiering rather than the expectation being unfair. ' +
+      'Measured at the same rate with and without the tier-1 spacing line, so it is not fallout from that.',
   },
   {
     id: 'citation-must-survive',

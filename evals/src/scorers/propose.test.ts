@@ -194,3 +194,47 @@ describe('the remaining invariants', () => {
     expect(score?.passed).toBe(false);
   });
 });
+
+describe('applied-text-is-clean', () => {
+  const applied = (text: string, edits: ModelEdit[]) =>
+    scoreFor(subject({ text }, edits), 'applied-text-is-clean');
+
+  /**
+   * The case that prompted this scorer. Every other check passes: the span is
+   * verbatim, the tier is right, nothing was deleted — and the sentence the
+   * reader copies out still has a punctuation fault, just a different one.
+   */
+  it('catches a spacing fix that leaves the sentence still wrong', () => {
+    const score = applied('In conclusion ,and so on.', [
+      edit({ type: 'spacing', original: 'conclusion ,', replacement: 'conclusion,' }),
+    ]);
+
+    expect(score?.passed).toBe(false);
+    expect(score?.detail).toContain('no space after punctuation');
+  });
+
+  it('passes the fix that takes enough of the span to be right', () => {
+    const score = applied('In conclusion ,and so on.', [
+      edit({ type: 'spacing', original: 'conclusion ,and', replacement: 'conclusion, and' }),
+    ]);
+
+    expect(score?.passed).toBe(true);
+  });
+
+  it('leaves thousands separators and decimals alone', () => {
+    const score = applied('It rose by 1,200 units, or 3.5 percent.', [
+      edit({ type: 'typo', original: 'rose', replacement: 'rose' }),
+    ]);
+
+    expect(score?.passed).toBe(true);
+  });
+
+  it('catches a doubled space the fixes left behind', () => {
+    const score = applied('The study  found nothing.', [
+      edit({ type: 'typo', original: 'study', replacement: 'study' }),
+    ]);
+
+    expect(score?.passed).toBe(false);
+    expect(score?.detail).toContain('doubled space');
+  });
+});
