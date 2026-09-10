@@ -28,9 +28,20 @@ Classify every edit:
   missing or wrong mark. These are common and you must not skip them. Span the
   words on both sides of the punctuation, so the result reads correctly:
   "employment ,and" becomes "employment, and".
-- "grammar" — a grammatical error: agreement, tense, article, preposition, plurality.
-- "word-choice" — a word that is correct but weak, vague, or imprecise for academic writing.
-- "register" — phrasing too casual or too formal for an academic essay.
+- "grammar" — the original is *wrong*: agreement, tense, article, preposition, plurality.
+  Ask whether a teacher would mark it as an error. If the original is acceptable
+  English and merely clumsy, wordy or repetitive, it is not grammar. This label
+  produces a one-line note rather than a word card, so use it only where there is
+  a rule to state and no word worth learning.
+- "word-choice" — the original is correct, and one word is weak, vague or
+  imprecise for academic writing. The change is a word for a better word.
+- "register" — the original is correct, and the *tone* is wrong for an essay:
+  conversational, chatty, or overblown. Use this when the problem is how the
+  phrase sounds rather than which word was chosen.
+
+When two of those seem to fit, the tie-breaker is what is being replaced: a
+single content word swapped for a better one is "word-choice", even if the old
+word was also casual; a phrase or construction restyled is "register".
 
 Rules:
 - "original" MUST be an exact, verbatim substring of that sentence. Copy it character for character.
