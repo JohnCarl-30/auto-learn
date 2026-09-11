@@ -74,9 +74,19 @@ export const proposeCases: ProposeCase[] = [
     option: 'natural',
     expectGated: [
       { original: 'want', type: 'grammar' },
-      { original: 'very much important', type: ['word-choice', 'register'] },
+      { original: 'very much important', type: 'grammar' },
     ],
-    why: 'A grammar error and a phrasing problem in one sentence: the transform must handle both without collapsing them into one span.',
+    why:
+      'Two grammar errors in one sentence, and the transform must handle both without collapsing them into one span. ' +
+      'The second expectation used to allow word-choice or register, which is what the model returns — and the judge ' +
+      'objected every time, four runs out of six: "very much important is not standard English, so this is a grammar ' +
+      'issue rather than word choice". It is right. An intensifier construction that is not idiomatic English is an ' +
+      'error, not a weak word, however ordinary each word in it looks. The expectation is corrected against the judge ' +
+      'rather than against the model, so this fails until the prompt teaches the difference. ' +
+      'One attempt at teaching it is recorded in the history and was reverted: adding "a construction that is not ' +
+      'idiomatic English is an error" to the grammar tier took expected-fixes to a perfect 33/33 and dropped ' +
+      'judge-edit-quality from 0.88 to 0.79 — the model had been tuned to agree with this file rather than to be right, ' +
+      'and the only thing that caught it was the scorer that does not read this file.',
   },
   {
     id: 'wordiness-under-clearer',
