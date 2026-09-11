@@ -1,6 +1,6 @@
 {
   "propose": {
-    "recordedAt": "2026-09-10T15:16:25.562Z",
+    "recordedAt": "2026-09-11T16:31:00.904Z",
     "model": "gpt-5.6-luna",
     "cases": 14,
     "repeat": 3,
@@ -21,8 +21,8 @@
         "samples": 33
       },
       "expected-fixes": {
-        "passRate": 0.9697,
-        "mean": 0.9697,
+        "passRate": 0.8788,
+        "mean": 0.9242,
         "samples": 33
       },
       "transform-discipline": {
@@ -36,8 +36,8 @@
         "samples": 42
       },
       "judge-edit-quality": {
-        "passRate": 0.8788,
-        "mean": 0.8939,
+        "passRate": 0.8485,
+        "mean": 0.8788,
         "samples": 33
       },
       "judge-meaning-preserved": {
