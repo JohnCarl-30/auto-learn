@@ -24,6 +24,8 @@ export class TelemetryService {
     dictationsFailed: 0,
     accepted: 0,
     rejected: 0,
+    saidBackMatched: 0,
+    saidBackMissed: 0,
     drillsStarted: 0,
     drillsFinished: 0,
     wordsRecalled: 0,
@@ -109,6 +111,15 @@ export class TelemetryService {
 
   rejected(): void {
     this.counts.rejected += 1;
+  }
+
+  saidBackMatched(): void {
+    this.counts.saidBackMatched += 1;
+  }
+
+  /** Read with the transcriber in mind: this counts both kinds of miss. */
+  saidBackMissed(): void {
+    this.counts.saidBackMissed += 1;
   }
 
   /** A drill was begun. Against `drillFinished`, this is how many are abandoned. */

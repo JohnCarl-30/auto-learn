@@ -9,6 +9,7 @@ import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { PartialCard } from '@/lib/api';
 import { PronounceButton } from '@/components/pronounce-button';
+import { SayItBack } from '@/components/say-it-back';
 
 export type CardState =
   | { status: 'loading' }
@@ -313,6 +314,14 @@ function CardBody({
               pronunciation={card.pronunciation}
             />
           </div>
+
+          {/*
+            With the identity, not with Use it and Keep mine: saying the word
+            back is part of meeting the word, and those buttons are about the
+            sentence. Quiet by default — it only has something to say once
+            someone has tried.
+          */}
+          <SayItBack key={card.word} word={card.word} />
         </div>
 
         <Badge variant="secondary" className="shrink-0">
