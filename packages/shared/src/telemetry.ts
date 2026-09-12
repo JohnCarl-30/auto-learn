@@ -25,6 +25,8 @@ export const TelemetryEvent = z.object({
     'drill_finished',
     'word_recalled',
     'word_forgotten',
+    'said_back_matched',
+    'said_back_missed',
   ]),
 });
 export type TelemetryEvent = z.infer<typeof TelemetryEvent>;
@@ -79,6 +81,17 @@ export const TelemetrySnapshot = z.object({
    * describe one device, and a low recall rate may be someone's second device
    * rather than their memory.
    */
+  /**
+   * Saying the word back.
+   *
+   * Counted, but read with the transcriber in mind: a miss here is as likely
+   * to be accented English transcribed badly as a learner mispronouncing
+   * something, and the two are not separable from this side. The ratio is
+   * worth watching for movement rather than for its absolute value — and if
+   * misses dominate everywhere, suspect the transcription before the learners.
+   */
+  saidBackMatched: z.number().int(),
+  saidBackMissed: z.number().int(),
   drillsStarted: z.number().int(),
   drillsFinished: z.number().int(),
   wordsRecalled: z.number().int(),
