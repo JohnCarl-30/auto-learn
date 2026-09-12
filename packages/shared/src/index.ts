@@ -10,5 +10,6 @@ export * from './reuse';
 export * from './telemetry';
 export * from './speech';
 export * from './dictate';
+export * from './say-back';
 export * from './text';
 export * from './diff';

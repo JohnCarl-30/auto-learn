@@ -24,6 +24,8 @@ export class TelemetryController {
       drill_finished: () => this.telemetry.drillFinished(),
       word_recalled: () => this.telemetry.wordRecalled(),
       word_forgotten: () => this.telemetry.wordForgotten(),
+      said_back_matched: () => this.telemetry.saidBackMatched(),
+      said_back_missed: () => this.telemetry.saidBackMissed(),
     };
 
     record[body.event]();
