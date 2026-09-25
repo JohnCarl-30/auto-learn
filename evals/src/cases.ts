@@ -31,6 +31,13 @@ export interface ProposeCase {
   }>;
   /** Already correct under this transform: any edit at all is a false positive. */
   clean?: boolean;
+  /**
+   * Words this writer has already been taught, as the client sends them.
+   *
+   * Present only on cases written to check the preference, because a case
+   * with an empty bank is the behaviour every other case already covers.
+   */
+  known?: string[];
   why: string;
 }
 
