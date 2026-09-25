@@ -8,7 +8,7 @@ import {
   proposeProviderOptions,
 } from '../../../apps/api/src/llm/config';
 import {
-  PROPOSE_SYSTEM_PROMPT,
+  proposeSystemPrompt,
   proposeUserPrompt,
 } from '../../../apps/api/src/llm/prompts';
 import { proposeCases } from '../../datasets/propose';
@@ -122,8 +122,8 @@ export const proposeSuite: Suite<ProposeCase> = {
     const { object, usage } = await generateObject({
       model: openai(PROPOSE_MODEL),
       schema: ModelProposal,
-      system: PROPOSE_SYSTEM_PROMPT,
-      prompt: proposeUserPrompt(sentences, testCase.option),
+      system: proposeSystemPrompt(testCase.known),
+      prompt: proposeUserPrompt(sentences, testCase.option, testCase.known),
       providerOptions: proposeProviderOptions,
       maxOutputTokens: PROPOSE_MAX_OUTPUT_TOKENS,
     });

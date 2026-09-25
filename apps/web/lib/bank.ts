@@ -3,6 +3,7 @@
 import { openDB, type IDBPDatabase } from 'idb';
 import {
   BANK_EXPORT_VERSION,
+  MAX_KNOWN_WORDS,
   findReused,
   mergeBankEntry,
   type BankEntry,
@@ -81,6 +82,25 @@ export async function listBank(): Promise<BankEntry[]> {
   const db = await connect();
   const all = (await db.getAll(STORE)) as BankEntry[];
   return all.sort((a, b) => b.addedAt.localeCompare(a.addedAt));
+}
+
+/**
+ * The lemmas a proposal is told about, newest first.
+ *
+ * Sent with every /propose so the model can prefer a word this writer has not
+ * met yet. Lemmas only — the definitions, the sentences they came from and
+ * when they were banked stay in this browser, because none of that helps the
+ * model choose and all of it is the reader's.
+ *
+ * Deduplicated because the same lemma can be banked in two senses, and the
+ * prompt only cares that the word has been seen.
+ */
+export async function knownWords(limit = MAX_KNOWN_WORDS): Promise<string[]> {
+  const entries = await listBank();
+  return [...new Set(entries.map((entry) => entry.lemma.toLowerCase()))].slice(
+    0,
+    limit,
+  );
 }
 
 export async function countBank(): Promise<number> {

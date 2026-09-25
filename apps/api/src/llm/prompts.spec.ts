@@ -2,6 +2,7 @@ import {
   CARD_SYSTEM_PROMPT,
   PROPOSE_SYSTEM_PROMPT,
   cardUserPrompt,
+  proposeSystemPrompt,
   proposeUserPrompt,
 } from './prompts';
 
@@ -78,5 +79,51 @@ describe('cardUserPrompt', () => {
 
     expect(prompt).toContain('No change was proposed.');
     expect(prompt).toContain('No synonym candidates were found');
+  });
+});
+
+/**
+ * The bank reaching the proposal. Until it did, a word banked last week came
+ * back offered as if it were new.
+ */
+describe('proposeUserPrompt with a bank', () => {
+  /**
+   * Measured, not assumed: with the rule present, "big" came back labelled
+   * register instead of word-choice three or four times out of four, on
+   * requests carrying no bank at all. A reader who has banked nothing pays
+   * nothing for a feature they cannot use.
+   */
+  it('leaves the system prompt untouched when there is no bank', () => {
+    expect(proposeSystemPrompt()).toBe(PROPOSE_SYSTEM_PROMPT);
+    expect(proposeSystemPrompt([])).toBe(PROPOSE_SYSTEM_PROMPT);
+    expect(proposeSystemPrompt(['substantial'])).not.toBe(
+      PROPOSE_SYSTEM_PROMPT,
+    );
+  });
+
+  it('sends nothing extra when the writer has banked nothing', () => {
+    const prompt = proposeUserPrompt(['A sentence.'], 'academic');
+
+    expect(prompt).not.toContain('Already learned');
+    expect(prompt).toContain('0. A sentence.');
+  });
+
+  it('lists what they have learned, as a preference and not a ban', () => {
+    const prompt = proposeUserPrompt(['A sentence.'], 'academic', [
+      'substantial',
+      'elucidate',
+    ]);
+
+    expect(prompt).toContain('Already learned: substantial, elucidate');
+    // Only the list varies per request. The rule that acts on it lives in the
+    // system prompt, which is a constant the provider can serve from cache —
+    // and which is where the model actually reads its rules: the same
+    // instruction in the user prompt was ignored four times out of four.
+    // The rule that acts on the list is appended to the system prompt, and
+    // only for requests that carry a bank.
+    expect(proposeSystemPrompt(['substantial'])).toContain('already learned');
+    expect(proposeSystemPrompt(['substantial'])).toContain(
+      'sentence matters more than the lesson',
+    );
   });
 });

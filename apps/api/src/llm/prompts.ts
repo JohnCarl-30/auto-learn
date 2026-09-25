@@ -72,12 +72,51 @@ Be accurate over impressive. A learner cannot tell when you are wrong.`;
  * inside the service would have to be reimplemented in `evals/`, and a
  * reimplementation is a second prompt that nobody remembers to keep in step.
  */
+/**
+ * The rule that reads the bank, added only for requests that carry one.
+ *
+ * It cannot live in the constant above, and the reason is measured rather than
+ * guessed: with the rule present, "big" in "a big effect" came back labelled
+ * register instead of word-choice three or four times out of four; without it,
+ * four out of four correct. Merely mentioning word preference shifts how the
+ * model tiers an unrelated edit, and it did so on requests carrying no bank at
+ * all — every reader paying for a rule that only some of them can use.
+ *
+ * So there are two system prompts. A reader with an empty bank gets the one
+ * that has always existed, byte for byte. A reader with a bank gets the rule
+ * and whatever classification drift comes with it, which is a trade they are
+ * at least getting something for.
+ */
+const PREFER_UNMET = `
+- Some requests list words the writer has already learned. When more than one word would fix the sentence equally well, propose one that is NOT on that list — they have had that lesson already. Use a listed word when nothing else fits, because the sentence matters more than the lesson.`;
+
+export function proposeSystemPrompt(known: string[] = []): string {
+  return known.length
+    ? PROPOSE_SYSTEM_PROMPT + PREFER_UNMET
+    : PROPOSE_SYSTEM_PROMPT;
+}
+
 export function proposeUserPrompt(
   sentences: string[],
   option: TransformOption,
+  /** Lemmas the writer has already been taught. */
+  known: string[] = [],
 ): string {
   const numbered = sentences.map((s, i) => `${i}. ${s}`).join('\n');
-  return `Transform: ${TRANSFORM_INSTRUCTIONS[option]}\n\nSentences:\n${numbered}`;
+
+  /*
+    Listed as words already learned rather than as words to avoid.
+
+    The distinction decides what happens when the banked word is genuinely the
+    right fix: "avoid these" would make the correction worse to protect the
+    lesson, which is backwards. The sentence comes first, and the preference
+    only settles a tie.
+  */
+  const learned = known.length
+    ? `\n\nAlready learned: ${known.join(', ')}`
+    : '';
+
+  return `Transform: ${TRANSFORM_INSTRUCTIONS[option]}${learned}\n\nSentences:\n${numbered}`;
 }
 
 export function cardUserPrompt(input: {

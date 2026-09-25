@@ -24,7 +24,7 @@ import {
   proposeModel,
   proposeProviderOptions,
 } from '../llm/models';
-import { PROPOSE_SYSTEM_PROMPT, proposeUserPrompt } from '../llm/prompts';
+import { proposeSystemPrompt, proposeUserPrompt } from '../llm/prompts';
 import { TelemetryService } from '../telemetry/telemetry.service';
 import {
   SessionStore,
@@ -53,7 +53,11 @@ export class ProposeService {
 
   async propose(request: ProposeRequest): Promise<ProposeResponse> {
     const sentences = this.prepare(request);
-    const proposal = await this.callModel(sentences, request.option);
+    const proposal = await this.callModel(
+      sentences,
+      request.option,
+      request.known,
+    );
     return await this.finish(sentences, proposal, request.option);
   }
 
@@ -109,8 +113,8 @@ export class ProposeService {
       const result = streamObject({
         model: proposeModel(),
         schema: ModelProposal,
-        system: PROPOSE_SYSTEM_PROMPT,
-        prompt: proposeUserPrompt(sentences, request.option),
+        system: proposeSystemPrompt(request.known),
+        prompt: proposeUserPrompt(sentences, request.option, request.known),
         providerOptions: proposeProviderOptions,
         maxOutputTokens: PROPOSE_MAX_OUTPUT_TOKENS,
         maxRetries: MODEL_MAX_RETRIES,
@@ -256,13 +260,14 @@ export class ProposeService {
   private async callModel(
     sentences: string[],
     option: ProposeRequest['option'],
+    known: ProposeRequest['known'],
   ) {
     try {
       const { object, usage } = await generateObject({
         model: proposeModel(),
         schema: ModelProposal,
-        system: PROPOSE_SYSTEM_PROMPT,
-        prompt: proposeUserPrompt(sentences, option),
+        system: proposeSystemPrompt(known),
+        prompt: proposeUserPrompt(sentences, option, known),
         providerOptions: proposeProviderOptions,
         maxOutputTokens: PROPOSE_MAX_OUTPUT_TOKENS,
         maxRetries: MODEL_MAX_RETRIES,
