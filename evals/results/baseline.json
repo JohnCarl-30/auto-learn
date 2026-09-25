@@ -1,29 +1,29 @@
 {
   "propose": {
-    "recordedAt": "2026-09-11T16:31:00.904Z",
+    "recordedAt": "2026-09-25T10:38:07.734Z",
     "model": "gpt-5.6-luna",
-    "cases": 14,
+    "cases": 15,
     "repeat": 3,
     "scorers": {
       "verbatim-spans": {
         "passRate": 1,
         "mean": 1,
-        "samples": 33
+        "samples": 36
       },
       "no-deletion": {
         "passRate": 1,
         "mean": 1,
-        "samples": 30
+        "samples": 33
       },
       "span-minimality": {
         "passRate": 1,
         "mean": 1,
-        "samples": 33
+        "samples": 36
       },
       "expected-fixes": {
-        "passRate": 0.8788,
-        "mean": 0.9242,
-        "samples": 33
+        "passRate": 0.8611,
+        "mean": 0.9028,
+        "samples": 36
       },
       "transform-discipline": {
         "passRate": 1,
@@ -33,22 +33,27 @@
       "applied-text-is-clean": {
         "passRate": 1,
         "mean": 1,
-        "samples": 42
+        "samples": 45
       },
       "judge-edit-quality": {
-        "passRate": 0.8485,
-        "mean": 0.8788,
-        "samples": 33
+        "passRate": 0.75,
+        "mean": 0.8056,
+        "samples": 36
       },
       "judge-meaning-preserved": {
-        "passRate": 0.9697,
-        "mean": 0.9697,
-        "samples": 33
+        "passRate": 0.9167,
+        "mean": 0.9167,
+        "samples": 36
       },
       "mechanical-not-gated": {
         "passRate": 1,
         "mean": 1,
-        "samples": 27
+        "samples": 30
+      },
+      "prefers-unmet-words": {
+        "passRate": 1,
+        "mean": 1,
+        "samples": 3
       },
       "no-false-positives": {
         "passRate": 1,

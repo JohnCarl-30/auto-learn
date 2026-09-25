@@ -63,9 +63,34 @@ export const ReviewedSentence = z.object({
 });
 export type ReviewedSentence = z.infer<typeof ReviewedSentence>;
 
+/**
+ * How many banked words travel with a proposal.
+ *
+ * Enough to cover a term's worth of learning, capped because the bank grows
+ * without limit and a request should not. The client sends the most recent,
+ * which are also the ones a writer is likeliest to be mid-way through
+ * learning — an older word is either kept or long forgotten, and neither is
+ * helped by crowding the prompt.
+ */
+export const MAX_KNOWN_WORDS = 200;
+
 export const ProposeRequest = z.object({
   text: z.string().min(1),
   option: TransformOption,
+  /**
+   * Words this writer has already been taught, lowercased lemmas.
+   *
+   * The bank is the product's memory and until now the proposal had no access
+   * to it, so a word banked last week came back offered as if it were new —
+   * the most obvious way this fails to feel like it remembers anyone. It is
+   * sent by the client because the bank lives in the browser; the server has
+   * never held a copy.
+   *
+   * Optional, and the route works without it: an older client, a cleared
+   * browser, or a reader who has banked nothing all produce the behaviour
+   * that existed before.
+   */
+  known: z.array(z.string()).max(MAX_KNOWN_WORDS).optional(),
 });
 export type ProposeRequest = z.infer<typeof ProposeRequest>;
 

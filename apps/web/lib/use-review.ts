@@ -17,7 +17,7 @@ import {
   reportEvent,
   type ProposePreview,
 } from './api';
-import { bankWord, recordReuse } from './bank';
+import { bankWord, knownWords, recordReuse } from './bank';
 import type { CardState } from '@/components/word-card';
 
 export type ReviewState =
@@ -74,7 +74,18 @@ export function useReview() {
           setBankVersion((v) => v + 1);
         }
 
-        const response = await proposeStream({ text, option }, (preview) => {
+        /*
+          What this writer has already been taught, so the proposal can prefer
+          a word they have not met. Read here rather than held in state: the
+          bank changes as they accept and look things up, and a stale list
+          would re-teach exactly the word they just learned.
+
+          Failure is silent on purpose — an unreadable bank costs a
+          preference, not a proposal.
+        */
+        const known = await knownWords().catch(() => [] as string[]);
+
+        const response = await proposeStream({ text, option, known }, (preview) => {
           // Appended, never reconciled. These events are what the wait looks
           // like; the payload that arrives at the end is what it *is*, and
           // mixing the two is how a preview bug becomes a review bug.
