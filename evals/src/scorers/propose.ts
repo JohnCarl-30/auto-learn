@@ -341,6 +341,43 @@ const appliedTextIsClean: Scorer<ProposeSubject> = {
   },
 };
 
+/**
+ * A word already banked should not be taught again.
+ *
+ * The bank is the product's memory, and until it reached the proposal a word
+ * learned last week came back offered as if it were new. The prompt asks for a
+ * preference rather than a prohibition — if the banked word is genuinely the
+ * best fix, it should still win — so this only applies to cases written with a
+ * bank and a sentence where something else will plainly do.
+ */
+const prefersUnmetWords: Scorer<ProposeSubject> = {
+  name: 'prefers-unmet-words',
+  describe: 'A word the writer has already banked is not taught to them again',
+  score(subject) {
+    const known = (subject.testCase.known ?? []).map((word) =>
+      word.toLowerCase(),
+    );
+    if (known.length === 0) return null;
+
+    const gated = placeEdits(subject).filter(({ edit }) => !isSilent(edit));
+    if (gated.length === 0) return null;
+
+    const retaught = gated.filter(({ edit }) =>
+      // The replacement may be a phrase; any word in it counts as the lesson.
+      edit.replacement
+        .toLowerCase()
+        .split(/[^a-z]+/)
+        .some((word) => word.length > 0 && known.includes(word)),
+    );
+
+    return ratioScore('prefers-unmet-words', gated.length - retaught.length, gated.length, {
+      detail: retaught
+        .map((p) => `already banked: ${JSON.stringify(p.edit.replacement)}`)
+        .join('; '),
+    });
+  },
+};
+
 export const proposeScorers: Scorer<ProposeSubject>[] = [
   verbatimSpans,
   noDeletion,
@@ -350,6 +387,7 @@ export const proposeScorers: Scorer<ProposeSubject>[] = [
   grammarDiscipline,
   mechanicalNotGated,
   appliedTextIsClean,
+  prefersUnmetWords,
 ];
 
 export function scorePropose(subject: ProposeSubject): Score[] {

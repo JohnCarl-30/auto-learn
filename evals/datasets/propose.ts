@@ -60,6 +60,22 @@ export const proposeCases: ProposeCase[] = [
       'expectation is left strict — the fix is sharper tier definitions in the prompt, not a looser case here.',
   },
   {
+    id: 'already-banked-word',
+    text: 'The policy had a big effect on rural employment.',
+    option: 'academic',
+    known: ['substantial'],
+    // Both tiers accepted here, unlike the sibling case above: "big" is
+    // labelled register about a third of the time, that ambiguity is recorded
+    // there, and re-asserting it in a case written to check the bank would add
+    // noise to the one signal this case exists for.
+    expectGated: [{ original: 'big', type: ['word-choice', 'register'] }],
+    why:
+      'The same sentence as the case above, with "substantial" already in the bank. The fix is still required — a ' +
+      'reader who has learned one word has not stopped needing their sentence corrected — but "significant", ' +
+      '"considerable" and "marked" all serve it, so teaching the banked word again spends a gate on a lesson already ' +
+      'given. Written as a preference rather than a prohibition, which is why the sentence is one with alternatives.',
+  },
+  {
     id: 'informal-hedge-under-academic',
     text: 'This approach is kind of effective for beginner learners.',
     option: 'academic',
