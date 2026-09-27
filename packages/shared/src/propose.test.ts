@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   GatedSuggestion,
+  GatedSuggestionType,
+  ModelEdit,
+  SilentFixType,
   ProposeStreamEvent,
   StreamedGate,
   TEASERS,
@@ -66,5 +69,32 @@ describe('the gate, on the wire', () => {
 
   it('refuses an event whose kind is not one of the four', () => {
     expect(ProposeStreamEvent.safeParse({ kind: 'progress' }).success).toBe(false);
+  });
+});
+
+/**
+ * The two enums that have to agree.
+ *
+ * `ModelEdit.type` is what the structured-output schema constrains the model
+ * to, and the tier lists are what the server and the UI branch on. A tier
+ * missing from the first is a tier the model cannot choose, which reads as a
+ * prompt that will not follow instructions — it cost six runs to find once.
+ */
+describe('the tier lists', () => {
+  it('lets the model emit every tier the product understands', () => {
+    const emittable = new Set(ModelEdit.shape.type.options as string[]);
+
+    for (const tier of GatedSuggestionType.options) {
+      expect(emittable.has(tier)).toBe(true);
+    }
+    for (const tier of SilentFixType.options) {
+      expect(emittable.has(tier)).toBe(true);
+    }
+  });
+
+  it('has a teaser for every gated tier, since the gate builds one per event', () => {
+    for (const tier of GatedSuggestionType.options) {
+      expect(TEASERS[tier]).toBeTruthy();
+    }
   });
 });

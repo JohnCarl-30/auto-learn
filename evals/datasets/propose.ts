@@ -56,8 +56,11 @@ export const proposeCases: ProposeCase[] = [
     expectGated: [{ original: 'big', type: 'word-choice' }],
     why:
       'The core word-choice case: "big" is correct English and wrong for an essay, which is exactly what a card is for. ' +
-      'Known unreliable: the model labels it "register" in roughly a third of runs, and that is arguable enough that the ' +
-      'expectation is left strict — the fix is sharper tier definitions in the prompt, not a looser case here.',
+      'The expectation is left strict and now fails every run. It used to fail about a third of the time; adding the ' +
+      '"wordiness" tier made the model settle on "register" for this edit, six times out of six. The judge does not ' +
+      'object to that label, so there is no independent signal that the model is wrong — only that it disagrees with ' +
+      'this file. Recorded as the price of the fourth tier, which bought sixteen points of judge-edit-quality across ' +
+      'the suite, rather than erased by widening the expectation to whatever the model happens to say.',
   },
   {
     id: 'already-banked-word',
@@ -109,17 +112,15 @@ export const proposeCases: ProposeCase[] = [
     text: 'The reason why the experiment failed was because of the fact that the samples were contaminated.',
     option: 'clearer',
     expectGated: [
-      { original: 'because of the fact that', type: ['word-choice', 'register'] },
+      { original: 'because of the fact that', type: 'wordiness' },
     ],
     why:
       'The clearer transform has to untangle without deleting the claim — the case most likely to produce a whole-sentence rewrite. ' +
-      'This case found a hole in the taxonomy. It used to come back as "grammar", which the judge called wrong — the original ' +
-      'is not an error. Sharpening the tier definitions moved it to "register", which the judge also calls wrong, three times ' +
-      'out of three: "the original is redundant rather than inappropriate in register". Both judgements are right. Redundancy ' +
-      'is not an error, not one weak word, and not a matter of tone, and there are only those three tiers — so "clearer", a ' +
-      'transform that exists to untangle sentences, has no label for the thing it most often finds. The expectation stays as ' +
-      'the least-wrong pair rather than pretending one of them fits.',
-  },
+      'This case found the hole in the taxonomy and now tests the tier that filled it. It used to come back as ' +
+      '"grammar", which the judge called wrong — the original is not an error. Sharpening the definitions moved it to ' +
+      '"register", which the judge also called wrong, six times out of six: "the original is redundant rather than ' +
+      'inappropriate in register". Both judgements were right, and four prompt attempts failed because there was no ' +
+      'correct answer available. There is one now.'  },
   {
     id: 'citation-must-survive',
     text: 'Recent work (Smith, 2020) suggest that motivation declines after week six.',
