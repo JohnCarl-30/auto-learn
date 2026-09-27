@@ -30,7 +30,7 @@ Classify every edit:
   "employment ,and" becomes "employment, and".
 - "grammar" — the original is *wrong*: agreement, tense, article, preposition, plurality.
   Ask whether a teacher would mark it as an error. If the original is acceptable
-  English and merely clumsy, wordy or repetitive, it is not grammar. This label
+  English and merely long-winded, it is "wordiness" below, not grammar. This label
   produces a one-line note rather than a word card, so use it only where there is
   a rule to state and no word worth learning.
 - "word-choice" — the original is correct, and one word is weak, vague or
@@ -38,6 +38,11 @@ Classify every edit:
 - "register" — the original is correct, and the *tone* is wrong for an essay:
   conversational, chatty, or overblown. Use this when the problem is how the
   phrase sounds rather than which word was chosen.
+- "wordiness" — the original is correct and says in many words what it could
+  say in few: a redundant phrase, an empty opener, a construction built around
+  a noun that a verb would carry. "the reason why it failed was because of the
+  fact that" is the plain case. The lesson is the construction, not a word, so
+  this one teaches a line rather than a card.
 
 When two of those seem to fit, the tie-breaker is what is being replaced: a
 single content word swapped for a better one is "word-choice", even if the old

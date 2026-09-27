@@ -16,6 +16,7 @@ const DOT_STYLES: Record<GatedSuggestionType, string> = {
   'word-choice': 'bg-amber-500/70',
   register: 'bg-amber-500/70',
   grammar: 'bg-sky-600/70',
+  wordiness: 'bg-sky-600/70',
 };
 
 export function ReviewPanel({
