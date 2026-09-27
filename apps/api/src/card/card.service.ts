@@ -97,12 +97,17 @@ export class CardService {
   async prepare(request: CardRequest): Promise<Prepared> {
     const target = await this.resolveTarget(request);
 
-    // A grammar gate costs nothing extra. /propose already wrote the
-    // in-context reason — that one line *is* what a grammar fix has to teach,
-    // so there is no dictionary lookup and no second model call. It also
-    // returns a note rather than a card, so nothing lands in the word bank: a
-    // corrected verb is not vocabulary the writer learned.
-    if (target.suggestionType === 'grammar') {
+    // Grammar and wordiness cost nothing extra. /propose already wrote the
+    // in-context reason — that one line *is* what either has to teach, so
+    // there is no dictionary lookup and no second model call. Both return a
+    // note rather than a card, so nothing lands in the word bank: a corrected
+    // verb is not vocabulary the writer learned, and neither is a sentence
+    // that was shortened. What they taught was a rule and a construction, and
+    // the bank is for words.
+    if (
+      target.suggestionType === 'grammar' ||
+      target.suggestionType === 'wordiness'
+    ) {
       this.telemetry.noteOpened();
       return {
         kind: 'ready',
@@ -110,7 +115,11 @@ export class CardService {
           kind: 'note',
           note: {
             corrected: target.word,
-            note: target.reason ?? 'Grammatical correction.',
+            note:
+              target.reason ??
+              (target.suggestionType === 'wordiness'
+                ? 'Says the same thing in fewer words.'
+                : 'Grammatical correction.'),
           },
           replacement: target.replacement,
           alternative: null,

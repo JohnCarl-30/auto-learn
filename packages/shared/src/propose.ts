@@ -12,11 +12,19 @@ export type SilentFixType = z.infer<typeof SilentFixType>;
 
 /**
  * Tier 2 — teachable. These are gated behind a word card.
+ *
+ * "wordiness" was added after four prompt attempts failed to make the other
+ * three cover it. A redundant construction is not an error, not one weak word
+ * and not a matter of tone, so the model labelled it whichever of the three
+ * the prompt had most recently emphasised — and the judge rejected every one,
+ * six times out of six. "Make it clearer" exists to untangle sentences and had
+ * no name for the thing it most often finds.
  */
 export const GatedSuggestionType = z.enum([
   'grammar',
   'word-choice',
   'register',
+  'wordiness',
 ]);
 export type GatedSuggestionType = z.infer<typeof GatedSuggestionType>;
 
@@ -108,6 +116,16 @@ export type ProposeResponse = z.infer<typeof ProposeResponse>;
 // searching for `original`, and drops any suggestion it cannot find).
 
 export const ModelEdit = z.object({
+  /**
+   * Every tier, flat, because this is the one the model is constrained to.
+   *
+   * It is spelled out rather than composed from SilentFixType and
+   * GatedSuggestionType so the structured-output schema stays a plain enum —
+   * and that is exactly why it has to be kept in step with them. Adding
+   * "wordiness" to the tier list without adding it here left the model unable
+   * to emit the label at all: it answered "word-choice" six times out of six,
+   * and the prompt looked like the thing at fault.
+   */
   type: z.enum([
     'typo',
     'spacing',
@@ -115,6 +133,7 @@ export const ModelEdit = z.object({
     'grammar',
     'word-choice',
     'register',
+    'wordiness',
   ]),
   /** Exact substring of the sentence being replaced. Must match verbatim. */
   original: z.string(),
@@ -219,4 +238,5 @@ export const TEASERS: Record<GatedSuggestionType, string> = {
   grammar: 'grammar fix available',
   'word-choice': 'stronger word available',
   register: 'register could be more academic',
+  wordiness: 'this can be said in fewer words',
 };
