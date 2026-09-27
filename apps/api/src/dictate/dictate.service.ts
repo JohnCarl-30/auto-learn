@@ -1,7 +1,11 @@
 import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { transcribe } from 'ai';
 import type { ApiError, DictateResponse } from '@auto-learn/shared';
-import { transcribeModel, transcribeProviderOptions } from '../llm/models';
+import {
+  MODEL_MAX_RETRIES_VOICE,
+  transcribeModel,
+  transcribeProviderOptions,
+} from '../llm/models';
 import { TelemetryService } from '../telemetry/telemetry.service';
 
 @Injectable()
@@ -28,6 +32,10 @@ export class DictateService {
         model: transcribeModel(),
         audio,
         providerOptions: transcribeProviderOptions,
+        // Matching the speech route's reasoning rather than inheriting the
+        // SDK's two: someone is holding a recording, and three attempts at a
+        // twenty-second timeout is a minute of not knowing whether it worked.
+        maxRetries: MODEL_MAX_RETRIES_VOICE,
         abortSignal: AbortSignal.timeout(20_000),
       });
       text = result.text;
