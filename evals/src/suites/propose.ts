@@ -53,6 +53,7 @@ The labels mean:
 - "grammar" — an actual grammatical error.
 - "word-choice" — correct but weak, vague, or imprecise for academic writing.
 - "register" — too casual or too formal for an essay.
+- "wordiness" — correct, and longer than it needs to be: a redundant phrase, an empty opener. The lesson is the construction rather than a word.
 
 Mark isImprovement FALSE if the replacement is wrong English, changes what the writer claimed, or is merely a different way of saying the same thing.
 Mark correctlyClassified FALSE if a mechanical slip was labelled as teachable, or a real grammatical error was labelled as word choice or register.

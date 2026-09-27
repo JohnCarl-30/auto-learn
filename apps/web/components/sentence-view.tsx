@@ -10,19 +10,24 @@ import {
 import { cn } from '@/lib/utils';
 
 /**
- * Grammar and word choice are different promises, so they get different marks.
+ * Two marks, and what separates them is what opening one gives you.
  *
- * Amber-filled means there is a *word* behind this — opening it gives you a
- * definition, synonyms and a nuance you can bank. A plain rule-underline means
- * there is a *rule* behind it: one line, nothing to learn as vocabulary. Making
- * them look identical, as they first did, meant you could not tell which kind
- * of thing you were about to open.
+ * Amber-filled means there is a *word* behind this — a definition, synonyms, a
+ * nuance, something that lands in your bank. Dashed means there is a *rule* or
+ * a *construction* behind it: one line, nothing to learn as vocabulary.
+ *
+ * So the split follows the note-versus-card branch in the API exactly, and
+ * wordiness joins grammar on the dashed side: a sentence that was shortened
+ * teaches you a shape, not a word. Making all four look alike, as the first
+ * two did, meant you could not tell what you were about to open.
  */
 const GATE_STYLES: Record<GatedSuggestionType, string> = {
   'word-choice':
     'bg-amber-500/15 decoration-amber-600/70 hover:bg-amber-500/30',
   register: 'bg-amber-500/15 decoration-amber-600/70 hover:bg-amber-500/30',
   grammar:
+    'decoration-sky-600/70 decoration-dashed hover:bg-sky-500/10 dark:decoration-sky-400/70',
+  wordiness:
     'decoration-sky-600/70 decoration-dashed hover:bg-sky-500/10 dark:decoration-sky-400/70',
 };
 
