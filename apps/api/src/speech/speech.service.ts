@@ -4,7 +4,9 @@ import { LRUCache } from 'lru-cache';
 import type { ApiError, SpeakResponse } from '@auto-learn/shared';
 import { TelemetryService } from '../telemetry/telemetry.service';
 import {
+  MODEL_MAX_RETRIES_VOICE,
   SPEECH_MODEL,
+  SPEECH_OUTPUT_FORMAT,
   speechModel,
   speechProviderOptions,
   speechVoice,
@@ -40,11 +42,20 @@ export class SpeechService {
    * and it is why the route can be a plain GET.
    *
    * Known limitation: homographs. "lead", "read" and "record" have two
-   * pronunciations apiece and this serves the dominant one. Fixing it means
-   * keying on part of speech, which fragments the cache and drags a session id
-   * into a route that is currently stateless. Worth noting that the free
-   * dictionary recordings have exactly the same limitation, so this is the
-   * state of the feature rather than something synthesis introduced.
+   * pronunciations apiece and this serves the dominant one.
+   *
+   * The provider's mechanism for this is `previousText` — generate the word as
+   * though it followed "The" or "I will", which settles the reading without
+   * changing what is spoken. It was built, and the API refused it outright:
+   * "Providing previous_text or next_text is not yet supported with the
+   * 'eleven_v3' model" (400, unsupported_model). So the two ways left are a
+   * pronunciation dictionary, which has to be provisioned on the account and
+   * uploaded, or synthesising this route on an older model than the one the
+   * product's voice is chosen from. Both are decisions, not omissions.
+   *
+   * Worth noting that the free dictionary recordings have exactly the same
+   * limitation, so this is the state of the feature rather than something
+   * synthesis introduced.
    */
   async speak(word: string): Promise<SpeakResponse> {
     // Before anything can fail or hit the cache: this counts the asking, which
@@ -71,11 +82,12 @@ export class SpeechService {
         model: speechModel(),
         text: word,
         voice,
+        outputFormat: SPEECH_OUTPUT_FORMAT,
         providerOptions: speechProviderOptions,
         // The reader is watching a button. The SDK default of two retries
         // triples the worst case on a path where a spinner that never resolves
         // is worse than a failure that does.
-        maxRetries: 1,
+        maxRetries: MODEL_MAX_RETRIES_VOICE,
         abortSignal: AbortSignal.timeout(10_000),
       });
 

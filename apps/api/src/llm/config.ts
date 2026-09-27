@@ -52,6 +52,16 @@ export const CARD_MAX_OUTPUT_TOKENS = 1200;
  * by opening a gate and would rather wait than lose it.
  */
 export const MODEL_MAX_RETRIES = 2;
+
+/**
+ * One, for both voice routes.
+ *
+ * Someone is watching a button or holding a recording, and on those paths a
+ * spinner that never resolves is worse than a failure that does. The speech
+ * route already reasoned this way; transcription was taking the SDK's two by
+ * omission rather than by choice.
+ */
+export const MODEL_MAX_RETRIES_VOICE = 1;
 export const PROPOSE_TIMEOUT_MS = 30_000;
 export const CARD_TIMEOUT_MS = 45_000;
 
@@ -124,6 +134,8 @@ export const transcribeProviderOptions = {
     timestampsGranularity: 'none',
   },
 } as const;
+
+export const SPEECH_OUTPUT_FORMAT = 'mp3_22050_32';
 
 export const speechProviderOptions = {
   elevenlabs: {
