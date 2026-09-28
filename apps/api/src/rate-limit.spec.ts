@@ -101,6 +101,13 @@ describe('rate limiting', () => {
    * as "unhealthy", and it would restart a service that was working — dropping
    * every in-flight review and zeroing the telemetry on the way out.
    */
+  /*
+    A budget, because this one makes a hundred and forty sequential round
+    trips and jest's default five seconds was never a number anyone chose for
+    it. On an idle machine the loop takes well under a second; under a full
+    parallel workspace run it has taken longer than the default, which failed
+    as a timeout and read like the exemption being broken.
+  */
   it('never refuses the health check, whatever else is happening', async () => {
     // Far past any limit here, and from the same address as the burst above.
     for (let i = 0; i < RATE_LIMITS.default.limit + 20; i++) {
@@ -109,7 +116,7 @@ describe('rate limiting', () => {
 
     const response = await request(server()).get('/health').expect(200);
     expect(response.body).toEqual({ status: 'ok' });
-  });
+  }, 60_000);
 
   it('limits each route separately, so a burst cannot silence the counts', async () => {
     // /propose has been refusing throughout. The accept and reject pings are
