@@ -44,12 +44,48 @@ else works — the API says which are missing at boot. Word senses come from
 WordNet on local disk, so the part that cards are grounded in needs no network
 and no key at all.
 
+## Signing in
+
+Optional, and off unless you configure it. Fixing sentences, opening cards,
+banking words and hearing pronunciations all work signed out — an account
+exists so that a word bank can later belong to a person rather than to a
+browser.
+
+Sign-in is a magic link: an address, an emailed link, no password. It needs a
+Postgres for the users, sessions and unredeemed links.
+
+```bash
+cp apps/web/.env.example apps/web/.env.local
+
+# Any Postgres will do. A throwaway one:
+docker run -d --name auto-learn-pg -e POSTGRES_PASSWORD=devpass \
+  -e POSTGRES_DB=auto_learn -p 55432:5432 postgres:17-alpine
+
+# In apps/web/.env.local:
+#   DATABASE_URL=postgres://postgres:devpass@127.0.0.1:55432/auto_learn
+#   AUTH_SECRET=$(openssl rand -base64 32)
+#   API_JWT_SECRET=$(openssl rand -base64 32)   # same value in apps/api/.env
+
+pnpm --filter web db:migrate
+```
+
+Leave `AUTH_RESEND_KEY` unset and the sign-in link is **printed to the server
+console** instead of emailed, which is enough to click through the whole flow
+without a Resend account or a verified sending domain.
+
+The API authenticates nobody by itself and holds no user table. When the web app
+needs to make a request as somebody, it mints a five-minute token signed with
+`API_JWT_SECRET`, and `apps/api/src/auth/caller.guard.ts` verifies it. Only
+`GET /me` asks for one today; every other route is open on purpose, because the
+front door of this product does not need an account.
+
 ## Layout
 
 |                     |                                                                                                          |
 | ------------------- | -------------------------------------------------------------------------------------------------------- |
-| `apps/web`          | Next.js. The compose box, the review, the card, the bank.                                                |
+| `apps/web`          | Next.js. The compose box, the review, the card, the bank, sign-in.                                       |
 | `apps/api`          | NestJS. The two model calls, the dictionary, sessions, telemetry.                                        |
+| `apps/web/db`       | The four tables Auth.js needs, and the script that applies them.                                        |
 | `packages/shared`   | The wire contract and the pure logic both sides need. Zod schemas, span arithmetic, the word-level diff. |
 | `evals`             | Scores the model calls against a committed baseline.                                                     |
 | `scripts/deploy.sh` | Walks a deploy, step by step.                                                                            |

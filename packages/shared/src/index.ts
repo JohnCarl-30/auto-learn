@@ -13,3 +13,4 @@ export * from './dictate';
 export * from './say-back';
 export * from './text';
 export * from './diff';
+export * from './identity';
