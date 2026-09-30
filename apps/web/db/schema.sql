@@ -62,6 +62,47 @@ CREATE TABLE IF NOT EXISTS verification_token (
   PRIMARY KEY (identifier, token)
 );
 
+-- ─── The word bank ───────────────────────────────────────────────────────────
+--
+-- The first table here that is ours rather than a library's, so it is named and
+-- cased the way the rest of this repository writes SQL.
+--
+-- Note what is absent: there is no source_sentence column. The sentence a word
+-- was met in is the writer's own draft, it is the memory hook the recall drill
+-- is built on, and it stays in the browser that recorded it. Cards can be
+-- rebuilt and review can be scheduled without it. If it is ever wanted here,
+-- that is a new decision and a new migration — not an omission to quietly fix.
+--
+-- `id` is the client's own key, `lemma:senseId`, so the same word in two senses
+-- is two rows and banking a word twice on two devices reconciles rather than
+-- duplicating. Keyed by (user_id, id) rather than a surrogate: there is no
+-- question this table answers that does not start with "for this person".
+CREATE TABLE IF NOT EXISTS bank_entries (
+  user_id         uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  id              text NOT NULL,
+  word            text NOT NULL,
+  lemma           text NOT NULL,
+  part_of_speech  text NOT NULL,
+  sense_id        text NOT NULL,
+  definition      text NOT NULL,
+  -- The shapes of these two are pinned by Zod at the boundary and are read back
+  -- as a unit, never queried into, so jsonb rather than two more tables.
+  synonyms        jsonb NOT NULL DEFAULT '[]'::jsonb,
+  use_cases       jsonb NOT NULL DEFAULT '[]'::jsonb,
+  register        text NOT NULL,
+  added_via       text NOT NULL,
+  added_at        timestamptz NOT NULL,
+  times_reused    integer NOT NULL DEFAULT 0,
+  last_reused_at  timestamptz,
+  -- Ours, not the client's: when the server last accepted a write for this row.
+  synced_at       timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, id)
+);
+
+-- Every read is "this person's bank, oldest first".
+CREATE INDEX IF NOT EXISTS bank_entries_user_added_idx
+  ON bank_entries (user_id, added_at);
+
 CREATE INDEX IF NOT EXISTS sessions_user_id_idx ON sessions ("userId");
 CREATE INDEX IF NOT EXISTS accounts_user_id_idx ON accounts ("userId");
 
