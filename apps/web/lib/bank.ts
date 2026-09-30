@@ -6,8 +6,10 @@ import {
   MAX_KNOWN_WORDS,
   findReused,
   mergeBankEntry,
+  mergeSynced,
   type BankEntry,
   type BankExport,
+  type SyncedEntry,
   type WordCard,
 } from '@auto-learn/shared';
 
@@ -224,4 +226,26 @@ export async function importBank(file: BankExport): Promise<ImportResult> {
 export async function isBanked(lemma: string, senseId: string): Promise<boolean> {
   const db = await connect();
   return (await db.get(STORE, entryId(lemma, senseId))) !== undefined;
+}
+
+/**
+ * Writes a reconciled bank back into this browser.
+ *
+ * Each word is merged against what is already here rather than replacing it,
+ * because the local record holds one thing the server's copy never will: the
+ * sentence the word was met in. `mergeSynced` is what guarantees no ordering of
+ * dates can drop it.
+ *
+ * Returns how many words are here afterwards, which is the only number the UI
+ * needs and the only one that is true at the end of a sync.
+ */
+export async function applySynced(entries: SyncedEntry[]): Promise<number> {
+  const db = await connect();
+
+  for (const incoming of entries) {
+    const local = (await db.get(STORE, incoming.id)) as BankEntry | undefined;
+    await db.put(STORE, mergeSynced(local, incoming));
+  }
+
+  return db.count(STORE);
 }

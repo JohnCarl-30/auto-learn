@@ -38,6 +38,59 @@ describe('RecallDrill', () => {
     expect(screen.queryByText('substantial')).not.toBeInTheDocument();
   });
 
+  /**
+   * A word banked on another device arrives with no sentence, because sentences
+   * do not sync. Before the fallback existed this rendered an empty card —
+   * masking an empty string produces an empty string — so the drill silently
+   * asked nothing at all.
+   */
+  describe('a word with no sentence', () => {
+    const synced = () =>
+      entry('substantial', { sourceSentence: '' });
+
+    it('asks with the definition instead of nothing', () => {
+      render(<RecallDrill entries={[synced()]} onDone={jest.fn()} />);
+
+      expect(screen.getByTestId('drill-prompt')).toHaveTextContent(
+        'Definition of substantial.',
+      );
+    });
+
+    it('says why the prompt looks different', () => {
+      render(<RecallDrill entries={[synced()]} onDone={jest.fn()} />);
+
+      expect(screen.getByTestId('drill-no-sentence')).toHaveTextContent(
+        'banked this on another device',
+      );
+    });
+
+    it('still withholds the word itself', () => {
+      render(<RecallDrill entries={[synced()]} onDone={jest.fn()} />);
+
+      expect(screen.queryByText('substantial')).not.toBeInTheDocument();
+    });
+
+    it('does not explain itself when there is a sentence', () => {
+      render(<RecallDrill entries={[entry('substantial')]} onDone={jest.fn()} />);
+
+      expect(screen.queryByTestId('drill-no-sentence')).not.toBeInTheDocument();
+    });
+
+    /** Whitespace is not a sentence, and would mask down to nothing. */
+    it('treats a blank sentence as no sentence', () => {
+      render(
+        <RecallDrill
+          entries={[entry('substantial', { sourceSentence: '   ' })]}
+          onDone={jest.fn()}
+        />,
+      );
+
+      expect(screen.getByTestId('drill-prompt')).toHaveTextContent(
+        'Definition of substantial.',
+      );
+    });
+  });
+
   it('holds the answer back until it is asked for', async () => {
     const user = userEvent.setup();
     render(<RecallDrill entries={[entry('substantial')]} onDone={jest.fn()} />);

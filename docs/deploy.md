@@ -109,6 +109,12 @@ Three things go wrong here, in this order of likelihood:
 3. **The from-address is at an unverified domain.** Resend accepts the key and
    refuses the message; the failure is in the function log, not on the page.
 
+The bank syncs through `POST /api/bank/sync` on the web app, not through the
+API — a bank is user data, and the API holds none. One consequence worth knowing
+before someone reports it as a bug: a word picked up on a second device has no
+sentence under it, because sentences never leave the browser they were written
+in. The drill falls back to the definition and says why.
+
 Without `AUTH_RESEND_KEY` the link is written to the runtime log instead of
 emailed. That is a real way to run a demo, and a bad way to run anything with
 users in it — the link is a credential, and a log is not private.

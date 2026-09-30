@@ -12,6 +12,7 @@ import { AccountMenu } from '@/components/account-menu';
 import { ApiNotice } from '@/components/notice';
 import { useReview } from '@/lib/use-review';
 import { useBank } from '@/lib/use-bank';
+import { useBankSync } from '@/lib/use-bank-sync';
 
 export default function Page() {
   const {
@@ -33,7 +34,10 @@ export default function Page() {
     setDraft,
   } = useReview();
 
-  const bank = useBank(bankVersion);
+  // Two reasons the bank may have changed: this session wrote to it, or a sync
+  // brought words in from another device. Both have to re-read it.
+  const synced = useBankSync();
+  const bank = useBank(bankVersion + synced);
 
   return (
     <main className="mx-auto w-full max-w-2xl flex-1 px-6 py-16">

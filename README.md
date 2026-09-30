@@ -73,6 +73,18 @@ Leave `AUTH_RESEND_KEY` unset and the sign-in link is **printed to the server
 console** instead of emailed, which is enough to click through the whole flow
 without a Resend account or a verified sending domain.
 
+Once signed in, the word bank syncs. `POST /api/bank/sync` takes what a browser
+has, merges it with what the account holds, and returns the reconciled bank —
+which makes one endpoint cover claiming a bank for the first time, picking it up
+on a new device, and settling two devices that both moved. It is idempotent, and
+it never deletes: a word missing from a request is a word that device never had,
+not one somebody removed.
+
+**Sentences do not sync.** `sourceSentence` is the writer's own draft text and
+stays in the browser that recorded it; there is no column for it. A word met on
+another device is drilled against its definition instead, labelled as such, and
+the account page says so before anyone has to work it out.
+
 The API authenticates nobody by itself and holds no user table. When the web app
 needs to make a request as somebody, it mints a five-minute token signed with
 `API_JWT_SECRET`, and `apps/api/src/auth/caller.guard.ts` verifies it. Only
