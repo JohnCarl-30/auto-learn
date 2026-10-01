@@ -6,7 +6,7 @@ import {
   CardStreamEvent,
   ModelCard,
   PartOfSpeech,
-  wordToTeach,
+  wordsToTeach,
   type ApiError,
   type CardRequest,
   type CardResponse,
@@ -35,11 +35,15 @@ type CardVariant = Extract<CardResponse, { kind: 'card' }>;
 interface Target {
   word: string;
   /**
-   * False when the suggestion teaches no word anyone could look up — its whole
-   * change is a determiner, a preposition or an auxiliary. Such a gate is a
-   * rule, not vocabulary, so it takes the note path with grammar and wordiness.
+   * Every word in the change that could be the lesson, best first. The
+   * dictionary decides between them — it is the only thing that knows which of
+   * "Our data indicate that" it has an entry for.
+   *
+   * Empty when the change teaches no word anyone could look up: a determiner, a
+   * preposition, an auxiliary. Such a gate is a rule rather than vocabulary, so
+   * it takes the note path with grammar and wordiness.
    */
-  teachable: boolean;
+  candidates: string[];
   sentence: string;
   replacement: string | null;
   reason: string | null;
@@ -121,7 +125,7 @@ export class CardService {
     if (
       target.suggestionType === 'grammar' ||
       target.suggestionType === 'wordiness' ||
-      !target.teachable
+      target.candidates.length === 0
     ) {
       this.telemetry.noteOpened();
       return {
@@ -146,7 +150,34 @@ export class CardService {
     this.telemetry.cardRequested();
     if (target.kind === 'lookup') this.telemetry.lookup();
 
-    const key = cacheKey(target.word, target.sentence);
+    // Asked before the card cache, because which word this card is about is
+    // not known until the dictionary has been asked. It costs nothing to
+    // reorder: senses come from WordNet on local disk behind its own cache, so
+    // this is a map read, not a request.
+    const found = await this.firstKnown(target.candidates);
+
+    if (found.status === 'unavailable') {
+      this.telemetry.cardFailed();
+      throw this.fail(
+        'upstream_failed',
+        "I couldn't reach the dictionary just now. Try that word again in a moment.",
+      );
+    }
+
+    // Candidates that exist and are all unknown is a different fact from having
+    // no candidates at all, and only the second is a construction. This one is
+    // the grounding refusing to guess, which is the behaviour the whole card
+    // path is built on — turning it into a confident note would be exactly the
+    // hallucination the dictionary is here to prevent.
+    if (found.status === 'absent') {
+      this.telemetry.cardFailed();
+      throw this.fail(
+        'no_dictionary_entry',
+        `I couldn't find "${target.word}" in the dictionary, so I won't guess at what it means.`,
+      );
+    }
+
+    const key = cacheKey(found.word, target.sentence);
     const cached = this.cache.get(key);
     if (cached) {
       // A cached card still has to release the right replacement: the same
@@ -158,36 +189,49 @@ export class CardService {
       };
     }
 
-    const retrieved = await this.dictionary.lookup(target.word);
-
-    // Two different failures, and telling them apart is the whole point of the
-    // distinction: one is about the word, the other is about us.
-    if (retrieved.status === 'unavailable') {
-      this.telemetry.cardFailed();
-      throw this.fail(
-        'upstream_failed',
-        "I couldn't reach the dictionary just now. Try that word again in a moment.",
-      );
-    }
-
-    if (retrieved.status === 'absent') {
-      this.telemetry.cardFailed();
-      throw this.fail(
-        'no_dictionary_entry',
-        `I couldn't find "${target.word}" in the dictionary, so I won't guess at what it means.`,
-      );
-    }
-
     return {
       kind: 'generate',
-      target,
-      entry: retrieved.entry,
+      // The subject narrows to the word the dictionary answered about, so the
+      // card is written about "greater" rather than "far greater effect".
+      target: { ...target, word: found.word },
+      entry: found.entry,
       key,
       // Started here and awaited at assembly. It comes from a different source
       // over the network, and the generation about to run takes several
       // seconds — long enough to cover it for free.
-      sound: this.dictionary.pronunciation(target.word),
+      sound: this.dictionary.pronunciation(found.word),
     };
+  }
+
+  /**
+   * The first candidate the dictionary has an entry for.
+   *
+   * Tries them in order rather than picking one in advance, because only the
+   * dictionary knows which of "Our data indicate that" it can answer about.
+   * Every lookup is a local WordNet read behind an LRU, so walking three costs
+   * the same as walking one.
+   *
+   * An unreadable dictionary stops the walk immediately. Carrying on would turn
+   * "the dictionary is down" into "none of these words exist", which is the
+   * false statement the three-way Retrieval type was introduced to prevent.
+   */
+  private async firstKnown(
+    candidates: string[],
+  ): Promise<
+    | { status: 'found'; word: string; entry: RetrievedWord }
+    | { status: 'absent' }
+    | { status: 'unavailable' }
+  > {
+    for (const word of candidates) {
+      const retrieved = await this.dictionary.lookup(word);
+
+      if (retrieved.status === 'unavailable') return { status: 'unavailable' };
+      if (retrieved.status === 'found') {
+        return { status: 'found', word, entry: retrieved.entry };
+      }
+    }
+
+    return { status: 'absent' };
   }
 
   async build(request: CardRequest): Promise<CardResponse> {
@@ -413,17 +457,17 @@ export class CardService {
       // becomes "significant effect" — and a dictionary has entries for words.
       // Looking up the phrase produced a marker the reader could click and
       // nothing could answer.
-      const taught = wordToTeach(
+      const candidates = wordsToTeach(
         found.suggestion.original,
         found.suggestion.replacement,
       );
 
       return {
-        // Null means the change is only a function word. The whole replacement
-        // becomes the note's subject, because "the experiment" is what the
-        // reader is being shown — there is no single word to put a heading on.
-        word: taught ?? found.suggestion.replacement,
-        teachable: taught !== null,
+        // The fallback is the note's subject: when nothing here can be looked
+        // up, "the experiment" is what the reader is being shown, and there is
+        // no single word to put a heading on.
+        word: candidates[0] ?? found.suggestion.replacement,
+        candidates,
         sentence: found.sentence.text,
         // Unchanged: what gets spliced into the sentence is still the whole
         // replacement. Only the card's subject narrows.
@@ -454,7 +498,7 @@ export class CardService {
       // A word the reader tapped themselves. They chose it, so it is looked up
       // whatever class it belongs to — and a tap on "the" is answered by the
       // dictionary saying so, not by this deciding for them.
-      teachable: true,
+      candidates: [request.word],
       sentence: sentence.text,
       replacement: null,
       reason: null,

@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { diffWords, originalOf, revisedOf, wordToTeach } from './diff';
+import {
+  diffWords,
+  originalOf,
+  revisedOf,
+  wordToTeach,
+  wordsToTeach,
+} from './diff';
 
 const text = (parts: ReturnType<typeof diffWords>) =>
   parts.map((part) => `${part.kind}:${part.value}`);
@@ -121,14 +127,26 @@ describe('wordToTeach', () => {
   });
 
   /**
-   * Two new words is a phrase, and there is no single card to write for it.
-   * Returning the phrase means the lookup fails and says so, which is better
-   * than teaching one half of a change the reader is being offered whole.
+   * This used to return the whole phrase, on the reasoning that half a change
+   * is not a lesson — but the caller then looked the phrase up and told the
+   * reader their own words were not in the dictionary. Narrowing to the content
+   * word is what the caller can actually answer, and "far" is a degree modifier
+   * rather than the lesson.
    */
-  it('keeps the phrase when the change is genuinely more than one word', () => {
-    expect(wordToTeach('big effect', 'far greater effect')).toBe(
-      'far greater effect',
-    );
+  it('narrows a multi-word change to the word worth teaching', () => {
+    expect(wordToTeach('big effect', 'far greater effect')).toBe('greater');
+  });
+
+  it('offers every candidate, best first, for the caller to try', () => {
+    expect(wordsToTeach('In my opinion', 'Our data indicate that')).toEqual([
+      'data',
+      'indicate',
+    ]);
+  });
+
+  it('offers nothing when a rewrite adds no word anyone could look up', () => {
+    expect(wordsToTeach('our experiment', 'the experiment')).toEqual([]);
+    expect(wordsToTeach('is able to run', 'can run')).toEqual([]);
   });
 });
 
