@@ -162,8 +162,14 @@ export function revisedOf(parts: readonly DiffPart[]): string {
  * "because of the fact that" → "because" adds nothing, and "because" is the
  * right answer there anyway. A genuinely multi-word coinage still fails to
  * find an entry, which is honest: there is no card to write for it.
+ *
+ * Returns null when the word the diff adds is a function word. See
+ * `FUNCTION_WORDS` for why that case is not merely unteachable but dangerous.
  */
-export function wordToTeach(original: string, replacement: string): string {
+export function wordToTeach(
+  original: string,
+  replacement: string,
+): string | null {
   const added = diffWords(original, replacement)
     .filter((part) => part.kind === 'added')
     .flatMap((part) => part.value.split(/\s+/))
@@ -171,5 +177,64 @@ export function wordToTeach(original: string, replacement: string): string {
     .map((token) => token.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, ''))
     .filter((token) => /\p{L}/u.test(token));
 
-  return added.length === 1 ? added[0] : replacement.trim();
+  // The fallback is checked too, not just the one-added-word case: "in order
+  // to" → "to" adds nothing at all, so it arrives here rather than above, and
+  // "to" is exactly as unteachable either way.
+  const candidate = added.length === 1 ? added[0] : replacement.trim();
+
+  return isFunctionWord(candidate) ? null : candidate;
+}
+
+/**
+ * The closed classes: determiners, pronouns, prepositions, conjunctions,
+ * auxiliaries and modals.
+ *
+ * English stops adding these. Nobody learns one from a card, and a gate whose
+ * whole lesson is "our" → "the" has no word worth keeping — which is the test
+ * this product uses to decide what deserves a card at all.
+ *
+ * Leaving them out is not tidiness, it is correctness. Two different failures
+ * were reachable through this list:
+ *
+ *   - the visible one, where the word is absent from WordNet and the reader
+ *     gets "I couldn't find \"the\" in the dictionary" where a card should be;
+ *   - the quiet one, which is worse. "can", "will", "may", "might", "must",
+ *     "have" and "do" all have open-class entries unrelated to their function:
+ *     WordNet's first sense of "can" is the verb "preserve in a can or tin".
+ *     So "is able to run" → "can run" did not fail. It opened a grounded,
+ *     confident, well-formed card teaching a learner that "can" means to put
+ *     food in a tin. A real dictionary was consulted and the answer was still
+ *     wrong, which is exactly the failure the grounding exists to prevent.
+ *
+ * Deliberately narrower than "closed class" as a linguist would draw it.
+ * Quantifiers and subordinators are left out because this product really does
+ * teach them: "lots of people" → "many people" and "because of the fact that"
+ * → "because" are register lessons with a word worth keeping. The list is the
+ * words no learner acquires from a card, not every word that happens to be
+ * grammatical machinery.
+ */
+const FUNCTION_WORDS: ReadonlySet<string> = new Set([
+  // articles and demonstratives
+  'a', 'an', 'the', 'this', 'that', 'these', 'those',
+  // pronouns and possessives
+  'i', 'you', 'he', 'she', 'it', 'we', 'they', 'me', 'him', 'her', 'us',
+  'them', 'my', 'your', 'his', 'its', 'our', 'their', 'mine', 'yours',
+  'hers', 'ours', 'theirs', 'who', 'whom', 'whose', 'myself', 'yourself',
+  'himself', 'herself', 'itself', 'ourselves', 'themselves',
+  // core prepositions
+  'of', 'in', 'on', 'at', 'to', 'for', 'with', 'from', 'by', 'into',
+  'onto', 'upon',
+  // coordinating conjunctions
+  'and', 'or', 'but', 'nor',
+  // auxiliaries, modals and copula — the quiet failures described above
+  'be', 'am', 'is', 'are', 'was', 'were', 'been', 'being', 'have', 'has',
+  'had', 'having', 'do', 'does', 'did', 'doing', 'will', 'would', 'shall',
+  'should', 'can', 'could', 'may', 'might', 'must',
+  // negation
+  'not',
+]);
+
+/** Case-folded, because a span can start a sentence. */
+export function isFunctionWord(word: string): boolean {
+  return FUNCTION_WORDS.has(word.trim().toLowerCase());
 }

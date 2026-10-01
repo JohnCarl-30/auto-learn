@@ -85,6 +85,18 @@ const sentence = (): StoredSentence => ({
       replacement: 'was',
       reason: '"results" is plural, so the verb must agree.',
     },
+    {
+      // A register gate whose whole lesson is a determiner. Real: this is what
+      // the model returns for first-person phrasing in academic writing.
+      id: 'gate-determiner',
+      type: 'register',
+      original: 'our results',
+      start: 0,
+      end: 11,
+      teaser: 'register could be more academic',
+      replacement: 'the results',
+      reason: 'Academic writing avoids the first person.',
+    },
   ],
 });
 
@@ -366,6 +378,66 @@ describe('CardService caching', () => {
     });
 
     expect(second.replacement).toBe('substantial');
+  });
+});
+
+/**
+ * Found by opening a gate in a browser. "our results" → "the results" is a
+ * sound register fix whose entire lesson is a determiner — and the card behind
+ * it went to the dictionary, which answered either "I couldn't find \"the\"" or,
+ * for a function word WordNet does list, a confident card about the wrong word.
+ */
+describe('CardService gates with no word to teach', () => {
+  const openIt = async () => {
+    const built = await build();
+    const result = await built.service.build({
+      kind: 'suggestion',
+      sessionId: built.sessionId,
+      suggestionId: 'gate-determiner',
+    });
+    return { ...built, result };
+  };
+
+  it('answers with a note rather than a vocabulary card', async () => {
+    const { result } = await openIt();
+
+    expect(result.kind).toBe('note');
+    expect(asNote(result).note.note).toContain('first person');
+  });
+
+  it('never asks the dictionary about a determiner', async () => {
+    const { lookup } = await openIt();
+
+    expect(lookup).not.toHaveBeenCalled();
+  });
+
+  it('shows the corrected phrase, since no single word is the subject', async () => {
+    const { result } = await openIt();
+
+    expect(asNote(result).note.corrected).toBe('the results');
+  });
+
+  it('still withholds and then releases the correction, so the gate holds', async () => {
+    const { result } = await openIt();
+
+    expect(result.replacement).toBe('the results');
+  });
+
+  /**
+   * A tap is the reader's own choice of word, so it is looked up whatever class
+   * it belongs to. Deciding for them here would be the same overreach in the
+   * other direction.
+   */
+  it('still looks up a function word the reader tapped themselves', async () => {
+    const { service, sessionId, lookup } = await build({
+      status: 'absent',
+    });
+
+    await service
+      .build({ kind: 'lookup', sessionId, sentenceIndex: 0, word: 'were' })
+      .catch(() => undefined);
+
+    expect(lookup).toHaveBeenCalled();
   });
 });
 

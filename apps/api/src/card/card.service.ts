@@ -34,6 +34,12 @@ type CardVariant = Extract<CardResponse, { kind: 'card' }>;
 /** Which word the card is about, and what opening it releases. */
 interface Target {
   word: string;
+  /**
+   * False when the suggestion teaches no word anyone could look up — its whole
+   * change is a determiner, a preposition or an auxiliary. Such a gate is a
+   * rule, not vocabulary, so it takes the note path with grammar and wordiness.
+   */
+  teachable: boolean;
   sentence: string;
   replacement: string | null;
   reason: string | null;
@@ -104,9 +110,18 @@ export class CardService {
     // verb is not vocabulary the writer learned, and neither is a sentence
     // that was shortened. What they taught was a rule and a construction, and
     // the bank is for words.
+    // A third case joins grammar and wordiness here: a word-choice or register
+    // gate whose entire change is a function word. "our experiment" → "the
+    // experiment" is a sound register fix, and its lesson is a determiner —
+    // nothing a dictionary can be asked about. Sending it for a card produced
+    // one of two failures: a dead end reading "I couldn't find \"the\" in the
+    // dictionary", or, for the function words WordNet does list, a confident
+    // card about the wrong word entirely — its first sense of "can" is the verb
+    // "preserve in a can or tin". A note says the true thing at no cost.
     if (
       target.suggestionType === 'grammar' ||
-      target.suggestionType === 'wordiness'
+      target.suggestionType === 'wordiness' ||
+      !target.teachable
     ) {
       this.telemetry.noteOpened();
       return {
@@ -394,15 +409,21 @@ export class CardService {
           'That suggestion has expired. Submit the sentence again.',
         );
       }
+      // The word, not the span. A gate may cover a phrase — "big effect"
+      // becomes "significant effect" — and a dictionary has entries for words.
+      // Looking up the phrase produced a marker the reader could click and
+      // nothing could answer.
+      const taught = wordToTeach(
+        found.suggestion.original,
+        found.suggestion.replacement,
+      );
+
       return {
-        // The word, not the span. A gate may cover a phrase — "big effect"
-        // becomes "significant effect" — and a dictionary has entries for
-        // words. Looking up the phrase produced a marker the reader could
-        // click and nothing could answer.
-        word: wordToTeach(
-          found.suggestion.original,
-          found.suggestion.replacement,
-        ),
+        // Null means the change is only a function word. The whole replacement
+        // becomes the note's subject, because "the experiment" is what the
+        // reader is being shown — there is no single word to put a heading on.
+        word: taught ?? found.suggestion.replacement,
+        teachable: taught !== null,
         sentence: found.sentence.text,
         // Unchanged: what gets spliced into the sentence is still the whole
         // replacement. Only the card's subject narrows.
@@ -430,6 +451,10 @@ export class CardService {
 
     return {
       word: request.word,
+      // A word the reader tapped themselves. They chose it, so it is looked up
+      // whatever class it belongs to — and a tap on "the" is answered by the
+      // dictionary saying so, not by this deciding for them.
+      teachable: true,
       sentence: sentence.text,
       replacement: null,
       reason: null,

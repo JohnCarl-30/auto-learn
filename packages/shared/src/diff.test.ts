@@ -131,3 +131,40 @@ describe('wordToTeach', () => {
     );
   });
 });
+
+/**
+ * These were all live defects, found by opening a gate in a browser and then
+ * running the real WordNet against what the gate would have taught.
+ */
+describe('wordToTeach, when there is nothing to teach', () => {
+  it.each([
+    ['our experiment', 'the experiment', 'the'],
+    ['our experiment', 'this experiment', 'this'],
+    ['in order to', 'to', 'to'],
+    ['the students is', 'the students are', 'are'],
+  ])('refuses %p → %p, whose lesson is only %p', (original, replacement) => {
+    expect(wordToTeach(original, replacement)).toBeNull();
+  });
+
+  /**
+   * The dangerous one. "can" is in WordNet — as a tin, and as the verb for
+   * putting food in one — so this gate did not fail. It opened a grounded,
+   * confident card teaching a learner the wrong word entirely.
+   */
+  it('refuses a modal that a dictionary does happen to list', () => {
+    expect(wordToTeach('is able to run', 'can run')).toBeNull();
+    expect(wordToTeach('has the ability to', 'can')).toBeNull();
+  });
+
+  it('is not fooled by a capital at the start of a sentence', () => {
+    expect(wordToTeach('Our experiment', 'The experiment')).toBeNull();
+  });
+
+  it('still teaches a real word that happens to sit beside a function word', () => {
+    expect(wordToTeach('big effect', 'significant effect')).toBe('significant');
+    expect(wordToTeach('very big', 'substantial')).toBe('substantial');
+    expect(wordToTeach('a lot of', 'much')).toBe('much');
+    // Quantifiers and subordinators stay teachable; they are real lessons.
+    expect(wordToTeach('lots of people', 'many people')).toBe('many');
+  });
+});
