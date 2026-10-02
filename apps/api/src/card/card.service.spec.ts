@@ -85,6 +85,31 @@ const sentence = (): StoredSentence => ({
       replacement: 'was',
       reason: '"results" is plural, so the verb must agree.',
     },
+    {
+      // A phrase rewrite, which is what the model actually reaches for. Seen
+      // live: "In my opinion" → "Our data indicate that". Two of those four
+      // words are function words; the dictionary decides between the rest.
+      id: 'gate-phrase',
+      type: 'register',
+      original: 'In my opinion',
+      start: 0,
+      end: 13,
+      teaser: 'register could be more academic',
+      replacement: 'Our data indicate that',
+      reason: 'Academic writing reports evidence rather than opinion.',
+    },
+    {
+      // A register gate whose whole lesson is a determiner. Real: this is what
+      // the model returns for first-person phrasing in academic writing.
+      id: 'gate-determiner',
+      type: 'register',
+      original: 'our results',
+      start: 0,
+      end: 11,
+      teaser: 'register could be more academic',
+      replacement: 'the results',
+      reason: 'Academic writing avoids the first person.',
+    },
   ],
 });
 
@@ -369,6 +394,133 @@ describe('CardService caching', () => {
   });
 });
 
+/**
+ * Found by opening a gate in a browser. "our results" → "the results" is a
+ * sound register fix whose entire lesson is a determiner — and the card behind
+ * it went to the dictionary, which answered either "I couldn't find \"the\"" or,
+ * for a function word WordNet does list, a confident card about the wrong word.
+ */
+/**
+ * The shape the model actually produces. Looking the whole phrase up told the
+ * reader "I couldn't find \"Our data indicate that\" in the dictionary" — their
+ * own words, reported as not being words.
+ */
+describe('CardService phrase gates', () => {
+  it('teaches the first added word the dictionary knows', async () => {
+    const { service, sessionId, lookup } = await build();
+    // Re-pointed at the same jest.fn the service already holds, so the walk is
+    // exercised against a dictionary that knows the second candidate only.
+    lookup.mockImplementation((word: string) =>
+      Promise.resolve(
+        word === 'indicate'
+          ? {
+              status: 'found',
+              entry: { word: 'indicate', senses: SENSES, synonyms: [] },
+            }
+          : { status: 'absent' },
+      ),
+    );
+
+    await service.build({
+      kind: 'suggestion',
+      sessionId,
+      suggestionId: 'gate-phrase',
+    });
+
+    // "Our" and "that" are function words and never reach the dictionary;
+    // "data" is tried and missing here, so the walk continues rather than
+    // stopping on the first candidate.
+    const asked = (lookup.mock.calls as unknown as [string][]).map(
+      ([word]) => word,
+    );
+    expect(asked).toEqual(['data', 'indicate']);
+  });
+
+  it('writes the card about that word, not about the phrase', async () => {
+    const { service, sessionId } = await build();
+
+    const result = await service.build({
+      kind: 'suggestion',
+      sessionId,
+      suggestionId: 'gate-phrase',
+    });
+
+    expect(result.kind).toBe('card');
+    expect(result.replacement).toBe('Our data indicate that');
+  });
+
+  it('still refuses to guess when the dictionary knows none of them', async () => {
+    const { service, sessionId } = await build({ status: 'absent' });
+
+    const error = await errorOf(() =>
+      service.build({
+        kind: 'suggestion',
+        sessionId,
+        suggestionId: 'gate-phrase',
+      }),
+    );
+
+    // Candidates that exist and are all unknown is a grounding failure, not a
+    // construction — the note path is for having nothing to teach at all.
+    expect(error.code).toBe('no_dictionary_entry');
+    expect(generate).not.toHaveBeenCalled();
+  });
+});
+
+describe('CardService gates with no word to teach', () => {
+  const openIt = async () => {
+    const built = await build();
+    const result = await built.service.build({
+      kind: 'suggestion',
+      sessionId: built.sessionId,
+      suggestionId: 'gate-determiner',
+    });
+    return { ...built, result };
+  };
+
+  it('answers with a note rather than a vocabulary card', async () => {
+    const { result } = await openIt();
+
+    expect(result.kind).toBe('note');
+    expect(asNote(result).note.note).toContain('first person');
+  });
+
+  it('never asks the dictionary about a determiner', async () => {
+    const { lookup } = await openIt();
+
+    expect(lookup).not.toHaveBeenCalled();
+  });
+
+  it('shows the corrected phrase, since no single word is the subject', async () => {
+    const { result } = await openIt();
+
+    expect(asNote(result).note.corrected).toBe('the results');
+  });
+
+  it('still withholds and then releases the correction, so the gate holds', async () => {
+    const { result } = await openIt();
+
+    expect(result.replacement).toBe('the results');
+  });
+
+  /**
+   * A tap is the reader's own choice of word, so it is looked up whatever class
+   * it belongs to. Deciding for them here would be the same overreach in the
+   * other direction.
+   */
+  it('still looks up a function word the reader tapped themselves', async () => {
+    const { service, sessionId, lookup } = await build({
+      status: 'absent',
+    });
+
+    await service
+      .build({ kind: 'lookup', sessionId, sentenceIndex: 0, word: 'were' })
+      .catch(() => undefined);
+
+    expect(lookup).toHaveBeenCalled();
+  });
+});
+
 describe('CardService grammar gates', () => {
   it('returns a note, not a vocabulary card', async () => {
     const { service, sessionId } = await build();
@@ -502,7 +654,14 @@ describe('CardService pronunciation', () => {
 
     // Word-derived rather than request-derived, so unlike `replacement` it
     // needs no re-stitching — but only if it was cached in the first place.
-    expect(lookup).toHaveBeenCalledTimes(1);
+    //
+    // The dictionary is asked on both passes now, because which word the card
+    // is about is not known until it answers: a rewrite can add several words
+    // and only the dictionary knows which of them it has. That is a map read
+    // against WordNet's own LRU, not work. What a second reader must not pay
+    // for is the generation, and that is what is asserted here.
+    expect(generate).toHaveBeenCalledTimes(1);
+    expect(lookup).toHaveBeenCalledTimes(2);
     expect(asCard(cached).card.pronunciation).toEqual(PRONUNCIATION);
   });
 
