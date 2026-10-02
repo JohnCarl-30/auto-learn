@@ -10,6 +10,7 @@ import { CardModule } from './card/card.module';
 import { SpeechModule } from './speech/speech.module';
 import { DictateModule } from './dictate/dictate.module';
 import { TelemetryModule } from './telemetry/telemetry.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { TelemetryModule } from './telemetry/telemetry.module';
     CardModule,
     SpeechModule,
     DictateModule,
+    AuthModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ApiThrottlerGuard }],
 })

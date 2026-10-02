@@ -14,6 +14,11 @@ const createJestConfig = nextJest({ dir: './' });
 const config = {
   testEnvironment: 'jsdom',
   setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
+  // The `@/` alias that tsconfig defines and the application code uses
+  // throughout. next/jest does not carry it into the resolver, which is why the
+  // older tests here all reach for relative paths instead; a test should not
+  // have to import a module differently from the way the module is written.
+  moduleNameMapper: { '^@/(.*)$': '<rootDir>/$1' },
   testPathIgnorePatterns: ['<rootDir>/e2e/', '<rootDir>/.next/'],
 };
 

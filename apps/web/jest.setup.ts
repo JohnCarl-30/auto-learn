@@ -9,20 +9,26 @@ import {
  * prefers the moment it mounts. Reporting "no preference" is the honest answer
  * for a headless environment, and it keeps the system default out of tests that
  * are about the explicit choice.
+ *
+ * Guarded because this file also runs for the handful of tests that declare
+ * `@jest-environment node` — a route handler takes a Request and returns a
+ * Response and has no DOM to stub.
  */
-Object.defineProperty(window, 'matchMedia', {
-  writable: true,
-  value: (query: string) => ({
-    matches: false,
-    media: query,
-    onchange: null,
-    addEventListener: () => {},
-    removeEventListener: () => {},
-    addListener: () => {},
-    removeListener: () => {},
-    dispatchEvent: () => false,
-  }),
-});
+if (typeof window !== 'undefined') {
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    value: (query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+    }),
+  });
+}
 
 /**
  * jsdom ships neither `TextEncoder` nor `TextDecoder`, and every browser does.

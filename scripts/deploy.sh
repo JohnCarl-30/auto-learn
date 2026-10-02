@@ -190,8 +190,8 @@ finish() {
 # Replace the example below. Set the two totals to match the stages you write.
 # ──────────────────────────────────────────────────────────────────────────
 
-TOTAL_STAGES=9
-TOTAL_MINUTES=35
+TOTAL_STAGES=10
+TOTAL_MINUTES=43
 
 # Secrets land beside the app that reads them, which is also where a local run
 # picks them up — so a second run of this wizard offers what the first captured.
@@ -360,6 +360,91 @@ WEB_ORIGIN="${WEB_ORIGIN%/}"
 write_env WEB_ORIGIN "$WEB_ORIGIN"
 
 # ── 8 ─────────────────────────────────────────────────────────────────────
+stage "Accounts — sign-in (optional)" 8
+say "Skip this and the product works exactly as it does today: sentences get"
+say "fixed, cards open, words bank to the browser. An account only exists so a"
+say "bank can later belong to a person instead of a device."
+printf '\n'
+if confirm "Set up sign-in now?"; then
+  say "Sign-in needs a Postgres — users, sessions, and links not yet clicked."
+  open_url "https://neon.com/"
+  step "New project → copy the connection string it shows."
+  note "Any Postgres works. Neon is here because its free tier does not sleep."
+  ask DATABASE_URL "Paste the Postgres connection string:"
+  printf '\n'
+
+  say "Two secrets. Generate them now — do not reuse a key from anywhere else."
+  AUTH_SECRET_VALUE=$(openssl rand -base64 32 2>/dev/null || head -c 32 /dev/urandom | base64)
+  API_JWT_SECRET_VALUE=$(openssl rand -base64 32 2>/dev/null || head -c 32 /dev/urandom | base64)
+  step "AUTH_SECRET     = $AUTH_SECRET_VALUE"
+  step "API_JWT_SECRET  = $API_JWT_SECRET_VALUE"
+  printf '\n'
+  say "AUTH_SECRET signs the session cookie. Changing it signs everyone out."
+  say "API_JWT_SECRET goes in BOTH places, character for character: the web app"
+  say "signs five-minute tokens with it and the API verifies them. A mismatch is"
+  say "a 401 on every signed-in request and nothing in the logs but 'Sign in"
+  say "again' — the single easiest thing here to get wrong."
+  printf '\n'
+
+  say "Email delivery. Skip it and sign-in links are printed to the server log"
+  say "instead of sent, which is fine for a demo and useless for real people."
+  if confirm "Set up Resend now?"; then
+    open_url "https://resend.com/api-keys"
+    ask_secret AUTH_RESEND_KEY "Paste the Resend key:"
+    printf '\n'
+    warn "The from-address must be at a domain you verified in Resend."
+    say "Resend's shared onboarding@resend.dev delivers only to your own"
+    say "address, so it tests the wiring and nothing else."
+    ask AUTH_EMAIL_FROM "From address (e.g. auto-learn <hello@yourdomain>):"
+  else
+    SKIPPED+=("Resend — sign-in links will be printed to the Vercel log, not emailed")
+    AUTH_RESEND_KEY=""
+    AUTH_EMAIL_FROM=""
+  fi
+  printf '\n'
+
+  say "Now set them where each half reads them."
+  open_url "https://vercel.com/"
+  step "Project → Settings → Environment Variables, on the web app:"
+  say "     DATABASE_URL    = the connection string above"
+  say "     AUTH_SECRET     = $AUTH_SECRET_VALUE"
+  say "     API_JWT_SECRET  = $API_JWT_SECRET_VALUE"
+  [[ -n "$AUTH_RESEND_KEY" ]] && say "     AUTH_RESEND_KEY = the Resend key"
+  [[ -n "$AUTH_EMAIL_FROM" ]] && say "     AUTH_EMAIL_FROM = $AUTH_EMAIL_FROM"
+  note "Auth.js works out its own callback URL on Vercel; AUTH_URL is not needed."
+  pause "Set, and redeployed so the build picks them up?"
+  printf '\n'
+
+  write_env API_JWT_SECRET "$API_JWT_SECRET_VALUE"
+  open_url "https://dashboard.render.com/"
+  step "auto-learn-api → Environment → API_JWT_SECRET = $API_JWT_SECRET_VALUE"
+  pause "Saved, and the API has restarted?"
+  printf '\n'
+
+  say "Last: the tables. Nothing has created them yet, and the first person to"
+  say "click a sign-in link gets a 500 if they are missing."
+  step "DATABASE_URL='$DATABASE_URL' pnpm --filter web db:migrate"
+  printf '\n'
+  if confirm "Run that now, from this machine?"; then
+    if DATABASE_URL="$DATABASE_URL" pnpm --filter web db:migrate; then
+      step "Tables are in place."
+    else
+      warn "Migration failed. Sign-in will 500 until it succeeds."
+      say "Most often the connection string needs ?sslmode=require, or the"
+      say "database is still starting."
+    fi
+  else
+    SKIPPED+=("db:migrate — sign-in will fail until the tables exist")
+  fi
+  printf '\n'
+  say "Check it: open the site, Sign in, enter your address, click the link."
+  say "If no mail arrives and Resend was skipped, the link is in the Vercel"
+  say "runtime log for the function that handled the request."
+else
+  SKIPPED+=("Sign-in — the product runs signed out, banks stay per-browser")
+fi
+
+# ── 9 ─────────────────────────────────────────────────────────────────────
 stage "Render — let the browser in" 3
 say "The API allows exactly one origin. Until it knows the Vercel URL, every"
 say "request from the browser fails CORS — which looks identical to the API"
@@ -382,7 +467,7 @@ fi
 say "Note: Vercel gives every preview deployment its own URL, so previews are"
 say "blocked against this API. Tolerable, or widen the check knowingly."
 
-# ── 9 ─────────────────────────────────────────────────────────────────────
+# ── 10 ────────────────────────────────────────────────────────────────────
 stage "Telemetry — hourly snapshots" 2
 say "The workflow reads GET /telemetry every hour and appends it to"
 say "telemetry/snapshots.jsonl. It needs the API's address."
