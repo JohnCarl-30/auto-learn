@@ -469,10 +469,15 @@ say "blocked against this API. Tolerable, or widen the check knowingly."
 
 # ── 10 ────────────────────────────────────────────────────────────────────
 stage "Telemetry — hourly snapshots" 2
-say "The workflow reads GET /telemetry every hour and appends it to"
+say "The workflow reads GET /telemetry and appends it to"
 say "telemetry/snapshots.jsonl. It needs the API's address."
 say "A variable, not a secret: secrets are masked in logs, which makes a"
 say "failure unreadable, and this is only a URL."
+printf '\n'
+warn "The hourly schedule is commented out in telemetry.yml."
+say "It was failing every hour against an API that did not exist yet. Now"
+say "that one does, uncomment the cron line — otherwise the counters are"
+say "only ever read when you remember to press the button."
 set_var API_URL "$API_URL"
 printf '\n'
 
