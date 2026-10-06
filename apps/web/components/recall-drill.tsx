@@ -27,6 +27,13 @@ export const DRILL_MIN = 3;
  * finds nothing to hide. That is the better prompt of the two, not a bug: the
  * cue is "you wrote very big here", and the answer is the word you took.
  *
+ * A word that arrived from another device has no sentence — sentences do not
+ * sync — and falls back to its definition, labelled so the difference is legible
+ * rather than looking like a missing cue. The preference above stands: a
+ * definition is the weaker prompt and is used only when there is no sentence to
+ * use instead. Without this, a synced word drew a blank card, since masking an
+ * empty string produces an empty string.
+ *
  * Deliberately session-only: nothing here is written back. A real scheduler
  * needs due dates and an interval per entry, which is a change to the stored
  * shape and its migration, not a UI feature — and shipping a score that
@@ -67,11 +74,14 @@ export function RecallDrill({
     if (finished) reportEvent('drill_finished');
   }, [finished]);
 
-  const prompt = useMemo(
-    () =>
-      current ? maskLemma(current.sourceSentence, current.lemma) : '',
-    [current],
-  );
+  const cue = useMemo((): { text: string; fromSentence: boolean } | null => {
+    if (!current) return null;
+
+    const masked = maskLemma(current.sourceSentence, current.lemma).trim();
+    return masked
+      ? { text: masked, fromSentence: true }
+      : { text: current.definition, fromSentence: false };
+  }, [current]);
 
   const answer = (knew: boolean) => {
     // Self-marked, and only ever asked after the word was shown.
@@ -122,8 +132,15 @@ export function RecallDrill({
         </div>
 
         <p className="text-lg leading-loose" data-testid="drill-prompt">
-          {prompt}
+          {cue?.text}
         </p>
+
+        {cue && !cue.fromSentence && (
+          <p className="text-xs text-muted-foreground" data-testid="drill-no-sentence">
+            You banked this on another device, so this is the definition rather
+            than your own sentence.
+          </p>
+        )}
 
         <div className="flex flex-wrap items-baseline gap-2 text-sm text-muted-foreground">
           <span>{current.partOfSpeech}</span>

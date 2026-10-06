@@ -86,6 +86,39 @@ as a new window rather than as numbers going backwards; sum the windows.
 product metrics on an open URL. Worth a shared secret before you tell anyone the
 address.
 
+## Sign-in, if you want it
+
+Optional, and shaped to stay optional. The web app owns accounts entirely: the
+users table, the session cookie, the sign-in emails. The API owns none of it and
+has no user table — when the web app needs to call it as somebody, it signs a
+five-minute token with `API_JWT_SECRET` and the API verifies it.
+
+That split is deliberate. The API is the half that holds model keys and talks to
+providers; it is not the half that should hold people's identities. It also means
+the API needs no database of its own and no session lookup on a request, and that
+every existing route stays open — signing in is a thing you can add without
+anything that works today beginning to require it.
+
+Three things go wrong here, in this order of likelihood:
+
+1. **`API_JWT_SECRET` differs between Vercel and Render.** Every signed-in
+   request 401s and the only clue is "Sign in again to do that."
+2. **The tables were never created.** `pnpm --filter web db:migrate` has to run
+   once against the production database. Until it does, clicking a sign-in link
+   is a 500.
+3. **The from-address is at an unverified domain.** Resend accepts the key and
+   refuses the message; the failure is in the function log, not on the page.
+
+The bank syncs through `POST /api/bank/sync` on the web app, not through the
+API — a bank is user data, and the API holds none. One consequence worth knowing
+before someone reports it as a bug: a word picked up on a second device has no
+sentence under it, because sentences never leave the browser they were written
+in. The drill falls back to the definition and says why.
+
+Without `AUTH_RESEND_KEY` the link is written to the runtime log instead of
+emailed. That is a real way to run a demo, and a bad way to run anything with
+users in it — the link is a credential, and a log is not private.
+
 ## What to watch
 
 The three counts that decide v2, from `packages/shared/src/telemetry.ts`:
@@ -119,3 +152,8 @@ measuring a product that is quietly getting thinner.
 limits in `common/rate-limit.ts` bound one caller, not a distributed one. Set a
 spend cap on the OpenAI key too — the rate limit protects against a script, the
 cap protects against everything else.
+
+Sign-in adds a Postgres and an email provider. Both are free at this size —
+users, sessions and unredeemed links are a few kilobytes per person, and the
+only mail sent is one link per sign-in. Note that accounts do not reduce the
+model spend above: an account is not a gate, and `/propose` is still open.

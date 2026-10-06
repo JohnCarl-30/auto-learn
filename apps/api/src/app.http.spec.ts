@@ -15,8 +15,14 @@ import { INestApplication } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
+import { sign } from 'jsonwebtoken';
 import { generateSpeech, streamObject, transcribe } from 'ai';
-import { MAX_RECORDING_BYTES, ProposeStreamEvent } from '@auto-learn/shared';
+import {
+  API_TOKEN_AUDIENCE,
+  API_TOKEN_ISSUER,
+  MAX_RECORDING_BYTES,
+  ProposeStreamEvent,
+} from '@auto-learn/shared';
 import type {
   ApiError,
   DictateResponse,
@@ -512,6 +518,59 @@ describe('HTTP surface', () => {
       const response = await recording(2_048).expect(502);
 
       expect(ApiErrorOf(response.body).code).toBe('upstream_failed');
+    });
+  });
+  /**
+   * The guard has its own spec; this is only about the wiring — that the route
+   * exists, that the guard is actually attached to it, and that the id the token
+   * asserted is what comes back out.
+   */
+  describe('GET /me', () => {
+    const SECRET = 'the-secret-the-web-app-signs-with';
+    const USER = '9c1f7b2e-8d3a-4e51-b0c6-2a7f4d9e1b83';
+
+    beforeAll(() => {
+      process.env.API_JWT_SECRET = SECRET;
+    });
+
+    afterAll(() => {
+      delete process.env.API_JWT_SECRET;
+    });
+
+    it('answers with the caller the token names', async () => {
+      const token = sign({}, SECRET, {
+        algorithm: 'HS256',
+        subject: USER,
+        issuer: API_TOKEN_ISSUER,
+        audience: API_TOKEN_AUDIENCE,
+        expiresIn: '5m',
+      });
+
+      const response = await request(server())
+        .get('/me')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+
+      expect(response.body).toEqual({ id: USER });
+    });
+
+    it('refuses a request carrying no token', async () => {
+      await request(server()).get('/me').expect(401);
+    });
+
+    it('refuses a token this API did not issue the secret for', async () => {
+      const forged = sign({}, 'a-secret-we-have-never-seen', {
+        algorithm: 'HS256',
+        subject: USER,
+        issuer: API_TOKEN_ISSUER,
+        audience: API_TOKEN_AUDIENCE,
+        expiresIn: '5m',
+      });
+
+      await request(server())
+        .get('/me')
+        .set('Authorization', `Bearer ${forged}`)
+        .expect(401);
     });
   });
 });
