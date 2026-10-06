@@ -72,8 +72,14 @@ tolerable — or widen the check to a pattern, knowingly.
 
 ## 4. Telemetry
 
-`.github/workflows/telemetry.yml` reads `GET /telemetry` hourly and appends the
+`.github/workflows/telemetry.yml` reads `GET /telemetry` and appends the
 snapshot to `telemetry/snapshots.jsonl`.
+
+**Its hourly schedule is commented out.** It ran every hour from 17 September
+and failed every time, because there was no deploy and so nothing to point
+`API_URL` at — a hundred red runs saying only that the thing they measure does
+not exist yet. Uncomment the `cron` line in the same change that sets the
+variable below; until then the workflow runs by hand from the Actions tab.
 
 Add a repository **variable** (not a secret — it is a URL, and secrets are
 masked in logs, which makes failures hard to read) named `API_URL`, set to the

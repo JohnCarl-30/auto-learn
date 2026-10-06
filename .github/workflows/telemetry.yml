@@ -10,9 +10,21 @@
 # silent drop, and the windows can be summed after the fact.
 name: Telemetry
 
+# The hourly schedule is off until there is something to read.
+#
+# This ran every hour from 17 September and failed every single time — a
+# hundred runs, each dying in under ten seconds on the `API_URL` guard below,
+# because the API has never been deployed and so has no address to give that
+# variable. The guard is right to be loud; what was wrong was scheduling a job
+# whose precondition did not exist yet, which turned a real signal into two
+# dozen red marks a day that nobody could act on.
+#
+# `workflow_dispatch` stays, so it can be run by hand the moment a URL exists.
+# Restore the cron line in the same commit that sets the `API_URL` variable —
+# deploy.sh's last stage is where that happens.
 on:
-  schedule:
-    - cron: '0 * * * *'
+  # schedule:
+  #   - cron: '0 * * * *'
   workflow_dispatch:
 
 # The job commits what it reads.
