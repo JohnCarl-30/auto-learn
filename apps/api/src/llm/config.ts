@@ -22,6 +22,18 @@ export const PROPOSE_MODEL = 'gpt-5.6-luna';
 export const CARD_MODEL = 'gpt-5.6-terra';
 
 /**
+ * The speaking partner's reply. Same model as PROPOSE and for the same reason,
+ * only more so: someone has just stopped talking and is waiting to be answered
+ * out loud, and a pause of several seconds is where a conversation stops
+ * feeling like one. The reply is a few sentences of small talk, which the
+ * cheap tier writes as well as the expensive one.
+ *
+ * An alias rather than a second string, so it shares PROPOSE's price row and a
+ * change to one is visibly a change to both.
+ */
+export const CONVERSE_MODEL = PROPOSE_MODEL;
+
+/**
  * USD per 1M tokens. Code rather than a comment because `evals/` prices its
  * runs from this table — a number with a job gets noticed when it goes stale,
  * and a stale price silently misreports what a run cost.
@@ -40,6 +52,8 @@ export const MODEL_PRICES: Record<
  * would be scoring a call production never makes.
  */
 export const PROPOSE_MAX_OUTPUT_TOKENS = 2000;
+/** A reply is one to three spoken sentences; anything near this cap is a monologue. */
+export const CONVERSE_MAX_OUTPUT_TOKENS = 300;
 export const CARD_MAX_OUTPUT_TOKENS = 1200;
 
 /**
@@ -64,6 +78,8 @@ export const MODEL_MAX_RETRIES = 2;
 export const MODEL_MAX_RETRIES_VOICE = 1;
 export const PROPOSE_TIMEOUT_MS = 30_000;
 export const CARD_TIMEOUT_MS = 45_000;
+/** Shorter than PROPOSE: the review runs beside it, and a reply this late is a dead conversation. */
+export const CONVERSE_TIMEOUT_MS = 20_000;
 
 /**
  * `promptCacheKey` groups requests that share a prefix so the provider can
@@ -74,6 +90,13 @@ export const proposeProviderOptions = {
   openai: {
     reasoningEffort: 'none',
     promptCacheKey: 'auto-learn:propose:v1',
+  },
+} as const;
+
+export const converseProviderOptions = {
+  openai: {
+    reasoningEffort: 'none',
+    promptCacheKey: 'auto-learn:converse:v1',
   },
 } as const;
 

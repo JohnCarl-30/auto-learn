@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import type { BankEntry } from '@auto-learn/shared';
 import { ComposePanel } from '@/components/compose-panel';
 import { ReviewPanel } from '@/components/review-panel';
@@ -45,6 +46,13 @@ export default function Page() {
         <div className="flex items-start justify-between gap-4">
           <h1 className="text-2xl font-semibold tracking-tight">auto-learn</h1>
           <div className="flex items-center gap-4">
+            <Link
+              href="/talk"
+              data-testid="talk-link"
+              className="text-sm text-muted-foreground hover:text-foreground"
+            >
+              Talk
+            </Link>
             <AccountMenu />
             <ThemeToggle />
           </div>

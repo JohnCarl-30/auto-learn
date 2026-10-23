@@ -1,7 +1,9 @@
 import {
   CARD_SYSTEM_PROMPT,
+  CONVERSE_SYSTEM_PROMPT,
   PROPOSE_SYSTEM_PROMPT,
   cardUserPrompt,
+  converseUserPrompt,
   proposeSystemPrompt,
   proposeUserPrompt,
 } from './prompts';
@@ -34,6 +36,7 @@ describe('proposeUserPrompt', () => {
   it('interpolates nothing into the system prompt, which is what makes it cacheable', () => {
     expect(PROPOSE_SYSTEM_PROMPT).not.toContain('${');
     expect(CARD_SYSTEM_PROMPT).not.toContain('${');
+    expect(CONVERSE_SYSTEM_PROMPT).not.toContain('${');
   });
 });
 
@@ -124,6 +127,53 @@ describe('proposeUserPrompt with a bank', () => {
     expect(proposeSystemPrompt(['substantial'])).toContain('already learned');
     expect(proposeSystemPrompt(['substantial'])).toContain(
       'sentence matters more than the lesson',
+    );
+  });
+});
+
+describe('converseUserPrompt', () => {
+  const prompt = converseUserPrompt({
+    scenario: 'office-hours',
+    history: [
+      { role: 'partner', text: 'Come in. What can I help you with?' },
+      { role: 'learner', text: 'I have question about essay.' },
+      { role: 'partner', text: 'Sure, which essay?' },
+    ],
+    utterance: 'The second one, I need more time.',
+  });
+
+  it('says who the partner is, from the scenario rather than the system prompt', () => {
+    expect(prompt).toContain('holding office hours');
+    expect(CONVERSE_SYSTEM_PROMPT).not.toContain('office hours');
+  });
+
+  it('labels every turn by who said it, oldest first', () => {
+    const you = prompt.indexOf('You: Come in.');
+    const student = prompt.indexOf('Student: I have question about essay.');
+    expect(you).toBeGreaterThan(-1);
+    expect(student).toBeGreaterThan(you);
+  });
+
+  it('ends on the turn to answer', () => {
+    expect(prompt).toContain(
+      'The student just said: The second one, I need more time.',
+    );
+    expect(prompt.trimEnd().endsWith('Your reply:')).toBe(true);
+  });
+
+  it('says so when there is no history yet', () => {
+    expect(
+      converseUserPrompt({
+        scenario: 'free-talk',
+        history: [],
+        utterance: 'Hi.',
+      }),
+    ).toContain('(nothing yet)');
+  });
+
+  it('keeps the rule that protects the gate', () => {
+    expect(CONVERSE_SYSTEM_PROMPT).toContain(
+      'never repeat their sentence back in better words',
     );
   });
 });

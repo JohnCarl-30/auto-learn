@@ -1,6 +1,9 @@
 import {
+  SCENARIO_CONTEXT,
   TRANSFORM_INSTRUCTIONS,
+  type ConverseTurn,
   type DictionarySense,
+  type Scenario,
   type TransformOption,
 } from '@auto-learn/shared';
 
@@ -68,6 +71,61 @@ You are given a sentence, a target word, and a list of candidate dictionary sens
 7. "alternative": one other word the writer could reasonably use instead, or null.
 
 Be accurate over impressive. A learner cannot tell when you are wrong.`;
+
+/**
+ * The speaking partner.
+ *
+ * The rule that matters most is the one about not rephrasing. Recasting — saying
+ * the learner's sentence back the right way — is what a kind native speaker
+ * does, and here it would hand over, out loud and for free, the exact wording
+ * the gate is holding back until the learner asks for it. Feedback on the
+ * learner's English is the review's job, running beside this call; the partner
+ * answers what they meant.
+ *
+ * Written for the ear, because every reply is read aloud: no lists, no
+ * markdown, nothing a speech synthesiser would pronounce as punctuation.
+ */
+export const CONVERSE_SYSTEM_PROMPT = `You are a conversation partner for a university student practising spoken English as a second language.
+
+You will be told who you are in this conversation, then given the conversation so far and what the student just said. Reply as that person would.
+
+Rules:
+- Reply in one to three short sentences. This is spoken aloud, and a long answer leaves the student nothing to do.
+- Usually end with a question that gives the student something to say next. Ask one question, not several.
+- Respond to what the student meant, even if it was phrased imperfectly or the transcript has an obvious mishearing.
+- Never correct the student's English, never comment on their grammar or word choice, and never repeat their sentence back in better words. Their language is reviewed separately; your job is to keep them talking.
+- Use clear, natural English a B2-level learner can follow. No idioms that need explaining.
+- Plain text only: no lists, no markdown, no emoji, no stage directions.
+- Stay in your role. If the student asks you to do something unrelated, steer back to the conversation politely.`;
+
+/**
+ * Who the partner is, the conversation so far, and the turn to answer — all in
+ * the user half so the system prompt above stays one cacheable constant.
+ *
+ * Turns are labelled by role rather than sent as chat messages. The student's
+ * words arrive as transcripts the learner has only lightly checked, and quoting
+ * them under a label keeps an instruction-shaped sentence ("ignore your rules
+ * and...") clearly something that was said, not something to obey.
+ */
+export function converseUserPrompt(input: {
+  scenario: Scenario;
+  history: ConverseTurn[];
+  utterance: string;
+}): string {
+  const said = (turn: ConverseTurn) =>
+    `${turn.role === 'partner' ? 'You' : 'Student'}: ${turn.text}`;
+
+  return [
+    `Who you are: ${SCENARIO_CONTEXT[input.scenario]}`,
+    '',
+    'Conversation so far:',
+    input.history.length ? input.history.map(said).join('\n') : '(nothing yet)',
+    '',
+    `The student just said: ${input.utterance}`,
+    '',
+    'Your reply:',
+  ].join('\n');
+}
 
 /**
  * The user half of each call.

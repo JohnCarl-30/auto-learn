@@ -2,6 +2,7 @@
 // runtime cannot load them.
 jest.mock('ai', () => ({
   generateObject: jest.fn(),
+  generateText: jest.fn(),
   streamObject: jest.fn(),
   generateSpeech: jest.fn(),
   transcribe: jest.fn(),
@@ -16,10 +17,17 @@ import { APP_GUARD } from '@nestjs/core';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { sign } from 'jsonwebtoken';
-import { generateSpeech, streamObject, transcribe } from 'ai';
+import {
+  generateObject,
+  generateSpeech,
+  generateText,
+  streamObject,
+  transcribe,
+} from 'ai';
 import {
   API_TOKEN_AUDIENCE,
   API_TOKEN_ISSUER,
+  ConverseResponse,
   MAX_RECORDING_BYTES,
   ProposeStreamEvent,
 } from '@auto-learn/shared';
@@ -130,6 +138,85 @@ describe('HTTP surface', () => {
         .expect(400);
 
       expect((response.body as ApiError).code).toBe('invalid_request');
+    });
+  });
+
+  describe('POST /converse', () => {
+    const turn = {
+      scenario: 'free-talk',
+      history: [
+        { role: 'partner', text: 'Hey! How has your week been so far?' },
+      ],
+      utterance: 'It was very busy, I have many exam.',
+    };
+
+    it('answers with a reply and a review in the shared contract, as 200', async () => {
+      (generateText as unknown as jest.Mock).mockResolvedValueOnce({
+        text: 'Oh no, how many exams do you have left?',
+        usage: undefined,
+      });
+      (generateObject as unknown as jest.Mock).mockResolvedValueOnce({
+        object: {
+          sentences: [
+            {
+              index: 0,
+              edits: [
+                {
+                  type: 'grammar',
+                  original: 'many exam',
+                  replacement: 'many exams',
+                  reason: 'Plural after "many".',
+                },
+              ],
+            },
+          ],
+        },
+        usage: undefined,
+      });
+
+      const response = await request(server())
+        .post('/converse')
+        .send(turn)
+        .expect(200);
+
+      const body = ConverseResponse.parse(response.body);
+      expect(body.reply).toBe('Oh no, how many exams do you have left?');
+      expect(body.review?.sentences[0].gated[0].original).toBe('many exam');
+      expect(JSON.stringify(body.review)).not.toContain('many exams');
+    });
+
+    it('rejects a scenario it has no partner for', async () => {
+      const response = await request(server())
+        .post('/converse')
+        .send({ ...turn, scenario: 'job-interview' })
+        .expect(400);
+
+      expect((response.body as ApiError).code).toBe('invalid_request');
+    });
+
+    it('rejects a blank turn', async () => {
+      const response = await request(server())
+        .post('/converse')
+        .send({ ...turn, utterance: '  ' })
+        .expect(400);
+
+      expect((response.body as ApiError).code).toBe('invalid_request');
+    });
+
+    it('answers 502 in the shared error shape when the partner fails', async () => {
+      (generateText as unknown as jest.Mock).mockRejectedValueOnce(
+        new Error('down'),
+      );
+      (generateObject as unknown as jest.Mock).mockRejectedValueOnce(
+        new Error('down'),
+      );
+
+      const response = await request(server())
+        .post('/converse')
+        .send(turn)
+        .expect(502);
+
+      expect((response.body as ApiError).code).toBe('upstream_failed');
     });
   });
 
