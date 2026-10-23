@@ -35,6 +35,13 @@ export const RATE_LIMITS = {
    * because the audio is either the dictionary's own URL or already cached.
    */
   speak: { ttl: minutes(1), limit: 60 },
+  /**
+   * A spoken turn is a reply and a review, so two model calls — but it stands
+   * in for one paste, and nobody holding a conversation takes more than a few
+   * turns a minute. Same allowance as /propose and /dictate, which every turn
+   * also pairs with.
+   */
+  converse: { ttl: minutes(1), limit: 10 },
 } as const;
 
 /**

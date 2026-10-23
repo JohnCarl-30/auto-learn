@@ -129,6 +129,14 @@ export const TelemetrySnapshot = z.object({
   pronunciations: z.number().int(),
   charactersSpoken: z.number().int(),
   secondsTranscribed: z.number(),
+  /**
+   * Turns taken with the speaking partner, and how many of them came back
+   * without feedback. A rising share skipped means learners are saying more
+   * per turn than the review takes, which is the speaking version of the
+   * overflow signal on /propose.
+   */
+  conversationTurns: z.number().int(),
+  turnsUnreviewed: z.number().int(),
   since: z.string(),
 });
 export type TelemetrySnapshot = z.infer<typeof TelemetrySnapshot>;

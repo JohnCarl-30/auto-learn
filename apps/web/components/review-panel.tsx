@@ -187,8 +187,10 @@ function isTyping(target: EventTarget | null): boolean {
  * The teasers used to live in a `title` attribute, which meant they did not
  * exist on touch and were slow to find on desktop — the one thing that tells
  * you what is behind a gate was effectively invisible. They are text now.
+ *
+ * Exported for the speaking partner, whose turns carry the same gates.
  */
-function TeaserList({
+export function TeaserList({
   sentence,
   onOpenGate,
 }: {

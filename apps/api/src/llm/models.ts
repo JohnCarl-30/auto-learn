@@ -11,6 +11,7 @@ export * from './config';
 
 import {
   CARD_MODEL,
+  CONVERSE_MODEL,
   PROPOSE_MODEL,
   SPEECH_MODEL,
   TRANSCRIBE_MODEL,
@@ -18,6 +19,7 @@ import {
 
 export const proposeModel = () => openai(PROPOSE_MODEL);
 export const cardModel = () => openai(CARD_MODEL);
+export const converseModel = () => openai(CONVERSE_MODEL);
 
 export const transcribeModel = () => elevenLabs.transcription(TRANSCRIBE_MODEL);
 export const speechModel = () => elevenLabs.speech(SPEECH_MODEL);

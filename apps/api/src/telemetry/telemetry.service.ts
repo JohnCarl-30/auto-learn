@@ -37,6 +37,8 @@ export class TelemetryService {
     pronunciations: 0,
     charactersSpoken: 0,
     secondsTranscribed: 0,
+    conversationTurns: 0,
+    turnsUnreviewed: 0,
   };
 
   proposal(): void {
@@ -181,6 +183,12 @@ export class TelemetryService {
   transcribed(seconds: number): void {
     if (!Number.isFinite(seconds) || seconds <= 0) return;
     this.counts.secondsTranscribed += seconds;
+  }
+
+  /** One learner turn answered by the speaking partner, reviewed or not. */
+  turn(reviewed: boolean): void {
+    this.counts.conversationTurns += 1;
+    if (!reviewed) this.counts.turnsUnreviewed += 1;
   }
 
   snapshot(): TelemetrySnapshot {

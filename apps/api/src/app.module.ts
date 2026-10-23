@@ -11,6 +11,7 @@ import { SpeechModule } from './speech/speech.module';
 import { DictateModule } from './dictate/dictate.module';
 import { TelemetryModule } from './telemetry/telemetry.module';
 import { AuthModule } from './auth/auth.module';
+import { ConverseModule } from './converse/converse.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { AuthModule } from './auth/auth.module';
     SpeechModule,
     DictateModule,
     AuthModule,
+    ConverseModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ApiThrottlerGuard }],
 })

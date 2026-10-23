@@ -2,11 +2,13 @@ import {
   ApiError,
   CardResponse,
   CardStreamEvent,
+  ConverseResponse,
   DictateResponse,
   ProposeResponse,
   ProposeStreamEvent,
   SpeakResponse,
   type CardRequest,
+  type ConverseRequest,
   type ProposeRequest,
   type PartOfSpeech,
   type StreamedFix,
@@ -283,6 +285,16 @@ export async function fetchCardStream(
 
   if (!finished) throw new ApiFailure(malformed);
   return finished;
+}
+
+/**
+ * One turn with the speaking partner: its reply, and the turn reviewed.
+ *
+ * Plain JSON rather than a stream. The reply is spoken once it is whole, so a
+ * preview of it would be words on screen racing the voice reading them.
+ */
+export function converse(body: ConverseRequest): Promise<ConverseResponse> {
+  return post('/converse', body, ConverseResponse);
 }
 
 /**
