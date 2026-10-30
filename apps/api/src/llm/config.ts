@@ -120,6 +120,15 @@ export const cardProviderOptions = {
 export const TRANSCRIBE_MODEL = 'scribe_v2';
 
 /**
+ * What transcribes when ElevenLabs is not configured, which is the free-tier
+ * deploy: the installed iPhone app cannot use the browser's speech recognition,
+ * so it records and posts to /dictate, and that has to work on the OpenAI key
+ * alone. The mini model because the audio is one short sentence and someone is
+ * watching a spinner — the same reasoning as the fast tier above.
+ */
+export const OPENAI_TRANSCRIBE_MODEL = 'gpt-4o-mini-transcribe';
+
+/**
  * Speech does not: it fires on a click, for a single word, and the result is
  * cached for a week afterwards. The quality tier costs almost nothing at that
  * scale, and a mispronounced word teaches a learner something false — the same
@@ -156,6 +165,11 @@ export const transcribeProviderOptions = {
     diarize: false,
     timestampsGranularity: 'none',
   },
+  // Each provider reads only its own key, so both sets ride along and
+  // `transcribeModel()` decides which applies. The same hazard as above, on the
+  // path the deployed site actually uses: unpinned, accented English can come
+  // back translated rather than transcribed.
+  openai: { language: 'en' },
 } as const;
 
 export const SPEECH_OUTPUT_FORMAT = 'mp3_22050_32';

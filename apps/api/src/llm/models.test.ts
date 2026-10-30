@@ -1,6 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import {
   CARD_MODEL,
+  OPENAI_TRANSCRIBE_MODEL,
   PROPOSE_MODEL,
   SPEECH_MODEL,
   TRANSCRIBE_MODEL,
@@ -56,10 +57,31 @@ describe('model wiring (against the real SDK)', () => {
     );
   });
 
-  it('resolves the voice models against the real ElevenLabs provider', () => {
+  // The transcription provider is picked from the environment at call time, so
+  // these tests flip the key and must put it back.
+  const originalElevenLabsKey = process.env.ELEVENLABS_API_KEY;
+  afterEach(() => {
+    if (originalElevenLabsKey === undefined)
+      delete process.env.ELEVENLABS_API_KEY;
+    else process.env.ELEVENLABS_API_KEY = originalElevenLabsKey;
+  });
+
+  it('keeps ElevenLabs when its key is set', () => {
+    process.env.ELEVENLABS_API_KEY = 'test-key';
     expect(transcribeModel().modelId).toBe(TRANSCRIBE_MODEL);
-    expect(speechModel().modelId).toBe(SPEECH_MODEL);
+    expect(transcribeModel().modelId).toBe('scribe_v2');
     expect(transcribeModel().provider).toContain('elevenlabs');
+  });
+
+  it('transcribes with OpenAI when ElevenLabs is not configured', () => {
+    delete process.env.ELEVENLABS_API_KEY;
+    expect(transcribeModel().modelId).toBe(OPENAI_TRANSCRIBE_MODEL);
+    expect(transcribeModel().modelId).toBe('gpt-4o-mini-transcribe');
+    expect(transcribeModel().provider).toContain('openai');
+  });
+
+  it('resolves the speech model against the real ElevenLabs provider', () => {
+    expect(speechModel().modelId).toBe(SPEECH_MODEL);
     expect(speechModel().provider).toContain('elevenlabs');
   });
 
@@ -71,6 +93,11 @@ describe('model wiring (against the real SDK)', () => {
    */
   it('pins transcription to English rather than letting it guess', () => {
     expect(transcribeProviderOptions.elevenlabs.languageCode).toBe('en');
+  });
+
+  // Same hazard on the OpenAI path, which is the one the deployed site uses.
+  it('pins the OpenAI transcription to English too', () => {
+    expect(transcribeProviderOptions.openai.language).toBe('en');
   });
 
   it('keeps audio-event tags out of what lands in someone drafting a sentence', () => {

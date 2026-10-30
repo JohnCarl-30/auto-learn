@@ -7,7 +7,11 @@ jest.mock('ai', () => ({
   generateSpeech: jest.fn(),
   transcribe: jest.fn(),
 }));
-jest.mock('@ai-sdk/openai', () => ({ openai: jest.fn() }));
+// `.transcription` too: with no ElevenLabs key set, `transcribeModel()` falls
+// through to OpenAI, and the mock has to be callable and carry that method.
+jest.mock('@ai-sdk/openai', () => ({
+  openai: Object.assign(jest.fn(), { transcription: jest.fn() }),
+}));
 jest.mock('@ai-sdk/elevenlabs', () => ({
   elevenLabs: { speech: jest.fn(), transcription: jest.fn() },
 }));
