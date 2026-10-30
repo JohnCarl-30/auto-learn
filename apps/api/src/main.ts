@@ -34,6 +34,24 @@ async function bootstrap() {
 
   checkApiKeys(logger);
 
+  // Whether the key-spending routes are behind sign-in is the one setting that
+  // decides who can run up the bill, so it is stated at boot rather than
+  // inferred from a 401 later.
+  if (process.env.REQUIRE_SIGN_IN === 'true') {
+    logger.log(
+      'REQUIRE_SIGN_IN is on: only signed-in callers can use the model routes.',
+    );
+    if (!process.env.API_JWT_SECRET) {
+      logger.warn(
+        '  API_JWT_SECRET is not set, so every one of those requests will be refused.',
+      );
+    }
+  } else {
+    logger.log(
+      'REQUIRE_SIGN_IN is off: the model routes are open to anyone who can reach this API.',
+    );
+  }
+
   // Rate limiting keys on the client IP, and behind a hosted load balancer
   // every request arrives carrying the proxy's address instead — which would
   // make one caller's burst exhaust the limit for everybody. One hop, because

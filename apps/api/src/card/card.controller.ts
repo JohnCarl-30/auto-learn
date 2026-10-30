@@ -1,12 +1,14 @@
-import { Body, Controller, Post, Res } from '@nestjs/common';
+import { Body, Controller, Post, Res, UseGuards } from '@nestjs/common';
 import type { Response } from 'express';
 import { Throttle } from '@nestjs/throttler';
 import { CardRequest, type CardResponse } from '@auto-learn/shared';
+import { SignedInGuard } from '../auth/signed-in.guard';
 import { RATE_LIMITS } from '../common/rate-limit';
 import { ZodBody } from '../common/zod.pipe';
 import { CardService } from './card.service';
 
 @Controller('card')
+@UseGuards(SignedInGuard)
 export class CardController {
   constructor(private readonly service: CardService) {}
 

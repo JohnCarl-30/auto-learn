@@ -1,11 +1,13 @@
-import { Body, Controller, HttpCode, Post } from '@nestjs/common';
+import { Body, Controller, HttpCode, Post, UseGuards } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { ConverseRequest, type ConverseResponse } from '@auto-learn/shared';
+import { SignedInGuard } from '../auth/signed-in.guard';
 import { RATE_LIMITS } from '../common/rate-limit';
 import { ZodBody } from '../common/zod.pipe';
 import { ConverseService } from './converse.service';
 
 @Controller('converse')
+@UseGuards(SignedInGuard)
 export class ConverseController {
   constructor(private readonly service: ConverseService) {}
 

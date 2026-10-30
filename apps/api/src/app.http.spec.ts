@@ -660,6 +660,66 @@ describe('HTTP surface', () => {
         .expect(401);
     });
   });
+
+  /**
+   * The guard has its own spec; this is about the wiring. A controller that
+   * forgot `@UseGuards(SignedInGuard)` passes every unit test and still leaves
+   * the key open, so each route that spends it is asked directly. Bodies are
+   * empty on purpose: the guard runs before validation, so a locked route
+   * answers 401 and never gets as far as complaining about the body.
+   */
+  describe('with REQUIRE_SIGN_IN on', () => {
+    const SECRET = 'the-secret-the-web-app-signs-with';
+
+    beforeAll(() => {
+      process.env.REQUIRE_SIGN_IN = 'true';
+      process.env.API_JWT_SECRET = SECRET;
+    });
+
+    afterAll(() => {
+      delete process.env.REQUIRE_SIGN_IN;
+      delete process.env.API_JWT_SECRET;
+    });
+
+    it.each([
+      ['post', '/converse'],
+      ['post', '/propose'],
+      ['post', '/propose/stream'],
+      ['post', '/card'],
+      ['post', '/dictate'],
+      ['get', '/speak/ubiquitous'],
+    ] as const)('refuses an unsigned %s %s', async (method, path) => {
+      const response = await request(server())[method](path).expect(401);
+
+      expect(response.body).toEqual({
+        code: 'sign_in_required',
+        message: 'Sign in to use auto-learn here.',
+      });
+    });
+
+    it('lets a signed-in caller through to the route', async () => {
+      const token = sign({}, SECRET, {
+        algorithm: 'HS256',
+        subject: 'u1',
+        issuer: API_TOKEN_ISSUER,
+        audience: API_TOKEN_AUDIENCE,
+        expiresIn: '5m',
+      });
+
+      // 400: past the guard and into validation, which is where an empty body
+      // belongs.
+      await request(server())
+        .post('/converse')
+        .set('Authorization', `Bearer ${token}`)
+        .send({})
+        .expect(400);
+    });
+
+    it('leaves the routes that spend nothing open', async () => {
+      await request(server()).get('/health').expect(200);
+      await request(server()).get('/telemetry').expect(200);
+    });
+  });
 });
 
 const ApiErrorOf = (body: unknown): ApiError => body as ApiError;
