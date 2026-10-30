@@ -7,6 +7,7 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { MAX_RECORDING_SECONDS } from '@auto-learn/shared';
 import { ApiFailure, dictate } from './api';
 import { useDictation } from './use-dictation';
+import type { BrowserRecognitionEvent } from './speech-recognition';
 
 const transcribes = dictate as jest.Mock;
 
@@ -56,9 +57,60 @@ const grantMicrophone = (granted = true) => {
   });
 };
 
+/**
+ * The browser's own recogniser, faked. It records what the hook asked of it and
+ * leaves the firing of results and errors to the test, because those are the
+ * browser's moves, not the hook's.
+ */
+let recognisers: FakeRecognition[] = [];
+
+class FakeRecognition {
+  lang = '';
+  interimResults = true;
+  continuous = true;
+  maxAlternatives = 0;
+  started = false;
+  stopped = false;
+  aborted = false;
+  onresult: ((event: BrowserRecognitionEvent) => void) | null = null;
+  onerror: ((event: { error: string }) => void) | null = null;
+  onend: (() => void) | null = null;
+
+  constructor() {
+    recognisers.push(this);
+  }
+
+  start() {
+    this.started = true;
+  }
+
+  stop() {
+    this.stopped = true;
+  }
+
+  abort() {
+    this.aborted = true;
+  }
+
+  say(transcript: string) {
+    this.onresult?.({ results: [[{ transcript }]] });
+  }
+}
+
+const withBrowserRecogniser = () =>
+  Object.defineProperty(window, 'webkitSpeechRecognition', {
+    configurable: true,
+    writable: true,
+    value: FakeRecognition,
+  });
+
 beforeEach(() => {
   recorders = [];
+  recognisers = [];
   tracks.length = 0;
+  // jsdom has none, but a test above may have added one: the recorder tests
+  // are about the path taken where the browser cannot listen for itself.
+  delete (window as unknown as Record<string, unknown>).webkitSpeechRecognition;
   transcribes.mockReset();
   transcribes.mockResolvedValue({ transcript: 'The evidence was substantial.' });
   Object.defineProperty(window, 'MediaRecorder', {
@@ -195,5 +247,135 @@ describe('useDictation', () => {
       }),
     );
     expect(heard).not.toHaveBeenCalled();
+  });
+
+  describe('where the browser can recognise speech itself', () => {
+    beforeEach(withBrowserRecogniser);
+
+    it('uses the browser recogniser when there is one and never calls /dictate', async () => {
+      // jsdom has no fetch to spy on; /dictate is the only thing here that
+      // would reach for one, and `dictate` itself is mocked above.
+      const fetches = jest.fn();
+      Object.defineProperty(global, 'fetch', { configurable: true, writable: true, value: fetches });
+      const heard = jest.fn();
+      const { result } = renderHook(() => useDictation(heard));
+
+      await act(() => result.current.start());
+      expect(result.current.engine).toBe('browser');
+      expect(result.current.status).toBe('recording');
+      expect(recognisers[0]).toMatchObject({
+        started: true,
+        lang: 'en-US',
+        interimResults: false,
+        continuous: false,
+        maxAlternatives: 1,
+      });
+
+      act(() => recognisers[0].say('I went yesterday'));
+      act(() => recognisers[0].onend?.());
+
+      expect(heard).toHaveBeenCalledWith('I went yesterday');
+      expect(result.current.status).toBe('idle');
+      expect(transcribes).not.toHaveBeenCalled();
+      expect(fetches).not.toHaveBeenCalled();
+      expect(recorders).toHaveLength(0);
+    });
+
+    it('listens again on the next press rather than reusing a finished recogniser', async () => {
+      const { result } = renderHook(() => useDictation(jest.fn()));
+
+      await act(() => result.current.start());
+      act(() => recognisers[0].onend?.());
+      await act(() => result.current.start());
+
+      expect(recognisers).toHaveLength(2);
+    });
+
+    it('stops the recogniser when asked to', async () => {
+      const { result } = renderHook(() => useDictation(jest.fn()));
+
+      await act(() => result.current.start());
+      act(() => result.current.stop());
+
+      expect(recognisers[0].stopped).toBe(true);
+    });
+
+    it('switches to recording when the browser service is not allowed', async () => {
+      const { result } = renderHook(() => useDictation(jest.fn()));
+
+      await act(() => result.current.start());
+      await act(async () => recognisers[0].onerror?.({ error: 'service-not-allowed' }));
+      act(() => recognisers[0].onend?.());
+
+      expect(result.current.engine).toBe('recorder');
+      await waitFor(() => expect(recorders[0]?.state).toBe('recording'));
+      expect(result.current.status).toBe('recording');
+
+      // For the rest of the hook's life: the next press goes straight to the
+      // recorder instead of trying the engine that just said no.
+      act(() => result.current.stop());
+      await waitFor(() => expect(result.current.status).toBe('idle'));
+      await act(() => result.current.start());
+      expect(recognisers).toHaveLength(1);
+      expect(recorders).toHaveLength(2);
+    });
+
+    it('switches to recording when the browser cannot capture audio either', async () => {
+      const { result } = renderHook(() => useDictation(jest.fn()));
+
+      await act(() => result.current.start());
+      await act(async () => recognisers[0].onerror?.({ error: 'audio-capture' }));
+
+      expect(result.current.engine).toBe('recorder');
+      await waitFor(() => expect(recorders[0]?.state).toBe('recording'));
+    });
+
+    it('shows the permission message and does not fall back when the mic is refused', async () => {
+      const { result } = renderHook(() => useDictation(jest.fn()));
+
+      await act(() => result.current.start());
+      act(() => recognisers[0].onerror?.({ error: 'not-allowed' }));
+      act(() => recognisers[0].onend?.());
+
+      expect(result.current.problem?.message).toContain('permission');
+      expect(result.current.problem?.code).toBeNull();
+      expect(result.current.engine).toBe('browser');
+      expect(result.current.status).toBe('idle');
+      expect(recorders).toHaveLength(0);
+    });
+
+    it('says so when nothing was heard', async () => {
+      const { result } = renderHook(() => useDictation(jest.fn()));
+
+      await act(() => result.current.start());
+      act(() => recognisers[0].onerror?.({ error: 'no-speech' }));
+
+      expect(result.current.problem).toEqual({
+        message: "I didn't hear anything. Try again.",
+        code: null,
+      });
+      expect(result.current.engine).toBe('browser');
+    });
+
+    it('lets go of the recogniser on unmount, mid-sentence', async () => {
+      const heard = jest.fn();
+      const { result, unmount } = renderHook(() => useDictation(heard));
+
+      await act(() => result.current.start());
+      unmount();
+      recognisers[0].say('too late');
+
+      expect(recognisers[0].aborted).toBe(true);
+      expect(heard).not.toHaveBeenCalled();
+    });
+  });
+
+  it('records when the browser has no recogniser', async () => {
+    const { result } = renderHook(() => useDictation(jest.fn()));
+
+    expect(result.current.engine).toBe('recorder');
+    await act(() => result.current.start());
+
+    expect(recorders[0].state).toBe('recording');
   });
 });

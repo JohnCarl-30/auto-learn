@@ -8,6 +8,7 @@ import {
   type ApiErrorCode,
 } from '@auto-learn/shared';
 import { ApiFailure, dictate } from './api';
+import { recognitionConstructor, type BrowserRecognition } from './speech-recognition';
 
 export type DictationStatus = 'idle' | 'recording' | 'transcribing';
 
@@ -36,6 +37,16 @@ const NO_PERMISSION =
 
 const NO_RECORDER = "This browser won't let me record audio.";
 
+const NO_SPEECH = "I didn't hear anything. Try again.";
+
+/**
+ * Who is doing the hearing. The browser's own recogniser costs nothing, so it
+ * goes first; recording and uploading to /dictate is the path for browsers
+ * with no recogniser (an iPhone home-screen app has none) or whose recogniser
+ * has said it cannot work here.
+ */
+export type DictationEngine = 'browser' | 'recorder';
+
 /**
  * Opus in WebM first, because it is what speech at this bitrate is for. The
  * rest are fallbacks for browsers that disagree, and the list is shared with
@@ -51,8 +62,15 @@ function pickMimeType(): string | undefined {
 export function useDictation(onTranscript: (transcript: string) => void) {
   const [status, setStatus] = useState<DictationStatus>('idle');
   const [problem, setProblem] = useState<DictationProblem | null>(null);
+  // Lazy, so the lookup runs once per mount rather than on every render. State
+  // rather than a ref because a fallback is for the rest of the hook's life and
+  // `start` has to see it on the next press.
+  const [engine, setEngine] = useState<DictationEngine>(() =>
+    recognitionConstructor() ? 'browser' : 'recorder',
+  );
 
   const recorder = useRef<MediaRecorder | null>(null);
+  const recognition = useRef<BrowserRecognition | null>(null);
   // Transcription outlives the panel: someone can stop recording and navigate
   // away before the answer arrives. Reporting into a component that is gone is
   // a warning at best and a leak at worst.
@@ -82,12 +100,13 @@ export function useDictation(onTranscript: (transcript: string) => void) {
     return () => {
       alive.current = false;
       release();
+      // Abort rather than stop: stop still delivers what was heard so far, to a
+      // panel that is no longer there.
+      recognition.current?.abort();
     };
   }, [release]);
 
-  const start = useCallback(async () => {
-    setProblem(null);
-
+  const startRecorder = useCallback(async () => {
     if (typeof MediaRecorder === 'undefined') {
       setProblem({ message: NO_RECORDER, code: null });
       return;
@@ -171,9 +190,85 @@ export function useDictation(onTranscript: (transcript: string) => void) {
     );
   }, [release]);
 
+  const listen = useCallback(
+    (Recognition: new () => BrowserRecognition) => {
+      const active = new Recognition();
+      // One phrase per press, final result only: push-to-talk, the same shape
+      // as the recorder path, so the panels cannot tell the two apart.
+      active.lang = 'en-US';
+      active.interimResults = false;
+      active.continuous = false;
+      active.maxAlternatives = 1;
+
+      // Browsers fire `end` after `error`, and by then the recorder may already
+      // be taking over; without this the late `end` would flip the status back
+      // to idle underneath it.
+      let handedOver = false;
+
+      active.onresult = (event) => {
+        if (!alive.current) return;
+        const transcript = Array.from(event.results, (phrase) => phrase[0].transcript)
+          .join(' ')
+          .trim();
+        if (transcript) heard.current(transcript);
+      };
+
+      active.onerror = (event) => {
+        if (!alive.current) return;
+        switch (event.error) {
+          // The browser has a recogniser but cannot use it here (Safari with
+          // dictation off, no capture device for it). Recording works without
+          // either, so take the same press over rather than make them repeat it.
+          case 'service-not-allowed':
+          case 'audio-capture':
+            handedOver = true;
+            setEngine('recorder');
+            setStatus('idle');
+            void startRecorder();
+            break;
+          // Not a fallback: the recorder needs the same microphone permission,
+          // so it would be refused for the same reason.
+          case 'not-allowed':
+            setProblem({ message: NO_PERMISSION, code: null });
+            break;
+          case 'no-speech':
+            setProblem({ message: NO_SPEECH, code: null });
+            break;
+          // Our own abort() on unmount; nobody is left to tell.
+          case 'aborted':
+            break;
+          default:
+            setProblem({
+              message: 'Something went wrong with that recording.',
+              code: 'upstream_failed',
+            });
+        }
+      };
+
+      active.onend = () => {
+        if (recognition.current === active) recognition.current = null;
+        if (alive.current && !handedOver) setStatus('idle');
+      };
+
+      recognition.current = active;
+      active.start();
+      setStatus('recording');
+    },
+    [startRecorder],
+  );
+
+  const start = useCallback(async () => {
+    setProblem(null);
+
+    const Recognition = engine === 'browser' ? recognitionConstructor() : null;
+    if (Recognition) listen(Recognition);
+    else await startRecorder();
+  }, [engine, listen, startRecorder]);
+
   const stop = useCallback(() => {
+    recognition.current?.stop();
     if (recorder.current?.state === 'recording') recorder.current.stop();
   }, []);
 
-  return { status, problem, start, stop };
+  return { status, problem, engine, start, stop };
 }
