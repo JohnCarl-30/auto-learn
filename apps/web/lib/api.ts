@@ -17,6 +17,7 @@ import {
   type TelemetryEvent,
 } from '@auto-learn/shared';
 import type { ZodType } from 'zod';
+import { authHeaders } from './api-token';
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
 
@@ -62,36 +63,60 @@ async function handle<T>(response: Response, schema: ZodType<T>): Promise<T> {
   return parsed.data;
 }
 
+/**
+ * Every request to the API goes through here, so every one carries the token.
+ *
+ * When the API is locked (REQUIRE_SIGN_IN) it refuses an unsigned call with a
+ * 401; when it is not, the header is simply ignored. The token is five minutes
+ * old at most, so one refusal is as likely to be a token that expired a moment
+ * ago as a person who is signed out — hence a single retry with a fresh one.
+ * It stops at one: a second refusal is the real answer and the caller shows it.
+ *
+ * `headers` is a plain record rather than `HeadersInit` so it can be merged
+ * with the token; `dictate` passes none, which is how its `Content-Type` stays
+ * unset for the browser to write the multipart boundary.
+ */
+async function send(
+  path: string,
+  init: RequestInit & { headers?: Record<string, string> } = {},
+): Promise<Response> {
+  const call = (auth: Record<string, string>) =>
+    fetch(`${BASE_URL}${path}`, {
+      ...init,
+      headers: { ...init.headers, ...auth },
+    });
+
+  try {
+    const response = await call(await authHeaders());
+    // Any 401 from these routes is `sign_in_required` (the lock answers nothing
+    // else), so the status is enough and `handle` stays the only reader of the
+    // error body. Signed out, there is no fresh token to try, and sending the
+    // same request again would only repeat the refusal — so show the first one.
+    if (response.status !== 401) return response;
+
+    const retry = await authHeaders({ fresh: true });
+    return retry.Authorization ? await call(retry) : response;
+  } catch {
+    throw new ApiFailure(unreachable);
+  }
+}
+
 async function post<T>(
   path: string,
   body: unknown,
   schema: ZodType<T>,
 ): Promise<T> {
-  let response: Response;
-
-  try {
-    response = await fetch(`${BASE_URL}${path}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-  } catch {
-    throw new ApiFailure(unreachable);
-  }
+  const response = await send(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
 
   return handle(response, schema);
 }
 
 async function get<T>(path: string, schema: ZodType<T>): Promise<T> {
-  let response: Response;
-
-  try {
-    response = await fetch(`${BASE_URL}${path}`);
-  } catch {
-    throw new ApiFailure(unreachable);
-  }
-
-  return handle(response, schema);
+  return handle(await send(path), schema);
 }
 
 export function propose(body: ProposeRequest): Promise<ProposeResponse> {
@@ -117,17 +142,11 @@ export type ProposePreview = StreamedFix | StreamedGate;
  * client may have stopped reading.
  */
 async function openStream(path: string, body: unknown): Promise<Response> {
-  let response: Response;
-
-  try {
-    response = await fetch(`${BASE_URL}${path}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-  } catch {
-    throw new ApiFailure(unreachable);
-  }
+  const response = await send(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
 
   if (!response.ok) {
     const payload: unknown = await response.json().catch(() => null);
@@ -316,14 +335,7 @@ export async function dictate(recording: Blob): Promise<DictateResponse> {
   const body = new FormData();
   body.append('audio', recording, 'recording');
 
-  let response: Response;
-
-  try {
-    response = await fetch(`${BASE_URL}/dictate`, { method: 'POST', body });
-  } catch {
-    throw new ApiFailure(unreachable);
-  }
-
+  const response = await send('/dictate', { method: 'POST', body });
   return handle(response, DictateResponse);
 }
 
