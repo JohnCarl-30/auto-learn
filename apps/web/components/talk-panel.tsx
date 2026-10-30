@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useRef, useState } from 'react';
 import {
   LoaderCircleIcon,
   MicIcon,
@@ -33,7 +34,8 @@ const SKIPPED_NOTES: Record<FeedbackSkipped, string> = {
 };
 
 /**
- * The speaking partner: pick a room, hear the opener, and answer out loud.
+ * The speaking partner: opens in "Just talk" with the opener ready, so the mic
+ * is one press away; "Change" goes back to pick another room.
  *
  * Every turn the learner takes comes back reviewed under what they said, with
  * the same gates the writing page has. Nothing is corrected out loud — the
@@ -53,8 +55,24 @@ export function TalkPanel() {
   const recording = dictation.status === 'recording';
   const transcribing = dictation.status === 'transcribing';
 
+  // Opening the app is opening a conversation: the first mount starts "Just
+  // talk" so the learner lands one press from the mic. Only the first mount —
+  // End and Change come back to the picker and must be left there. A ref, so
+  // Strict Mode's second effect run does not start (and speak) it twice.
+  const autoStarted = useRef(false);
+  // Until that start has run, render nothing rather than flash the picker the
+  // learner is not meant to see.
+  const [settled, setSettled] = useState(false);
+  const { start } = talk;
+  useEffect(() => {
+    if (autoStarted.current) return;
+    autoStarted.current = true;
+    start('free-talk');
+    setSettled(true);
+  }, [start]);
+
   if (!talk.scenario) {
-    return <ScenarioPicker onPick={talk.start} />;
+    return settled ? <ScenarioPicker onPick={talk.start} /> : null;
   }
 
   const startRecording = () => {
@@ -67,9 +85,15 @@ export function TalkPanel() {
   return (
     <div className="space-y-6" data-testid="talk">
       <div className="flex items-center justify-between gap-3">
-        <span className="text-sm text-muted-foreground" data-testid="scenario">
-          {SCENARIO_LABELS[talk.scenario]}
-        </span>
+        <div className="flex items-center gap-1">
+          <span className="text-sm text-muted-foreground" data-testid="scenario">
+            {SCENARIO_LABELS[talk.scenario]}
+          </span>
+          {/* Same way back to the picker as End; the name says what it is for. */}
+          <Button variant="ghost" size="sm" onClick={talk.end} data-testid="change">
+            Change
+          </Button>
+        </div>
         <div className="flex items-center gap-1">
           {voice.supported && (
             <Button
@@ -164,8 +188,14 @@ export function TalkPanel() {
         />
       )}
 
+      {/*
+        Stuck to the bottom of the screen so the mic and Send stay under the
+        thumb however long the conversation gets. The inset keeps them clear of
+        the home indicator in an installed iPhone app, and the background stops
+        the transcript showing through as it scrolls underneath.
+      */}
       <form
-        className="space-y-2"
+        className="sticky bottom-0 space-y-2 border-t bg-background pt-3 pb-[env(safe-area-inset-bottom)]"
         onSubmit={(event) => {
           event.preventDefault();
           void talk.send();

@@ -98,14 +98,41 @@ beforeEach(() => {
   });
 });
 
+// The panel opens in "Just talk" by itself, so choosing a room means going
+// back to the picker first, exactly as the learner would.
 async function startOfficeHours() {
   const user = userEvent.setup();
   render(<TalkPanel />);
+  await user.click(screen.getByTestId('change'));
   await user.click(screen.getByTestId('scenario-office-hours'));
   return user;
 }
 
 describe('TalkPanel', () => {
+  it('opens straight into Just talk without picking a room', async () => {
+    render(<TalkPanel />);
+
+    expect(screen.getByTestId('scenario')).toHaveTextContent('Just talk');
+    expect(screen.getByTestId('answer')).toBeInTheDocument();
+    expect(screen.queryByTestId('scenarios')).toBeNull();
+    expect(screen.getByTestId('partner-turn')).toHaveTextContent(
+      SCENARIO_OPENERS['free-talk'],
+    );
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it('goes back to the room picker from Change, and stays there', async () => {
+    const user = userEvent.setup();
+    render(<TalkPanel />);
+
+    await user.click(screen.getByTestId('change'));
+
+    // Only the first mount starts a room by itself; coming back to choose
+    // must not be undone by starting Just talk again.
+    expect(screen.getByTestId('scenarios')).toBeInTheDocument();
+    expect(screen.queryByTestId('talk')).toBeNull();
+  });
+
   it('opens with the partner speaking first, no model call spent', async () => {
     await startOfficeHours();
 

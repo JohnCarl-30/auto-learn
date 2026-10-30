@@ -9,7 +9,7 @@ export const metadata = {
 
 export default function TalkPage() {
   return (
-    <main className="mx-auto w-full max-w-2xl flex-1 px-6 py-16">
+    <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-6 sm:px-6 sm:py-16">
       <header className="mb-10">
         <div className="flex items-start justify-between gap-4">
           <h1 className="text-2xl font-semibold tracking-tight">

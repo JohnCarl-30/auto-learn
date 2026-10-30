@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { SessionProvider } from "next-auth/react";
@@ -18,6 +18,17 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "auto-learn",
   description: "Fix your sentence, and learn the word that fixed it.",
+  // With the manifest, this is what makes "Add to Home Screen" on iOS open it
+  // as an app (no browser bars) under the name "auto-learn".
+  appleWebApp: { capable: true, title: "auto-learn", statusBarStyle: "default" },
+};
+
+// `cover` draws under the notch and home indicator; the composer pads itself
+// with the safe-area inset so nothing it holds is hidden there.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
