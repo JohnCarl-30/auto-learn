@@ -19,6 +19,7 @@ jest.mock('@ai-sdk/elevenlabs', () => ({
 import { INestApplication } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { Test } from '@nestjs/testing';
+import { ThrottlerStorage, ThrottlerStorageService } from '@nestjs/throttler';
 import request from 'supertest';
 import { sign } from 'jsonwebtoken';
 import {
@@ -496,6 +497,12 @@ describe('HTTP surface', () => {
 
   describe('POST /dictate', () => {
     beforeEach(() => {
+      // This block alone sends more than /dictate's ten-a-minute allowance, and
+      // the `APP_GUARD` override above does not actually disable the throttler
+      // (Nest registers a global guard under a generated token, which
+      // `overrideProvider(APP_GUARD)` never matches). Emptying the counters
+      // keeps each test independent of how many of its neighbours ran first.
+      app.get<ThrottlerStorageService>(ThrottlerStorage).storage.clear();
       listen.mockReset();
       listen.mockResolvedValue({ text: 'The evidence was substantial.' });
     });
@@ -514,6 +521,19 @@ describe('HTTP surface', () => {
       expect(response.body as DictateResponse).toEqual({
         transcript: 'The evidence was substantial.',
       });
+    });
+
+    /**
+     * Safari records audio/mp4, not the audio/webm Chrome does, and the
+     * installed iPhone app has no other way to dictate. Going through the real
+     * route is what makes this mean something: the upload's fileFilter
+     * (`isAudioMediaType`) runs here, and it would turn an unlisted type away
+     * as a 400 before the service ever saw it.
+     */
+    it('accepts an audio/mp4 recording, which is what Safari records', async () => {
+      await recording(2_048, 'audio/mp4').expect(201);
+
+      expect(listen).toHaveBeenCalledTimes(1);
     });
 
     it('counts that someone spoke rather than typed', async () => {

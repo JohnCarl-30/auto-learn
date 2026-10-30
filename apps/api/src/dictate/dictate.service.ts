@@ -39,9 +39,11 @@ export class DictateService {
         abortSignal: AbortSignal.timeout(20_000),
       });
       text = result.text;
-      // Seconds, because that is the unit this route is billed in. Undefined
-      // when the provider does not report it, which the counter ignores rather
-      // than guessing at.
+      // Seconds, because that is the unit ElevenLabs bills this route in.
+      // Undefined when the provider does not report it, which the counter
+      // ignores rather than guessing at — and OpenAI's transcription models
+      // return no duration, so on that path `secondsTranscribed` stays 0 and
+      // only the dictation count moves.
       this.telemetry.transcribed(result.durationInSeconds ?? 0);
     } catch (error) {
       this.logger.warn('transcription failed', error);
