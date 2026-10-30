@@ -19,20 +19,33 @@ import { CallerGuard } from './caller.guard';
  * exactly as before. A public free-tier deploy sets it to `true`, and from then
  * on nothing reaches a model without a token the web app signed.
  *
- * Strictly the string `true`, not "any non-empty value": `REQUIRE_SIGN_IN=false`
- * must not read as on, and a typo must not silently lock the API.
+ * See `signInRequired` for what counts as on.
  *
  * Every failure collapses to one `sign_in_required` body, whatever CallerGuard
  * objected to — no token, expired token, or a server missing its secret. The web
  * has a single thing to do about all of them (send the person to sign in), and
  * CallerGuard has already logged the real reason server-side.
  */
+/**
+ * Whether this deploy has switched the lock on. The one place the flag is
+ * parsed, so the guard and the boot log cannot disagree about what counts as on.
+ *
+ * Only the exact string `true` does. That fails open on a typo (`TRUE`, `1`,
+ * `yes` leave the API unlocked), which is the ruled trade-off: guessing what a
+ * malformed value meant is worse than a rule you can state in one line. main.ts
+ * warns at boot about any other non-empty value so the typo is not silent.
+ *
+ * Read per request rather than cached at import, so the lock follows the
+ * environment the process is actually running in and tests can flip it.
+ */
+export function signInRequired(): boolean {
+  return process.env.REQUIRE_SIGN_IN === 'true';
+}
+
 @Injectable()
 export class SignedInGuard extends CallerGuard {
   override canActivate(context: ExecutionContext): boolean {
-    // Read per request rather than at boot, so the lock follows the environment
-    // the process is actually running in and tests can flip it.
-    if (process.env.REQUIRE_SIGN_IN !== 'true') return true;
+    if (!signInRequired()) return true;
 
     try {
       return super.canActivate(context);

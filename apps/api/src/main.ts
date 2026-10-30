@@ -2,6 +2,7 @@ import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
+import { signInRequired } from './auth/signed-in.guard';
 
 /**
  * Without a key the calls that need it fail at request time as a 502, which
@@ -37,7 +38,7 @@ async function bootstrap() {
   // Whether the key-spending routes are behind sign-in is the one setting that
   // decides who can run up the bill, so it is stated at boot rather than
   // inferred from a 401 later.
-  if (process.env.REQUIRE_SIGN_IN === 'true') {
+  if (signInRequired()) {
     logger.log(
       'REQUIRE_SIGN_IN is on: only signed-in callers can use the model routes.',
     );
@@ -50,6 +51,13 @@ async function bootstrap() {
     logger.log(
       'REQUIRE_SIGN_IN is off: the model routes are open to anyone who can reach this API.',
     );
+    // The lock fails open on anything but the exact string, so a near-miss such
+    // as "TRUE" or "1" would otherwise leave a public deploy unlocked in silence.
+    if (process.env.REQUIRE_SIGN_IN) {
+      logger.warn(
+        `  REQUIRE_SIGN_IN is set to "${process.env.REQUIRE_SIGN_IN}", so the lock is OFF. Only the exact value "true" turns it on.`,
+      );
+    }
   }
 
   // Rate limiting keys on the client IP, and behind a hosted load balancer

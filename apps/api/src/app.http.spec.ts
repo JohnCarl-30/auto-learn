@@ -715,6 +715,20 @@ describe('HTTP surface', () => {
         .expect(400);
     });
 
+    /**
+     * The ruled trade-off, pinned at the wiring level: only the exact string
+     * locks, so a near-miss reaches validation instead of being refused. main.ts
+     * warns about it at boot.
+     */
+    it('stays open for a near-miss value such as TRUE', async () => {
+      process.env.REQUIRE_SIGN_IN = 'TRUE';
+      try {
+        await request(server()).post('/converse').send({}).expect(400);
+      } finally {
+        process.env.REQUIRE_SIGN_IN = 'true';
+      }
+    });
+
     it('leaves the routes that spend nothing open', async () => {
       await request(server()).get('/health').expect(200);
       await request(server()).get('/telemetry').expect(200);

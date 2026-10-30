@@ -2,7 +2,7 @@ import { ExecutionContext, HttpException } from '@nestjs/common';
 import { sign } from 'jsonwebtoken';
 import { API_TOKEN_AUDIENCE, API_TOKEN_ISSUER } from '@auto-learn/shared';
 import type { RequestWithCaller } from './caller.guard';
-import { SignedInGuard } from './signed-in.guard';
+import { SignedInGuard, signInRequired } from './signed-in.guard';
 
 const SECRET = 's';
 
@@ -53,6 +53,37 @@ function refusal(
     'expected the guard to refuse, but it let the request through',
   );
 }
+
+describe('signInRequired', () => {
+  const original = process.env;
+
+  beforeEach(() => {
+    process.env = { ...original };
+  });
+
+  afterEach(() => {
+    process.env = original;
+  });
+
+  /**
+   * Only the exact string turns the lock on. The ruled trade-off is that a typo
+   * leaves the API open rather than guessing what was meant, which is why
+   * main.ts warns about any other non-empty value.
+   */
+  it.each([
+    [undefined, false],
+    ['', false],
+    ['false', false],
+    ['TRUE', false],
+    ['1', false],
+    ['true', true],
+  ])('reads REQUIRE_SIGN_IN=%j as %s', (value, expected) => {
+    if (value === undefined) delete process.env.REQUIRE_SIGN_IN;
+    else process.env.REQUIRE_SIGN_IN = value;
+
+    expect(signInRequired()).toBe(expected);
+  });
+});
 
 describe('SignedInGuard', () => {
   const original = process.env;
