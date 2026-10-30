@@ -90,7 +90,13 @@ export function TalkPanel() {
       </div>
 
       {talk.practiceWord && (
-        <p className="text-sm text-muted-foreground" data-testid="practice-word">
+        // Polite: "You used it." arrives after the reply, and a screen reader
+        // should hear it without being cut off mid-sentence.
+        <p
+          className="text-sm text-muted-foreground"
+          data-testid="practice-word"
+          aria-live="polite"
+        >
           {talk.practiceWord.used ? (
             <>
               <span className="font-medium text-foreground">{talk.practiceWord.word}</span>

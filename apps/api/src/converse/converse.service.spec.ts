@@ -253,6 +253,17 @@ describe('ConverseService.suggestWord', () => {
     expect(lookup).not.toHaveBeenCalled();
   });
 
+  it('returns no word when the model offers one the learner already has', async () => {
+    replyWith.mockResolvedValue({ text: 'Substantial', usage: undefined });
+    lookup.mockResolvedValue(found('substantial', 'large in amount'));
+    const { service } = setup();
+
+    await expect(
+      service.suggestWord({ scenario: 'seminar', known: ['substantial'] }),
+    ).resolves.toEqual({ word: null });
+    expect(lookup).not.toHaveBeenCalled();
+  });
+
   it('tells the model which words the learner already has', async () => {
     replyWith.mockResolvedValue({ text: 'mitigate', usage: undefined });
     lookup.mockResolvedValue(found('mitigate', 'make less severe'));

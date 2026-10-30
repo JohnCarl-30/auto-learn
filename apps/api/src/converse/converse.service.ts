@@ -20,6 +20,7 @@ import {
   MODEL_MAX_RETRIES_VOICE,
   converseModel,
   converseProviderOptions,
+  sessionWordProviderOptions,
 } from '../llm/models';
 import { DictionaryService } from '../dictionary/dictionary.service';
 import {
@@ -151,7 +152,7 @@ export class ConverseService {
         model: converseModel(),
         system: SESSION_WORD_SYSTEM_PROMPT,
         prompt: sessionWordUserPrompt(request),
-        providerOptions: converseProviderOptions,
+        providerOptions: sessionWordProviderOptions,
         // One word. The cap keeps a chatty answer from costing a paragraph.
         maxOutputTokens: 16,
         maxRetries: MODEL_MAX_RETRIES_VOICE,
@@ -165,6 +166,11 @@ export class ConverseService {
         .replace(/[^\p{L}'-]/gu, '')
         .toLowerCase();
       if (!word) return { word: null };
+
+      // The prompt asks for a word the learner does not have; this makes sure.
+      // A banked word offered as new would be counted, carded and "added" again.
+      const known = new Set(request.known.map((k) => k.toLowerCase()));
+      if (known.has(word)) return { word: null };
 
       const found = await this.dictionary.lookup(word);
       if (found.status !== 'found') return { word: null };

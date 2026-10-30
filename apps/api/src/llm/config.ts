@@ -100,6 +100,14 @@ export const converseProviderOptions = {
   },
 } as const;
 
+/** The session word has its own system prompt, so its own cache key. */
+export const sessionWordProviderOptions = {
+  openai: {
+    reasoningEffort: 'none',
+    promptCacheKey: 'auto-learn:session-word:v1',
+  },
+} as const;
+
 export const cardProviderOptions = {
   openai: {
     reasoningEffort: 'low',

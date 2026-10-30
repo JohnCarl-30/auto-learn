@@ -208,15 +208,17 @@ export function useConversation({ onReply }: { onReply?: (text: string) => void 
     ) => {
       // The same split /propose used, so the index names the sentence the
       // server stored and the lookup does not come back word_not_in_sentence.
-      const sentences = splitSentences(utterance);
-      const sentenceIndex = sentences.findIndex(
-        (sentence) => findUsedForm(sentence, word.lemma) !== null,
+      const forms = splitSentences(utterance).map((sentence) =>
+        findUsedForm(sentence, word.lemma),
       );
-      if (sentenceIndex < 0) return;
+      const sentenceIndex = forms.findIndex((form) => form !== null);
+      const form = forms[sentenceIndex];
+      if (!form) return;
 
-      // A conversation that has since ended has no word on screen to update.
-      if (sessionRef.current !== session) return;
-      setPracticeWord((w) => w && { ...w, used: true });
+      // The word was used, so it is banked even if the conversation has since
+      // ended; only the word on screen belongs to one conversation.
+      const current = () => sessionRef.current === session;
+      if (current()) setPracticeWord((w) => w && { ...w, used: true });
       if (!review) return;
 
       try {
@@ -224,14 +226,14 @@ export function useConversation({ onReply }: { onReply?: (text: string) => void 
           kind: 'lookup',
           sessionId: review.sessionId,
           sentenceIndex,
-          word: findUsedForm(sentences[sentenceIndex], word.lemma)!,
+          word: form,
         });
         if (response.kind !== 'card') return;
-        // Banked even if the conversation ended meanwhile: the word was used.
         await bankWord(response.card, utterance, 'accepted');
         setBankVersion((v) => v + 1);
-        if (sessionRef.current !== session) return;
-        setPracticeWord((w) => w && { ...w, banked: true, justBanked: true });
+        if (current()) {
+          setPracticeWord((w) => w && { ...w, banked: true, justBanked: true });
+        }
       } catch {
         // Silent: the word stays one to practise, and the turn already landed.
       }

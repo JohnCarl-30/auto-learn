@@ -312,6 +312,28 @@ describe('TalkPanel', () => {
       expect(screen.getByTestId('practice-word')).toHaveTextContent('You used it.');
     });
 
+    it('still banks a used word when the conversation ends before the reply', async () => {
+      let answer: (response: ConverseResponse) => void = () => undefined;
+      send.mockReturnValue(new Promise((resolve) => (answer = resolve)));
+      lookupCard.mockResolvedValue({
+        kind: 'card',
+        card: mitigate,
+        replacement: null,
+        alternative: null,
+      });
+      const user = await startOfficeHours();
+      await screen.findByTestId('practice-word');
+
+      await user.type(screen.getByTestId('answer'), `${SAID}{Enter}`);
+      await user.click(screen.getByTestId('end'));
+      await act(async () => answer(answered(reviewOf(SAID))));
+
+      // The word was used, so it joins the bank; the finished conversation
+      // has no word on screen to update.
+      expect(save).toHaveBeenCalledWith(mitigate, SAID, 'accepted');
+      expect(screen.queryByTestId('practice-word')).toBeNull();
+    });
+
     it('marks the word used but opens no card when the turn had no review', async () => {
       send.mockResolvedValue(answered(null));
       const user = await startOfficeHours();
