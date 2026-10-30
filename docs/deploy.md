@@ -169,7 +169,9 @@ model spend above: an account is not a gate, and `/propose` is still open.
 Everything above is shaped for a service other people use. One person on an
 iPhone needs none of it bought, so this is the same two services set by hand on
 free plans. It is settings rather than a second blueprint: `render.yaml` stays
-the paid one, and nothing here edits it.
+the paid one, and nothing here edits it. `scripts/deploy.sh` follows that paid
+blueprint (a starter instance and a Redis), so it is not for this setup; work
+through the sections below by hand.
 
 This reverses a choice made in step 1, so the reason is worth stating. The
 `starter` plan exists because a sleeping instance zeroes the telemetry counters,
@@ -193,7 +195,8 @@ plan is $0 with 1 GB per project, and its compute suspends after 5 minutes
 idle, so the first sign-in after a quiet spell is slower. That is the database
 waking, not a fault.
 
-Create the tables once, from your checkout:
+Create the tables once, from your checkout (run `pnpm install` there first, as
+the script needs `pg`):
 
 ```
 DATABASE_URL='<the Neon connection string>' pnpm --filter web db:migrate
@@ -248,7 +251,8 @@ state it is in at boot and warns when the variable is set to something other
 than `true`, so read the first lines of the log once.
 
 Leave `REDIS_URL` and the ElevenLabs keys unset. Without Redis, sessions live in
-memory, correct on one instance and a free service is always one. Without the
+memory, which is correct on exactly one instance, and a free service cannot run
+more than one. Without the
 ElevenLabs pair, dictation transcribes with OpenAI instead, and the API logs a
 boot warning for what is missing: synthesised pronunciation of a word the
 dictionary has no recording for returns 502. That warning is expected here.
@@ -288,13 +292,23 @@ sleep is the slow one.
 
 ### OpenAI
 
-Set a monthly usage limit on the key in the OpenAI dashboard before anything
-else uses it. The sign-in lock keeps strangers out; the limit bounds the rest,
-such as a leaked token or a loop. This is the one running cost, and it is the
-same advice as under Costs.
+OpenAI limits are set per project, not per key. Create a project in the OpenAI
+dashboard for this deploy, cap its monthly budget, and make the key for
+`OPENAI_API_KEY` inside that project. Use that key for the deployed app only:
+never for evals, never as a CI secret. The sign-in lock keeps strangers out;
+the cap bounds the rest, such as a leaked token or a loop. This is the one
+running cost, and it is the same advice as under Costs.
 
 ### iPhone
 
 Open the Vercel URL in Safari, tap Share, then Add to Home Screen. Open it from
 the home screen, sign in with the Resend account's email, and allow the
 microphone when asked.
+
+**Not yet verified on a device.** The emailed sign-in link opens in Safari, and
+iOS keeps a home-screen app's cookies separate from Safari's, so the installed
+app may still show signed out after the link is tapped. That is the symptom to
+look for. The first real deploy will settle what order works (sign in before
+or after adding to the home screen, or neither), and this paragraph gets updated
+then; until it has, treat the steps above as the intended flow, not a tested
+one.
