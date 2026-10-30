@@ -164,14 +164,16 @@ export function useConversation({ onReply }: { onReply?: (text: string) => void 
   }, []);
 
   const start = useCallback(
-    (next: Scenario) => {
+    (next: Scenario, { speak = true }: { speak?: boolean } = {}) => {
       const opener = SCENARIO_OPENERS[next];
       dismiss();
       setError(null);
       setDraft('');
       setScenario(next);
       setTurns([{ id: nextId(), role: 'partner', text: opener }]);
-      replyRef.current?.(opener);
+      // `speak: false` is for an opening nobody tapped for: browsers refuse
+      // speech without a user gesture, so it would be silent at best.
+      if (speak) replyRef.current?.(opener);
 
       // Not awaited: the opener is free and immediate, and stays that way.
       const session = ++sessionRef.current;

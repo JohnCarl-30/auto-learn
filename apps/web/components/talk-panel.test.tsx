@@ -24,7 +24,22 @@ jest.mock('../lib/bank', () => ({
   recordReuse: jest.fn(),
 }));
 jest.mock('../lib/use-dictation', () => ({ useDictation: jest.fn() }));
+// Only `say` is watched: whether the opener is spoken is the question, and
+// jsdom's missing speechSynthesis would hide it. `supported` is true so the
+// replay button is there, as it is on a real phone.
+const mockSay = jest.fn();
+jest.mock('../lib/use-partner-voice', () => ({
+  usePartnerVoice: () => ({
+    supported: true,
+    muted: false,
+    speaking: false,
+    say: mockSay,
+    stop: jest.fn(),
+    toggleMuted: jest.fn(),
+  }),
+}));
 
+import { StrictMode } from 'react';
 import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import {
@@ -82,6 +97,7 @@ const reviewed: ConverseResponse = {
 };
 
 beforeEach(() => {
+  mockSay.mockReset();
   send.mockReset();
   openCard.mockReset();
   lookupCard.mockReset();
@@ -119,6 +135,40 @@ describe('TalkPanel', () => {
       SCENARIO_OPENERS['free-talk'],
     );
     expect(send).not.toHaveBeenCalled();
+  });
+
+  it('shows the opener it opens with but does not speak it unprompted', async () => {
+    const user = userEvent.setup();
+    render(<TalkPanel />);
+
+    // No tap has happened yet, so iOS and Chrome would drop the speech
+    // anyway; the replay button is how it is heard.
+    expect(mockSay).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'Hear that again' }));
+    expect(mockSay).toHaveBeenCalledWith(SCENARIO_OPENERS['free-talk'], { force: true });
+  });
+
+  it('speaks the opener of a room the learner picks', async () => {
+    await startOfficeHours();
+
+    expect(mockSay).toHaveBeenCalledTimes(1);
+    expect(mockSay).toHaveBeenCalledWith(SCENARIO_OPENERS['office-hours']);
+  });
+
+  it('starts once under Strict Mode, which runs mount effects twice', async () => {
+    suggest.mockResolvedValue({ word: { word: 'mitigate', definition: 'make less severe' } });
+    render(
+      <StrictMode>
+        <TalkPanel />
+      </StrictMode>,
+    );
+
+    await screen.findByTestId('practice-word');
+
+    // One conversation, so one look at the bank and one suggestion.
+    expect(bank).toHaveBeenCalledTimes(1);
+    expect(suggest).toHaveBeenCalledTimes(1);
+    expect(screen.getAllByTestId('partner-turn')).toHaveLength(1);
   });
 
   it('goes back to the room picker from Change, and stays there', async () => {

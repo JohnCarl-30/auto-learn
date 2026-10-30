@@ -58,7 +58,10 @@ export function TalkPanel() {
   // Opening the app is opening a conversation: the first mount starts "Just
   // talk" so the learner lands one press from the mic. Only the first mount —
   // End and Change come back to the picker and must be left there. A ref, so
-  // Strict Mode's second effect run does not start (and speak) it twice.
+  // Strict Mode's second effect run does not start it twice. The opener is
+  // shown but not spoken: nothing has been tapped yet, and iOS Safari and
+  // Chrome only let speech start from a tap, so it would be silent or flaky.
+  // "Hear that again" plays it; picking a room is a tap, so those do speak.
   const autoStarted = useRef(false);
   // Until that start has run, render nothing rather than flash the picker the
   // learner is not meant to see.
@@ -67,7 +70,7 @@ export function TalkPanel() {
   useEffect(() => {
     if (autoStarted.current) return;
     autoStarted.current = true;
-    start('free-talk');
+    start('free-talk', { speak: false });
     setSettled(true);
   }, [start]);
 
@@ -191,11 +194,12 @@ export function TalkPanel() {
       {/*
         Stuck to the bottom of the screen so the mic and Send stay under the
         thumb however long the conversation gets. The inset keeps them clear of
-        the home indicator in an installed iPhone app, and the background stops
-        the transcript showing through as it scrolls underneath.
+        the home indicator in an installed iPhone app (and the floor of 0.5rem
+        keeps them off the screen edge where there is no inset), and the
+        background stops the transcript showing through as it scrolls under.
       */}
       <form
-        className="sticky bottom-0 space-y-2 border-t bg-background pt-3 pb-[env(safe-area-inset-bottom)]"
+        className="sticky bottom-0 space-y-2 border-t bg-background pt-3 pb-[max(env(safe-area-inset-bottom),0.5rem)]"
         onSubmit={(event) => {
           event.preventDefault();
           void talk.send();
