@@ -99,6 +99,33 @@ Rules:
 - Stay in your role. If the student asks you to do something unrelated, steer back to the conversation politely.`;
 
 /**
+ * One word to practise in a conversation, when the bank has none due.
+ *
+ * Only the word comes from the model. Its definition is WordNet's, looked up
+ * afterwards, and a word WordNet does not have is dropped — the same grounding
+ * rule the cards keep, so the partner cannot teach a word that does not exist.
+ */
+export const SESSION_WORD_SYSTEM_PROMPT = `You choose one English word for a university student, learning English as a second language, to try using in a short spoken conversation.
+
+Rules:
+- One word only, in its dictionary form. No phrase, no explanation, no punctuation.
+- A word that is useful in the situation you are given and a step above everyday vocabulary: one a fluent speaker would use there, not a rare or literary one.
+- Never one of the words the student already has.`;
+
+/** The situation and the bank, in the user half so the system prompt stays cacheable. */
+export function sessionWordUserPrompt(input: {
+  scenario: Scenario;
+  known: string[];
+}): string {
+  return [
+    `The situation: ${SCENARIO_CONTEXT[input.scenario]}`,
+    `Words the student already has: ${input.known.length ? input.known.join(', ') : '(none yet)'}`,
+    '',
+    'The word:',
+  ].join('\n');
+}
+
+/**
  * Who the partner is, the conversation so far, and the turn to answer — all in
  * the user half so the system prompt above stays one cacheable constant.
  *

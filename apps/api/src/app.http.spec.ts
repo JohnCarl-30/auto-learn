@@ -707,6 +707,7 @@ describe('HTTP surface', () => {
 
     it.each([
       ['post', '/converse'],
+      ['post', '/converse/word'],
       ['post', '/propose'],
       ['post', '/propose/stream'],
       ['post', '/card'],

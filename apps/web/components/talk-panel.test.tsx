@@ -11,25 +11,46 @@ jest.mock('../lib/api', () => ({
     }
   },
   converse: jest.fn(),
+  fetchCard: jest.fn(),
   fetchCardStream: jest.fn(),
   reportEvent: jest.fn(),
   speak: jest.fn(),
+  suggestWord: jest.fn(),
 }));
 jest.mock('../lib/bank', () => ({
   bankWord: jest.fn(),
-  knownWords: jest.fn().mockResolvedValue(['significant']),
+  knownWords: jest.fn(),
+  listBank: jest.fn(),
+  recordReuse: jest.fn(),
 }));
 jest.mock('../lib/use-dictation', () => ({ useDictation: jest.fn() }));
 
 import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { SCENARIO_OPENERS, type ConverseResponse } from '@auto-learn/shared';
-import { ApiFailure, converse, fetchCardStream } from '../lib/api';
+import {
+  SCENARIO_OPENERS,
+  type BankEntry,
+  type ConverseResponse,
+  type WordCard,
+} from '@auto-learn/shared';
+import {
+  ApiFailure,
+  converse,
+  fetchCard,
+  fetchCardStream,
+  suggestWord,
+} from '../lib/api';
+import { bankWord, knownWords, listBank, recordReuse } from '../lib/bank';
 import { useDictation } from '../lib/use-dictation';
 import { TalkPanel } from './talk-panel';
 
 const send = converse as jest.Mock;
 const openCard = fetchCardStream as jest.Mock;
+const lookupCard = fetchCard as jest.Mock;
+const suggest = suggestWord as jest.Mock;
+const bank = listBank as jest.Mock;
+const reuse = recordReuse as jest.Mock;
+const save = bankWord as jest.Mock;
 const dictation = useDictation as jest.Mock;
 
 let deliver: (transcript: string) => void = () => undefined;
@@ -63,6 +84,13 @@ const reviewed: ConverseResponse = {
 beforeEach(() => {
   send.mockReset();
   openCard.mockReset();
+  lookupCard.mockReset();
+  save.mockReset().mockResolvedValue(undefined);
+  (knownWords as jest.Mock).mockReset().mockResolvedValue(['significant']);
+  // An empty bank and no suggestion: the panel as it was before practice words.
+  bank.mockReset().mockResolvedValue([]);
+  reuse.mockReset().mockResolvedValue([]);
+  suggest.mockReset().mockResolvedValue({ word: null });
   dictation.mockReset();
   dictation.mockImplementation((onTranscript: (t: string) => void) => {
     deliver = onTranscript;
@@ -171,5 +199,142 @@ describe('TalkPanel', () => {
     const user = await startOfficeHours();
     await user.click(screen.getByTestId('end'));
     expect(screen.getByTestId('scenarios')).toBeInTheDocument();
+  });
+
+  describe('the word to practise', () => {
+    const banked: BankEntry = {
+      id: 'substantial:1',
+      word: 'substantial',
+      lemma: 'substantial',
+      partOfSpeech: 'adjective',
+      senseId: '1',
+      definition: 'large in amount',
+      synonyms: [],
+      useCases: [],
+      register: 'neutral',
+      sourceSentence: 'The evidence was substantial.',
+      addedVia: 'accepted',
+      addedAt: '2026-10-01T00:00:00.000Z',
+      timesReused: 0,
+      lastReusedAt: null,
+    };
+
+    const mitigate: WordCard = {
+      word: 'mitigated',
+      lemma: 'mitigate',
+      partOfSpeech: 'verb',
+      definition: 'make less severe',
+      senseId: '1',
+      synonyms: [
+        { word: 'ease', nuance: 'gentler' },
+        { word: 'reduce', nuance: 'plainer' },
+      ],
+      useCases: ['one', 'two'],
+      register: 'formal',
+      whyHere: null,
+      pronunciation: { ipa: null, audioUrl: null },
+    };
+
+    const SAID = 'We mitigated the risk.';
+
+    const answered = (review: ConverseResponse['review']): ConverseResponse => ({
+      reply: 'Good. What else?',
+      skipped: review ? null : 'too_many_sentences',
+      review,
+    });
+
+    const reviewOf = (text: string): ConverseResponse['review'] => ({
+      sessionId: 's1',
+      sentences: [
+        { index: 0, original: text, text, silentFixes: [], gated: [] },
+      ],
+    });
+
+    beforeEach(() => {
+      suggest.mockResolvedValue({
+        word: { word: 'mitigate', definition: 'make less severe' },
+      });
+    });
+
+    it('shows a bank word to practise when the bank has one', async () => {
+      bank.mockResolvedValue([banked]);
+      reuse.mockResolvedValue([banked]);
+      send.mockResolvedValue(answered(reviewOf('It was substantial.')));
+      const user = await startOfficeHours();
+
+      expect(await screen.findByTestId('practice-word')).toHaveTextContent(
+        'Try using: substantial — large in amount',
+      );
+      expect(suggest).not.toHaveBeenCalled();
+
+      await user.type(screen.getByTestId('answer'), 'It was substantial.{Enter}');
+
+      // Counted by the bank's own reuse check, so no card is opened for it.
+      expect(reuse).toHaveBeenCalledWith('It was substantial.');
+      expect(await screen.findByText('You used it.')).toBeInTheDocument();
+      expect(screen.queryByText('Added to your bank.')).toBeNull();
+      expect(lookupCard).not.toHaveBeenCalled();
+    });
+
+    it('asks for a word when the bank is empty and shows it', async () => {
+      await startOfficeHours();
+
+      expect(await screen.findByTestId('practice-word')).toHaveTextContent(
+        'Try using: mitigate — make less severe',
+      );
+      expect(suggest).toHaveBeenCalledWith({
+        scenario: 'office-hours',
+        known: ['significant'],
+      });
+    });
+
+    it('banks a suggested word after the learner uses it', async () => {
+      send.mockResolvedValue(answered(reviewOf(SAID)));
+      lookupCard.mockResolvedValue({
+        kind: 'card',
+        card: mitigate,
+        replacement: null,
+        alternative: null,
+      });
+      const user = await startOfficeHours();
+      await screen.findByTestId('practice-word');
+
+      await user.type(screen.getByTestId('answer'), `${SAID}{Enter}`);
+
+      expect(await screen.findByText('Added to your bank.')).toBeInTheDocument();
+      expect(lookupCard).toHaveBeenCalledWith({
+        kind: 'lookup',
+        sessionId: 's1',
+        sentenceIndex: 0,
+        word: 'mitigated',
+      });
+      expect(save).toHaveBeenCalledWith(mitigate, SAID, 'accepted');
+      expect(screen.getByTestId('practice-word')).toHaveTextContent('You used it.');
+    });
+
+    it('marks the word used but opens no card when the turn had no review', async () => {
+      send.mockResolvedValue(answered(null));
+      const user = await startOfficeHours();
+      await screen.findByTestId('practice-word');
+
+      await user.type(screen.getByTestId('answer'), `${SAID}{Enter}`);
+
+      expect(await screen.findByText('You used it.')).toBeInTheDocument();
+      expect(lookupCard).not.toHaveBeenCalled();
+      expect(save).not.toHaveBeenCalled();
+    });
+
+    it('still lets you talk when no word could be found', async () => {
+      suggest.mockRejectedValue(new Error('offline'));
+      send.mockResolvedValue(answered(reviewOf('Hello there.')));
+      const user = await startOfficeHours();
+
+      await user.type(screen.getByTestId('answer'), 'Hello there.{Enter}');
+
+      expect(
+        (await screen.findAllByTestId('partner-turn')).at(-1),
+      ).toHaveTextContent('Good. What else?');
+      expect(screen.queryByTestId('practice-word')).toBeNull();
+    });
   });
 });

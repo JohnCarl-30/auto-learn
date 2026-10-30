@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { findReused, maskLemma } from './reuse';
+import { findReused, findUsedForm, maskLemma } from './reuse';
 
 describe('findReused', () => {
   it('finds an exact reuse', () => {
@@ -97,5 +97,19 @@ describe('maskLemma', () => {
 
   it('returns the sentence untouched when the word is not in it', () => {
     expect(maskLemma('Nothing to see.', 'substantial')).toBe('Nothing to see.');
+  });
+});
+
+describe('findUsedForm', () => {
+  it('returns the word as written, case kept and punctuation dropped', () => {
+    expect(findUsedForm('We should Mitigate it.', 'mitigate')).toBe('Mitigate');
+  });
+
+  it('returns the inflected form the sentence used', () => {
+    expect(findUsedForm('They mitigated the risk', 'mitigate')).toBe('mitigated');
+  });
+
+  it('returns null when the word is not there', () => {
+    expect(findUsedForm('Nothing here', 'mitigate')).toBeNull();
   });
 });

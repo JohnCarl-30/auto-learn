@@ -5,8 +5,11 @@ import {
   SCENARIO_OPENERS,
   applyReplacement,
   dismissSuggestion,
+  findUsedForm,
   recentTurns,
+  splitSentences,
   type ApiError,
+  type BankEntry,
   type ConverseTurn,
   type FeedbackSkipped,
   type ProposeResponse,
@@ -16,10 +19,13 @@ import { toast } from 'sonner';
 import {
   ApiFailure,
   converse,
+  fetchCard,
   fetchCardStream,
   reportEvent,
+  suggestWord,
 } from './api';
-import { bankWord, knownWords } from './bank';
+import { bankWord, knownWords, listBank, recordReuse } from './bank';
+import { pickBankWord, type PracticeWord } from './session-word';
 import type { CardState } from '@/components/word-card';
 
 export type PartnerTurn = { id: string; role: 'partner'; text: string };
@@ -95,6 +101,29 @@ function rewriteSentence(target: OpenTarget, change: (sentence: Sentence) => Sen
     );
 }
 
+/**
+ * The word offered at the start of a conversation: a banked word due for
+ * practice if there is one, otherwise one the API suggests for this room.
+ *
+ * Every failure is null. A missing word costs the learner a nudge, never the
+ * conversation.
+ */
+async function choosePracticeWord(scenario: Scenario): Promise<PracticeWord | null> {
+  try {
+    const entry = pickBankWord(await listBank(), new Date());
+    if (entry) {
+      const { word, lemma, definition } = entry;
+      return { word, lemma, definition, banked: true, used: false };
+    }
+
+    const { word } = await suggestWord({ scenario, known: await knownWords() });
+    if (!word) return null;
+    return { ...word, lemma: word.word, banked: false, used: false };
+  } catch {
+    return null;
+  }
+}
+
 export function useConversation({ onReply }: { onReply?: (text: string) => void } = {}) {
   const [scenario, setScenario] = useState<Scenario | null>(null);
   const [turns, setTurns] = useState<Turn[]>([]);
@@ -111,6 +140,13 @@ export function useConversation({ onReply }: { onReply?: (text: string) => void 
   const [saved, setSaved] = useState(false);
   /** Bumped after every bank write, as on the writing page. */
   const [bankVersion, setBankVersion] = useState(0);
+  const [practiceWord, setPracticeWord] = useState<PracticeWord | null>(null);
+  /**
+   * Which conversation is current. The practice word arrives after the opener,
+   * and one that lands after End, or after a new room was picked, belongs to
+   * a conversation that is already over.
+   */
+  const sessionRef = useRef(0);
 
   // Read inside the callbacks without rebuilding them every time a turn
   // arrives, the way use-dictation holds its transcript handler.
@@ -136,6 +172,13 @@ export function useConversation({ onReply }: { onReply?: (text: string) => void 
       setScenario(next);
       setTurns([{ id: nextId(), role: 'partner', text: opener }]);
       replyRef.current?.(opener);
+
+      // Not awaited: the opener is free and immediate, and stays that way.
+      const session = ++sessionRef.current;
+      setPracticeWord(null);
+      void choosePracticeWord(next).then((word) => {
+        if (word && sessionRef.current === session) setPracticeWord(word);
+      });
     },
     [dismiss],
   );
@@ -146,7 +189,55 @@ export function useConversation({ onReply }: { onReply?: (text: string) => void 
     setDraft('');
     setTurns([]);
     setScenario(null);
+    sessionRef.current++;
+    setPracticeWord(null);
   }, [dismiss]);
+
+  /**
+   * A suggested word joins the bank only on evidence of use: the learner said
+   * it, and the turn was reviewed, so there is a session for /card to open a
+   * real card from. Used without a review still counts as used — the bank
+   * just waits for a turn it can make a card from.
+   */
+  const bankIfUsed = useCallback(
+    async (
+      word: PracticeWord,
+      utterance: string,
+      review: ProposeResponse | null,
+      session: number,
+    ) => {
+      // The same split /propose used, so the index names the sentence the
+      // server stored and the lookup does not come back word_not_in_sentence.
+      const sentences = splitSentences(utterance);
+      const sentenceIndex = sentences.findIndex(
+        (sentence) => findUsedForm(sentence, word.lemma) !== null,
+      );
+      if (sentenceIndex < 0) return;
+
+      // A conversation that has since ended has no word on screen to update.
+      if (sessionRef.current !== session) return;
+      setPracticeWord((w) => w && { ...w, used: true });
+      if (!review) return;
+
+      try {
+        const response = await fetchCard({
+          kind: 'lookup',
+          sessionId: review.sessionId,
+          sentenceIndex,
+          word: findUsedForm(sentences[sentenceIndex], word.lemma)!,
+        });
+        if (response.kind !== 'card') return;
+        // Banked even if the conversation ended meanwhile: the word was used.
+        await bankWord(response.card, utterance, 'accepted');
+        setBankVersion((v) => v + 1);
+        if (sessionRef.current !== session) return;
+        setPracticeWord((w) => w && { ...w, banked: true, justBanked: true });
+      } catch {
+        // Silent: the word stays one to practise, and the turn already landed.
+      }
+    },
+    [],
+  );
 
   const send = useCallback(async () => {
     const utterance = draft.trim();
@@ -154,7 +245,20 @@ export function useConversation({ onReply }: { onReply?: (text: string) => void 
 
     setPending(true);
     setError(null);
+    // Taken now, so a conversation ended while the reply was on its way is
+    // recognised as over when the card comes back.
+    const session = sessionRef.current;
     try {
+      // Banked words used again, counted as the writing page counts them. A
+      // banked practice word is counted here and nowhere else, so once.
+      const hits = await recordReuse(utterance).catch(() => [] as BankEntry[]);
+      if (hits.length > 0) {
+        setBankVersion((v) => v + 1);
+        if (practiceWord?.banked && hits.some((hit) => hit.lemma === practiceWord.lemma)) {
+          setPracticeWord((w) => w && { ...w, used: true });
+        }
+      }
+
       // As on /propose: an unreadable bank costs a preference, not a turn.
       const known = await knownWords().catch(() => [] as string[]);
       const result = await converse({
@@ -177,6 +281,10 @@ export function useConversation({ onReply }: { onReply?: (text: string) => void 
       ]);
       setDraft('');
       replyRef.current?.(result.reply);
+
+      if (practiceWord && !practiceWord.banked) {
+        void bankIfUsed(practiceWord, utterance, result.review, session);
+      }
     } catch (failure) {
       // The turn is not added and the draft stays: nothing was answered, so
       // nothing happened, and the learner can send the same words again.
@@ -184,7 +292,7 @@ export function useConversation({ onReply }: { onReply?: (text: string) => void 
     } finally {
       setPending(false);
     }
-  }, [draft, pending, scenario]);
+  }, [bankIfUsed, draft, pending, practiceWord, scenario]);
 
   const load = useCallback(
     async (target: OpenTarget, request: Parameters<typeof fetchCardStream>[0]) => {
@@ -292,6 +400,7 @@ export function useConversation({ onReply }: { onReply?: (text: string) => void 
     card,
     saved,
     bankVersion,
+    practiceWord,
     start,
     end,
     send,

@@ -89,6 +89,31 @@ export function TalkPanel() {
         </div>
       </div>
 
+      {talk.practiceWord && (
+        <p className="text-sm text-muted-foreground" data-testid="practice-word">
+          {talk.practiceWord.used ? (
+            <>
+              <span className="font-medium text-foreground">{talk.practiceWord.word}</span>
+              {' — '}
+              <span>You used it.</span>
+              {talk.practiceWord.justBanked && (
+                <>
+                  {' '}
+                  <span>Added to your bank.</span>
+                </>
+              )}
+            </>
+          ) : (
+            <>
+              Try using:{' '}
+              <span className="font-medium text-foreground">{talk.practiceWord.word}</span>
+              {' — '}
+              {talk.practiceWord.definition}
+            </>
+          )}
+        </p>
+      )}
+
       <ol className="space-y-5" aria-label="Conversation">
         {talk.turns.map((turn) =>
           turn.role === 'partner' ? (

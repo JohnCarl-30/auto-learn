@@ -18,6 +18,10 @@ import type {
   ConverseRequest,
   ConverseTurn,
 } from '@auto-learn/shared';
+import type {
+  DictionaryService,
+  Retrieval,
+} from '../dictionary/dictionary.service';
 import { MemorySessionStore } from '../session/session.store';
 import { ProposeService } from '../propose/propose.service';
 import { TelemetryService } from '../telemetry/telemetry.service';
@@ -41,17 +45,22 @@ const request = (
   ...overrides,
 });
 
+/** A WordNet stand-in: the session word only ever needs `lookup`. */
+const lookup = jest.fn<Promise<Retrieval>, [string]>();
+
 function setup() {
   const sessions = new MemorySessionStore();
   const telemetry = new TelemetryService();
   const service = new ConverseService(
     new ProposeService(sessions, telemetry),
     telemetry,
+    { lookup } as unknown as DictionaryService,
   );
   return { service, sessions, telemetry };
 }
 
 beforeEach(() => {
+  lookup.mockReset();
   replyWith.mockReset();
   reviewWith.mockReset();
   replyWith.mockResolvedValue({
@@ -198,5 +207,64 @@ describe('ConverseService', () => {
     expect(replyPrompt).not.toContain('turn number 7:');
     expect(replyPrompt).not.toContain('turn number 7\n');
     expect(replyPrompt).toContain('turn number 19');
+  });
+});
+
+describe('ConverseService.suggestWord', () => {
+  const found = (word: string, definition: string): Retrieval => ({
+    status: 'found',
+    entry: {
+      word,
+      senses: [{ senseId: 's1', partOfSpeech: 'verb', definition }],
+      synonyms: [],
+    },
+  });
+
+  it('suggests a word the dictionary knows', async () => {
+    replyWith.mockResolvedValue({ text: 'Mitigate.', usage: undefined });
+    lookup.mockResolvedValue(found('mitigate', 'make less severe'));
+    const { service } = setup();
+
+    await expect(
+      service.suggestWord({ scenario: 'office-hours', known: [] }),
+    ).resolves.toEqual({
+      word: { word: 'mitigate', definition: 'make less severe' },
+    });
+    expect(lookup).toHaveBeenCalledWith('mitigate');
+  });
+
+  it('returns no word when the dictionary has never heard of it', async () => {
+    replyWith.mockResolvedValue({ text: 'Blorficate', usage: undefined });
+    lookup.mockResolvedValue({ status: 'absent' });
+    const { service } = setup();
+
+    await expect(
+      service.suggestWord({ scenario: 'seminar', known: [] }),
+    ).resolves.toEqual({ word: null });
+  });
+
+  it('returns no word instead of failing when the model errors', async () => {
+    replyWith.mockRejectedValue(new Error('provider down'));
+    const { service } = setup();
+
+    await expect(
+      service.suggestWord({ scenario: 'seminar', known: [] }),
+    ).resolves.toEqual({ word: null });
+    expect(lookup).not.toHaveBeenCalled();
+  });
+
+  it('tells the model which words the learner already has', async () => {
+    replyWith.mockResolvedValue({ text: 'mitigate', usage: undefined });
+    lookup.mockResolvedValue(found('mitigate', 'make less severe'));
+    const { service } = setup();
+
+    await service.suggestWord({
+      scenario: 'group-project',
+      known: ['substantial', 'allocate'],
+    });
+
+    const prompt = promptOf(replyWith);
+    expect(prompt).toContain('substantial');
+    expect(prompt).toContain('allocate');
   });
 });

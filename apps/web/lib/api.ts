@@ -6,9 +6,11 @@ import {
   DictateResponse,
   ProposeResponse,
   ProposeStreamEvent,
+  SessionWordResponse,
   SpeakResponse,
   type CardRequest,
   type ConverseRequest,
+  type SessionWordRequest,
   type ProposeRequest,
   type PartOfSpeech,
   type StreamedFix,
@@ -314,6 +316,11 @@ export async function fetchCardStream(
  */
 export function converse(body: ConverseRequest): Promise<ConverseResponse> {
   return post('/converse', body, ConverseResponse);
+}
+
+/** A word to practise in a conversation. `{ word: null }` when none was found. */
+export function suggestWord(body: SessionWordRequest): Promise<SessionWordResponse> {
+  return post('/converse/word', body, SessionWordResponse);
 }
 
 /**
