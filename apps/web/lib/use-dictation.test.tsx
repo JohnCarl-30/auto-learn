@@ -253,10 +253,6 @@ describe('useDictation', () => {
     beforeEach(withBrowserRecogniser);
 
     it('uses the browser recogniser when there is one and never calls /dictate', async () => {
-      // jsdom has no fetch to spy on; /dictate is the only thing here that
-      // would reach for one, and `dictate` itself is mocked above.
-      const fetches = jest.fn();
-      Object.defineProperty(global, 'fetch', { configurable: true, writable: true, value: fetches });
       const heard = jest.fn();
       const { result } = renderHook(() => useDictation(heard));
 
@@ -276,9 +272,21 @@ describe('useDictation', () => {
 
       expect(heard).toHaveBeenCalledWith('I went yesterday');
       expect(result.current.status).toBe('idle');
+      expect(result.current.problem).toBeNull();
+      // `dictate` is the only door to /dictate, and it is mocked above, so this
+      // is the assertion that proves the server was not used. No recorder was
+      // built either, so nothing was captured to upload.
       expect(transcribes).not.toHaveBeenCalled();
-      expect(fetches).not.toHaveBeenCalled();
       expect(recorders).toHaveLength(0);
+    });
+
+    it('ignores a second press while the first is still listening', async () => {
+      const { result } = renderHook(() => useDictation(jest.fn()));
+
+      await act(() => result.current.start());
+      await act(() => result.current.start());
+
+      expect(recognisers).toHaveLength(1);
     });
 
     it('listens again on the next press rather than reusing a finished recogniser', async () => {
@@ -320,14 +328,62 @@ describe('useDictation', () => {
       expect(recorders).toHaveLength(2);
     });
 
-    it('switches to recording when the browser cannot capture audio either', async () => {
+    /**
+     * Each of these fails again on every press, so staying on the browser
+     * engine would leave the person with a button that never works.
+     */
+    it.each(['audio-capture', 'network', 'language-not-supported'])(
+      'switches to recording on %s too',
+      async (error) => {
+        const { result } = renderHook(() => useDictation(jest.fn()));
+
+        await act(() => result.current.start());
+        await act(async () => recognisers[0].onerror?.({ error }));
+
+        expect(result.current.engine).toBe('recorder');
+        await waitFor(() => expect(recorders[0]?.state).toBe('recording'));
+        expect(result.current.problem).toBeNull();
+      },
+    );
+
+    it('can press again after a fallback even if the browser never says it ended', async () => {
       const { result } = renderHook(() => useDictation(jest.fn()));
 
       await act(() => result.current.start());
-      await act(async () => recognisers[0].onerror?.({ error: 'audio-capture' }));
-
-      expect(result.current.engine).toBe('recorder');
+      await act(async () => recognisers[0].onerror?.({ error: 'network' }));
       await waitFor(() => expect(recorders[0]?.state).toBe('recording'));
+      act(() => result.current.stop());
+      await waitFor(() => expect(result.current.status).toBe('idle'));
+
+      await act(() => result.current.start());
+
+      expect(recorders).toHaveLength(2);
+    });
+
+    it('ignores an abort rather than reporting it as a failure', async () => {
+      const { result } = renderHook(() => useDictation(jest.fn()));
+
+      await act(() => result.current.start());
+      act(() => recognisers[0].onerror?.({ error: 'aborted' }));
+
+      expect(result.current.problem).toBeNull();
+      expect(result.current.engine).toBe('browser');
+      expect(recorders).toHaveLength(0);
+    });
+
+    it('says something went wrong for an error it does not know', async () => {
+      const { result } = renderHook(() => useDictation(jest.fn()));
+
+      await act(() => result.current.start());
+      act(() => recognisers[0].onerror?.({ error: 'bad-grammar' }));
+      act(() => recognisers[0].onend?.());
+
+      // Told once, by the error, not again by the `end` that follows it.
+      expect(result.current.problem).toEqual({
+        message: 'Something went wrong with that recording.',
+        code: 'upstream_failed',
+      });
+      expect(result.current.engine).toBe('browser');
     });
 
     it('shows the permission message and does not fall back when the mic is refused', async () => {
@@ -355,6 +411,37 @@ describe('useDictation', () => {
         code: null,
       });
       expect(result.current.engine).toBe('browser');
+    });
+
+    /**
+     * Tap and release before speaking, or a browser that just closes: `end`
+     * arrives with no result and no error. Silence there looks like a button
+     * that does nothing.
+     */
+    it('says so when the recogniser ends without a result or an error', async () => {
+      const heard = jest.fn();
+      const { result } = renderHook(() => useDictation(heard));
+
+      await act(() => result.current.start());
+      act(() => result.current.stop());
+      act(() => recognisers[0].onend?.());
+
+      expect(result.current.problem).toEqual({
+        message: "I didn't hear anything. Try again.",
+        code: null,
+      });
+      expect(result.current.status).toBe('idle');
+      expect(heard).not.toHaveBeenCalled();
+    });
+
+    it('does not pile "nothing heard" on top of an error it already explained', async () => {
+      const { result } = renderHook(() => useDictation(jest.fn()));
+
+      await act(() => result.current.start());
+      act(() => recognisers[0].onerror?.({ error: 'not-allowed' }));
+      act(() => recognisers[0].onend?.());
+
+      expect(result.current.problem?.message).toContain('permission');
     });
 
     it('lets go of the recogniser on unmount, mid-sentence', async () => {

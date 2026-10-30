@@ -204,24 +204,43 @@ export function useDictation(onTranscript: (transcript: string) => void) {
       // be taking over; without this the late `end` would flip the status back
       // to idle underneath it.
       let handedOver = false;
+      // Whether the person has been given an answer, a transcript or a reason.
+      // A recogniser can also end having done neither (a tap and release before
+      // speaking, or Safari simply closing), and an unexplained return to idle
+      // reads as the button doing nothing.
+      let answered = false;
 
       active.onresult = (event) => {
         if (!alive.current) return;
         const transcript = Array.from(event.results, (phrase) => phrase[0].transcript)
           .join(' ')
           .trim();
-        if (transcript) heard.current(transcript);
+        if (!transcript) return;
+        answered = true;
+        heard.current(transcript);
       };
 
       active.onerror = (event) => {
         if (!alive.current) return;
+        // Every error but `aborted` is told to the person below, so the `end`
+        // that follows must not add a second, vaguer message on top.
+        if (event.error !== 'aborted') answered = true;
         switch (event.error) {
-          // The browser has a recogniser but cannot use it here (Safari with
-          // dictation off, no capture device for it). Recording works without
-          // either, so take the same press over rather than make them repeat it.
+          // The browser has a recogniser but cannot use it here: Safari with
+          // dictation off, no capture device for it, or (`network`,
+          // `language-not-supported`) a service it cannot reach or a language
+          // it does not have. Each fails again on every press, which would
+          // leave the person stuck on an engine that never works, while
+          // recording needs none of them. So switch for good and take the same
+          // press over rather than make them repeat it.
           case 'service-not-allowed':
           case 'audio-capture':
+          case 'network':
+          case 'language-not-supported':
             handedOver = true;
+            // Let go of it now: `end` may never come, and a stale entry here
+            // would make the guard in `start` refuse every press from now on.
+            recognition.current = null;
             setEngine('recorder');
             setStatus('idle');
             void startRecorder();
@@ -234,7 +253,8 @@ export function useDictation(onTranscript: (transcript: string) => void) {
           case 'no-speech':
             setProblem({ message: NO_SPEECH, code: null });
             break;
-          // Our own abort() on unmount; nobody is left to tell.
+          // Our own abort() on unmount; nobody is left to tell. If it comes with
+          // nothing said, `end` reports that the usual way.
           case 'aborted':
             break;
           default:
@@ -247,7 +267,9 @@ export function useDictation(onTranscript: (transcript: string) => void) {
 
       active.onend = () => {
         if (recognition.current === active) recognition.current = null;
-        if (alive.current && !handedOver) setStatus('idle');
+        if (!alive.current || handedOver) return;
+        setStatus('idle');
+        if (!answered) setProblem({ message: NO_SPEECH, code: null });
       };
 
       recognition.current = active;
@@ -258,6 +280,11 @@ export function useDictation(onTranscript: (transcript: string) => void) {
   );
 
   const start = useCallback(async () => {
+    // A second press while the first is still listening would orphan that
+    // instance: its handlers would keep firing into state the new one owns,
+    // and nothing would hold a reference to stop it with.
+    if (recognition.current) return;
+
     setProblem(null);
 
     const Recognition = engine === 'browser' ? recognitionConstructor() : null;
