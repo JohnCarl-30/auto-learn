@@ -60,13 +60,18 @@ export function Notice({
   );
 }
 
-/** The same thing, for a refusal that arrived from the server. */
-export function ApiNotice({ error }: { error: ApiError }) {
+/**
+ * The same thing, for a refusal that arrived from the server.
+ *
+ * `testId` is for a panel that shows more than one of these at once (the talk
+ * panel's turn and its microphone) and needs to tell them apart.
+ */
+export function ApiNotice({ error, testId }: { error: ApiError; testId?: string }) {
   return (
     <Notice
       message={error.message}
       tone={toneFor(error.code)}
-      testId={GUIDANCE[error.code] ?? 'error-notice'}
+      testId={testId ?? GUIDANCE[error.code] ?? 'error-notice'}
     >
       {/* The one refusal with a next step that is a page, not a retry. */}
       {error.code === 'sign_in_required' && (

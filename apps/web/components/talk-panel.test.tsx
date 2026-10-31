@@ -24,6 +24,8 @@ jest.mock('../lib/bank', () => ({
   recordReuse: jest.fn(),
 }));
 jest.mock('../lib/use-dictation', () => ({ useDictation: jest.fn() }));
+// Watched, not run: the sync itself is tested in lib/use-bank-sync.test.tsx.
+jest.mock('../lib/use-bank-sync', () => ({ useBankSync: jest.fn(() => 0) }));
 // Only `say` is watched: whether the opener is spoken is the question, and
 // jsdom's missing speechSynthesis would hide it. `supported` is true so the
 // replay button is there, as it is on a real phone.
@@ -56,6 +58,7 @@ import {
   suggestWord,
 } from '../lib/api';
 import { bankWord, knownWords, listBank, recordReuse } from '../lib/bank';
+import { useBankSync } from '../lib/use-bank-sync';
 import { useDictation } from '../lib/use-dictation';
 import { TalkPanel } from './talk-panel';
 
@@ -135,6 +138,11 @@ describe('TalkPanel', () => {
       SCENARIO_OPENERS['free-talk'],
     );
     expect(send).not.toHaveBeenCalled();
+  });
+
+  it('pulls the bank in from other devices, since the installed app opens here', () => {
+    render(<TalkPanel />);
+    expect(useBankSync).toHaveBeenCalled();
   });
 
   it('shows the opener it opens with but does not speak it unprompted', async () => {
@@ -246,6 +254,48 @@ describe('TalkPanel', () => {
     expect(screen.queryByTestId('learner-turn')).toBeNull();
   });
 
+  it('offers a way to sign in when the API asks for one', async () => {
+    send.mockRejectedValue(
+      new ApiFailure({ code: 'sign_in_required', message: 'Sign in to keep talking.' }),
+    );
+    const user = await startOfficeHours();
+
+    await user.type(screen.getByTestId('answer'), 'Hello there.{Enter}');
+
+    const notice = await screen.findByTestId('talk-notice');
+    expect(within(notice).getByRole('link', { name: 'Sign in' })).toHaveAttribute(
+      'href',
+      '/signin',
+    );
+  });
+
+  it('offers a way to sign in when the recorder is refused for the same reason', () => {
+    dictation.mockReturnValue({
+      status: 'idle',
+      problem: { message: 'Sign in to use the microphone.', code: 'sign_in_required' },
+      start: jest.fn(),
+      stop: jest.fn(),
+    });
+    render(<TalkPanel />);
+
+    const notice = screen.getByTestId('dictation-notice');
+    expect(within(notice).getByRole('link', { name: 'Sign in' })).toBeInTheDocument();
+  });
+
+  it('shows a browser-side mic problem as guidance, with no sign-in link', () => {
+    dictation.mockReturnValue({
+      status: 'idle',
+      problem: { message: 'I need permission to use your microphone.', code: null },
+      start: jest.fn(),
+      stop: jest.fn(),
+    });
+    render(<TalkPanel />);
+
+    const notice = screen.getByTestId('dictation-notice');
+    expect(notice).toHaveTextContent('permission');
+    expect(within(notice).queryByRole('link')).toBeNull();
+  });
+
   it('says why a turn has no feedback, and still shows the reply', async () => {
     send.mockResolvedValue({ reply: 'Wow, busy week!', review: null, skipped: 'too_many_sentences' });
     const user = await startOfficeHours();
@@ -351,6 +401,37 @@ describe('TalkPanel', () => {
       expect(await screen.findByText('You used it.')).toBeInTheDocument();
       expect(screen.queryByText('Added to your bank.')).toBeNull();
       expect(lookupCard).not.toHaveBeenCalled();
+    });
+
+    it('offers a banked word as its lemma, not the form it was banked in', async () => {
+      bank.mockResolvedValue([{ ...banked, word: 'mitigated', lemma: 'mitigate' }]);
+      await startOfficeHours();
+
+      expect(await screen.findByTestId('practice-word')).toHaveTextContent(
+        'Try using: mitigate — large in amount',
+      );
+    });
+
+    it('counts a banked word once when a failed turn is sent again', async () => {
+      bank.mockResolvedValue([banked]);
+      reuse.mockResolvedValue([banked]);
+      send
+        .mockRejectedValueOnce(
+          new ApiFailure({ code: 'upstream_failed', message: "Your partner didn't answer." }),
+        )
+        .mockResolvedValueOnce(answered(reviewOf('It was substantial.')));
+      const user = await startOfficeHours();
+      await screen.findByTestId('practice-word');
+
+      await user.type(screen.getByTestId('answer'), 'It was substantial.{Enter}');
+      await screen.findByTestId('talk-notice');
+      // Nothing was answered, so nothing was counted.
+      expect(reuse).not.toHaveBeenCalled();
+
+      await user.click(screen.getByTestId('send'));
+
+      expect(await screen.findByText('You used it.')).toBeInTheDocument();
+      expect(reuse).toHaveBeenCalledTimes(1);
     });
 
     it('asks for a word when the bank is empty and shows it', async () => {

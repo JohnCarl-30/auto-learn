@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { AccountMenu } from '@/components/account-menu';
 import { TalkPanel } from '@/components/talk-panel';
 import { ThemeToggle } from '@/components/theme-toggle';
 
@@ -22,6 +23,8 @@ export default function TalkPage() {
             <Link href="/" className="text-sm text-muted-foreground hover:text-foreground">
               Write
             </Link>
+            {/* The installed app opens here, so this is where signing in has to be. */}
+            <AccountMenu />
             <ThemeToggle />
           </div>
         </div>

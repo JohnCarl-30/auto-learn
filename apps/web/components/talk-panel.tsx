@@ -16,12 +16,13 @@ import {
   joinDictation,
   type FeedbackSkipped,
 } from '@auto-learn/shared';
-import { Notice, toneFor } from '@/components/notice';
+import { ApiNotice, Notice } from '@/components/notice';
 import { TeaserList } from '@/components/review-panel';
 import { SentenceView } from '@/components/sentence-view';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { WordCard } from '@/components/word-card';
+import { useBankSync } from '@/lib/use-bank-sync';
 import { useConversation, type LearnerTurn } from '@/lib/use-conversation';
 import { useDictation } from '@/lib/use-dictation';
 import { usePartnerVoice } from '@/lib/use-partner-voice';
@@ -45,6 +46,11 @@ const SKIPPED_NOTES: Record<FeedbackSkipped, string> = {
 export function TalkPanel() {
   const voice = usePartnerVoice();
   const talk = useConversation({ onReply: (text) => voice.say(text) });
+  // The installed app opens here, not on the writing page, so this is where a
+  // signed-in learner's bank has to be pulled in from their other devices.
+  // Nothing on this page lists the bank, so the counter it returns is unused:
+  // the practice word reads the bank afresh each time a conversation starts.
+  useBankSync();
 
   // Appends, as the compose panel does: the transcript lands in the box to be
   // checked before it is sent, because an accented sentence misheard and then
@@ -184,11 +190,8 @@ export function TalkPanel() {
       )}
 
       {talk.error && (
-        <Notice
-          message={talk.error.message}
-          tone={toneFor(talk.error.code)}
-          testId="talk-notice"
-        />
+        // ApiNotice, so a locked API's refusal comes with the way to sign in.
+        <ApiNotice error={talk.error} testId="talk-notice" />
       )}
 
       {/*
@@ -229,12 +232,17 @@ export function TalkPanel() {
                 ? 'Writing that down…'
                 : 'Check what I heard, then send.'}
           </span>
+          {/*
+            44px square at least, Apple's minimum touch target: these two are
+            pressed every turn, by thumb, often while walking. `lg` alone is 36.
+          */}
           <div className="flex items-center gap-2">
             <Button
               type="button"
               data-testid="talk-mic"
               variant={recording ? 'secondary' : 'outline'}
-              size="sm"
+              size="lg"
+              className="h-11 min-w-11"
               disabled={talk.pending || transcribing}
               aria-label={recording ? 'Stop recording' : 'Answer out loud'}
               onClick={() => (recording ? dictation.stop() : startRecording())}
@@ -249,7 +257,8 @@ export function TalkPanel() {
             </Button>
             <Button
               type="submit"
-              size="sm"
+              size="lg"
+              className="h-11 min-w-11"
               data-testid="send"
               disabled={talk.pending || recording || !talk.draft.trim()}
             >
@@ -257,13 +266,24 @@ export function TalkPanel() {
             </Button>
           </div>
         </div>
-        {dictation.problem && (
-          <Notice
-            message={dictation.problem.message}
-            tone={dictation.problem.code ? toneFor(dictation.problem.code) : 'guidance'}
-            testId="dictation-notice"
-          />
-        )}
+        {/*
+          A problem with a code came from the server (the recorder path), so
+          it can be the sign-in refusal and gets its link; one without is the
+          browser's own (permission, silence) and is only ever guidance.
+        */}
+        {dictation.problem &&
+          (dictation.problem.code ? (
+            <ApiNotice
+              error={{ code: dictation.problem.code, message: dictation.problem.message }}
+              testId="dictation-notice"
+            />
+          ) : (
+            <Notice
+              message={dictation.problem.message}
+              tone="guidance"
+              testId="dictation-notice"
+            />
+          ))}
       </form>
     </div>
   );

@@ -112,8 +112,10 @@ async function choosePracticeWord(scenario: Scenario): Promise<PracticeWord | nu
   try {
     const entry = pickBankWord(await listBank(), new Date());
     if (entry) {
-      const { word, lemma, definition } = entry;
-      return { word, lemma, definition, banked: true, used: false };
+      // The lemma, not the stored `word`: that is the form it was banked in
+      // ("mitigated"), and the nudge should offer the word, not one inflection.
+      const { lemma, definition } = entry;
+      return { word: lemma, lemma, definition, banked: true, used: false };
     }
 
     const { word } = await suggestWord({ scenario, known: await knownWords() });
@@ -253,16 +255,6 @@ export function useConversation({ onReply }: { onReply?: (text: string) => void 
     // recognised as over when the card comes back.
     const session = sessionRef.current;
     try {
-      // Banked words used again, counted as the writing page counts them. A
-      // banked practice word is counted here and nowhere else, so once.
-      const hits = await recordReuse(utterance).catch(() => [] as BankEntry[]);
-      if (hits.length > 0) {
-        setBankVersion((v) => v + 1);
-        if (practiceWord?.banked && hits.some((hit) => hit.lemma === practiceWord.lemma)) {
-          setPracticeWord((w) => w && { ...w, used: true });
-        }
-      }
-
       // As on /propose: an unreadable bank costs a preference, not a turn.
       const known = await knownWords().catch(() => [] as string[]);
       const result = await converse({
@@ -285,6 +277,18 @@ export function useConversation({ onReply }: { onReply?: (text: string) => void 
       ]);
       setDraft('');
       replyRef.current?.(result.reply);
+
+      // Banked words used again, counted as the writing page counts them. Only
+      // after the partner answered: a turn that fails keeps its draft to be
+      // sent again, and counting before the reply would count it twice. A
+      // banked practice word is counted here and nowhere else, so once.
+      const hits = await recordReuse(utterance).catch(() => [] as BankEntry[]);
+      if (hits.length > 0) {
+        setBankVersion((v) => v + 1);
+        if (practiceWord?.banked && hits.some((hit) => hit.lemma === practiceWord.lemma)) {
+          setPracticeWord((w) => w && { ...w, used: true });
+        }
+      }
 
       if (practiceWord && !practiceWord.banked) {
         void bankIfUsed(practiceWord, utterance, result.review, session);
