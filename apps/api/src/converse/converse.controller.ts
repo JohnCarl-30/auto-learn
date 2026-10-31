@@ -1,11 +1,18 @@
-import { Body, Controller, HttpCode, Post } from '@nestjs/common';
+import { Body, Controller, HttpCode, Post, UseGuards } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
-import { ConverseRequest, type ConverseResponse } from '@auto-learn/shared';
+import {
+  ConverseRequest,
+  SessionWordRequest,
+  type ConverseResponse,
+  type SessionWordResponse,
+} from '@auto-learn/shared';
+import { SignedInGuard } from '../auth/signed-in.guard';
 import { RATE_LIMITS } from '../common/rate-limit';
 import { ZodBody } from '../common/zod.pipe';
 import { ConverseService } from './converse.service';
 
 @Controller('converse')
+@UseGuards(SignedInGuard)
 export class ConverseController {
   constructor(private readonly service: ConverseService) {}
 
@@ -23,5 +30,15 @@ export class ConverseController {
     @Body(new ZodBody(ConverseRequest)) body: ConverseRequest,
   ): Promise<ConverseResponse> {
     return this.service.converse(body);
+  }
+
+  /** A word to practise this conversation. Null rather than an error when none is found. */
+  @Throttle({ default: RATE_LIMITS.sessionWord })
+  @Post('word')
+  @HttpCode(200)
+  word(
+    @Body(new ZodBody(SessionWordRequest)) body: SessionWordRequest,
+  ): Promise<SessionWordResponse> {
+    return this.service.suggestWord(body);
   }
 }

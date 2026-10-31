@@ -9,6 +9,8 @@ import {
   type ConverseResponse,
   type ConverseTurn,
   type Scenario,
+  type SessionWordRequest,
+  type SessionWordResponse,
   type TransformOption,
 } from '@auto-learn/shared';
 import {
@@ -18,8 +20,15 @@ import {
   MODEL_MAX_RETRIES_VOICE,
   converseModel,
   converseProviderOptions,
+  sessionWordProviderOptions,
 } from '../llm/models';
-import { CONVERSE_SYSTEM_PROMPT, converseUserPrompt } from '../llm/prompts';
+import { DictionaryService } from '../dictionary/dictionary.service';
+import {
+  CONVERSE_SYSTEM_PROMPT,
+  SESSION_WORD_SYSTEM_PROMPT,
+  converseUserPrompt,
+  sessionWordUserPrompt,
+} from '../llm/prompts';
 import { ProposeService } from '../propose/propose.service';
 import { TelemetryService } from '../telemetry/telemetry.service';
 
@@ -40,6 +49,7 @@ export class ConverseService {
   constructor(
     private readonly propose: ProposeService,
     private readonly telemetry: TelemetryService,
+    private readonly dictionary: DictionaryService,
   ) {}
 
   /**
@@ -126,6 +136,50 @@ export class ConverseService {
         this.logger.error('converse review failed', error as Error);
       }
       return { review: null, skipped: 'unavailable' };
+    }
+  }
+
+  /**
+   * A word to practise in this conversation, or null.
+   *
+   * Never an error: a missing word must not stand between the learner and
+   * talking, so every failure — the model, an empty answer, a word WordNet has
+   * never heard of — comes back as `{ word: null }` and the panel shows nothing.
+   */
+  async suggestWord(request: SessionWordRequest): Promise<SessionWordResponse> {
+    try {
+      const { text, usage } = await generateText({
+        model: converseModel(),
+        system: SESSION_WORD_SYSTEM_PROMPT,
+        prompt: sessionWordUserPrompt(request),
+        providerOptions: sessionWordProviderOptions,
+        // One word. The cap keeps a chatty answer from costing a paragraph.
+        maxOutputTokens: 16,
+        maxRetries: MODEL_MAX_RETRIES_VOICE,
+        abortSignal: AbortSignal.timeout(CONVERSE_TIMEOUT_MS),
+      });
+      this.telemetry.spend(CONVERSE_MODEL, usage);
+
+      // The model is asked for one bare word; take the first and strip the
+      // full stop it adds anyway.
+      const word = (text.trim().split(/\s+/)[0] ?? '')
+        .replace(/[^\p{L}'-]/gu, '')
+        .toLowerCase();
+      if (!word) return { word: null };
+
+      // The prompt asks for a word the learner does not have; this makes sure.
+      // A banked word offered as new would be counted, carded and "added" again.
+      const known = new Set(request.known.map((k) => k.toLowerCase()));
+      if (known.has(word)) return { word: null };
+
+      const found = await this.dictionary.lookup(word);
+      if (found.status !== 'found') return { word: null };
+
+      const definition = found.entry.senses[0]?.definition;
+      return definition ? { word: { word, definition } } : { word: null };
+    } catch (error) {
+      this.logger.warn('session word failed', error as Error);
+      return { word: null };
     }
   }
 }

@@ -147,3 +147,30 @@ export function recentTurns(
 ): ConverseTurn[] {
   return turns.slice(Math.max(0, turns.length - max));
 }
+
+/**
+ * A word to try using in this conversation, when the bank has none due.
+ *
+ * `known` is the bank's lemmas, as on /propose, so the partner does not offer a
+ * word the learner already has. No session handle: nothing is opened until the
+ * learner actually uses the word, and then it goes through /card like any
+ * other tapped word.
+ */
+export const SessionWordRequest = z.object({
+  scenario: Scenario,
+  known: z.array(z.string()).max(MAX_KNOWN_WORDS),
+});
+export type SessionWordRequest = z.infer<typeof SessionWordRequest>;
+
+/** The definition is WordNet's gloss, retrieved rather than generated. */
+export const SessionWord = z.object({
+  word: z.string(),
+  definition: z.string(),
+});
+export type SessionWord = z.infer<typeof SessionWord>;
+
+/** Null when no word could be found: talking never waits on this. */
+export const SessionWordResponse = z.object({
+  word: SessionWord.nullable(),
+});
+export type SessionWordResponse = z.infer<typeof SessionWordResponse>;

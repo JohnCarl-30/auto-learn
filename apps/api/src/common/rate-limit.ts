@@ -42,6 +42,11 @@ export const RATE_LIMITS = {
    * also pairs with.
    */
   converse: { ttl: minutes(1), limit: 10 },
+  /**
+   * One word per conversation started, and only when the bank has none due.
+   * Five a minute is someone flicking between rooms; more is not practice.
+   */
+  sessionWord: { ttl: minutes(1), limit: 5 },
 } as const;
 
 /**

@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { AccountMenu } from '@/components/account-menu';
 import { TalkPanel } from '@/components/talk-panel';
 import { ThemeToggle } from '@/components/theme-toggle';
 
@@ -9,7 +10,7 @@ export const metadata = {
 
 export default function TalkPage() {
   return (
-    <main className="mx-auto w-full max-w-2xl flex-1 px-6 py-16">
+    <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-6 sm:px-6 sm:py-16">
       <header className="mb-10">
         <div className="flex items-start justify-between gap-4">
           <h1 className="text-2xl font-semibold tracking-tight">
@@ -22,6 +23,8 @@ export default function TalkPage() {
             <Link href="/" className="text-sm text-muted-foreground hover:text-foreground">
               Write
             </Link>
+            {/* The installed app opens here, so this is where signing in has to be. */}
+            <AccountMenu />
             <ThemeToggle />
           </div>
         </div>

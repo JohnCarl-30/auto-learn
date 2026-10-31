@@ -11,6 +11,7 @@ export const ApiErrorCode = z.enum([
   'recording_too_long',
   'no_speech_detected',
   'rate_limited',
+  'sign_in_required',
   'upstream_failed',
 ]);
 export type ApiErrorCode = z.infer<typeof ApiErrorCode>;

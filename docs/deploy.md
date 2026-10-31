@@ -154,12 +154,192 @@ measuring a product that is quietly getting thinner.
 
 ## Costs
 
-`/propose` and `/card` each spend a model call, behind no login. The per-IP
-limits in `common/rate-limit.ts` bound one caller, not a distributed one. Set a
-spend cap on the OpenAI key too — the rate limit protects against a script, the
-cap protects against everything else.
+`/propose` and `/card` each spend a model call, behind no login unless the
+deploy sets `REQUIRE_SIGN_IN=true` (see below). The per-IP limits in
+`common/rate-limit.ts` bound one caller, not a distributed one. Cap the spend
+too — OpenAI sets budgets per project, not per key, so give the deploy its own
+project, cap that, and make the key inside it (the steps are under OpenAI
+below). The rate limit protects against a script, the cap protects against
+everything else.
 
 Sign-in adds a Postgres and an email provider. Both are free at this size —
 users, sessions and unredeemed links are a few kilobytes per person, and the
-only mail sent is one link per sign-in. Note that accounts do not reduce the
-model spend above: an account is not a gate, and `/propose` is still open.
+only mail sent is one link per sign-in. Note that accounts alone do not reduce
+the model spend above: an account is not a gate, and `/propose` stays open to
+anyone unless `REQUIRE_SIGN_IN=true` is set, which is what the free setup
+below does.
+
+## Free, for one person
+
+Everything above is shaped for a service other people use. One person on an
+iPhone needs none of it bought, so this is the same two services set by hand on
+free plans. It is settings rather than a second blueprint: `render.yaml` stays
+the paid one, and nothing here edits it. `scripts/deploy.sh` follows that paid
+blueprint (a starter instance and a Redis), so it is not for this setup; work
+through the sections below by hand.
+
+This reverses a choice made in step 1, so the reason is worth stating. The
+`starter` plan exists because a sleeping instance zeroes the telemetry counters,
+and the counters are what a public deploy is read by. One person is not
+a sample; skip step 4 and the counters stop mattering. What a free instance
+costs instead is the sleep itself, described under Render below.
+
+Free tiers move, so each was checked against the provider's own page on
+2026-10-30 rather than recalled: Render (`render.com/pricing`,
+`render.com/docs/free`), Neon (`neon.com/pricing`), Resend
+(`resend.com/pricing`). Recheck them before relying on a number.
+
+Order: Neon and Resend first, because they hand you keys; then Render, which
+hands you the URL Vercel needs at build time; then Vercel; then back to Render
+for `WEB_ORIGIN`. It is the same reason as in step 2.
+
+### Neon
+
+A free project. Copy its connection string; that is `DATABASE_URL`. The free
+plan is $0 with 1 GB per project, and its compute suspends after 5 minutes
+idle, so the first sign-in after a quiet spell is slower. That is the database
+waking, not a fault.
+
+Create the tables once, from your checkout (run `pnpm install` there first, as
+the script needs `pg`):
+
+```
+DATABASE_URL='<the Neon connection string>' pnpm --filter web db:migrate
+```
+
+That runs `apps/web/db/migrate.mjs` and prints `Schema applied.` The script also
+reads `apps/web/.env.local`, which git ignores, if you would rather keep the
+string there than in your shell history. Skipping this is failure 2 above: every
+sign-in link is a 500.
+
+### Resend
+
+A free account: 3,000 emails a month and 100 a day, far more than one person
+signing in. Make an API key; that is `AUTH_RESEND_KEY`.
+
+Keep `AUTH_EMAIL_FROM` as `auto-learn <onboarding@resend.dev>`. That shared
+address needs no verified domain, and Resend only lets it deliver to the email
+address of the Resend account itself. For one person that is a feature: sign in
+with the address you registered at Resend, and nobody else's link is ever
+sent. A different address is refused with a 403, and the failure is in the
+Vercel function log, not on the page, like the unverified-domain case above.
+
+### Render
+
+Create the service by hand (New → Web Service, pointed at the repo), not from
+the blueprint, which would also provision the paid Redis. Leave Root Directory
+empty, as with Vercel. Then:
+
+| Setting | Value |
+|---|---|
+| Instance type | Free |
+| Build Command | `corepack enable && pnpm install --frozen-lockfile && pnpm --filter @auto-learn/shared build && pnpm --filter api build` |
+| Start Command | `node apps/api/dist/main.js` |
+| Health Check Path | `/health` |
+
+The build and start commands are the ones in `render.yaml`, and the health path
+is exempt from rate limiting for the same reason as in step 1. Environment:
+
+| Variable | Value |
+|---|---|
+| `NODE_VERSION` | `22`. Render's default has moved on, and the blueprint pins 22. |
+| `OPENAI_API_KEY` | Your key. The only thing here that costs money. |
+| `API_JWT_SECRET` | `openssl rand -base64 32`. Vercel needs the same value. |
+| `REQUIRE_SIGN_IN` | `true`, exactly. |
+| `WEB_ORIGIN` | The Vercel URL, once it exists (below). |
+
+**`REQUIRE_SIGN_IN` must be exactly `true`.** It is the whole of what keeps a
+stranger from spending your key: with it on, `/converse`, `/propose`, `/card`,
+`/dictate` and `/speak` refuse any request without a token the web app signed.
+Any other value (`TRUE`, `1`, `yes`) leaves every route open. The API says which
+state it is in at boot and warns when the variable is set to something other
+than `true`, so read the first lines of the log once.
+
+Leave `REDIS_URL` and the ElevenLabs keys unset. Without Redis, sessions live in
+memory, which is correct on exactly one instance, and a free service cannot run
+more than one. Without the
+ElevenLabs pair, dictation transcribes with OpenAI instead, and the API logs a
+boot warning for what is missing: synthesised pronunciation of a word the
+dictionary has no recording for returns 502. That warning is expected here.
+
+**It sleeps.** Render spins a free service down after 15 minutes with no inbound
+traffic, and the next request takes about a minute to wake it (Render's own
+figure; allow 30 to 60 seconds). Every wake is a new process, so a gate opened
+from before the sleep finds no session and answers `That session has expired.`
+Render may also restart a free service at any time, with the same result. It is
+a resubmit, not lost work: send the sentence again. The 750 free instance hours
+a month are not a constraint, because a spun-down service draws none.
+
+### Vercel
+
+As in step 2, with the Root Directory at the repo root. Environment:
+
+| Variable | Value |
+|---|---|
+| `NEXT_PUBLIC_API_URL` | The Render URL, without a trailing slash. Inlined at build, so set it before the first build. |
+| `AUTH_SECRET` | `openssl rand -base64 32` |
+| `DATABASE_URL` | The Neon connection string. |
+| `AUTH_RESEND_KEY` | The Resend API key. |
+| `AUTH_EMAIL_FROM` | `auto-learn <onboarding@resend.dev>` |
+| `API_JWT_SECRET` | The same value as on Render. A mismatch is failure 1 above. |
+
+Then set `WEB_ORIGIN` on Render to the Vercel URL (scheme and host, no trailing
+slash: `main.ts` allows exactly that one origin) and let it restart.
+
+To see that the lock is on, post to the API with no token:
+
+```
+curl -s -X POST https://<render-url>/converse -H 'Content-Type: application/json' -d '{}'
+```
+
+It should answer 401 with `"code":"sign_in_required"`. The first call after a
+sleep is the slow one.
+
+### OpenAI
+
+OpenAI limits are set per project, not per key. Create a project in the OpenAI
+dashboard for this deploy, cap its monthly budget, and make the key for
+`OPENAI_API_KEY` inside that project. Use that key for the deployed app only:
+never for evals, never as a CI secret. The sign-in lock keeps strangers out;
+the cap bounds the rest, such as a leaked token or a loop. This is the one
+running cost, and it is the same advice as under Costs.
+
+Set the cap knowing which models run, because they are not the ones the
+design's estimate assumed. That estimate ("under $1/month") was priced on
+`gpt-4o-mini`; `apps/api/src/llm/config.ts` actually runs `gpt-5.6-luna` for
+replies and reviews (`/converse`, `/propose`) and `gpt-5.6-terra` for word cards
+(`/card`), at the prices listed there, plus `gpt-4o-mini-transcribe` when the
+phone falls back to recording. Expect the monthly bill to be higher than the
+design's estimate, and pick the cap from what you are willing to spend, not
+from that figure. The models are a deliberate choice and are not changed by
+this setup.
+
+### iPhone
+
+iOS keeps a home-screen app's cookies separate from Safari's. Tapping the
+emailed sign-in link opens it in Safari, which signs in Safari and leaves the
+installed app signed out, so every call that spends the key would come back
+401. The link is pasted into the app instead:
+
+1. Open the Vercel URL in Safari, tap Share, then Add to Home Screen.
+2. Open the app from the home screen.
+3. Tap Sign in and request a link with the Resend account's email. The app
+   shows "Check your email" with a **Paste your sign-in link** field.
+4. In Mail, long-press the link and choose Copy Link. Do not tap it.
+5. Switch back to the app, paste the link into the field and tap Sign in.
+   The link works once and expires 15 minutes after it was sent.
+6. Allow the microphone when asked.
+
+The field only accepts a sign-in link for this same site (an `/api/auth/callback/`
+address on the Vercel URL); anything else is refused with a message and never
+opened. If your mail provider rewrites links (click tracking, safe-links
+scanning), the copied link points elsewhere and will be refused; turn the
+rewriting off for these mails or use the fallback.
+
+Fallback: skip the home-screen app and use it in a Safari tab. Tapping the
+link then signs in that same Safari, and everything works there.
+
+**Not yet verified on a device.** The paste flow is built and unit-tested, but
+nobody has run it on an iPhone yet. The first real deploy will settle whether
+it works as written, and this section gets updated then; until it has, treat
+the steps above as the intended flow, not a tested one.

@@ -38,9 +38,11 @@ pnpm dev
 
 The web app is on http://localhost:3000, the API on http://localhost:3001.
 
-`OPENAI_API_KEY` is the only one you need. Without `ELEVENLABS_API_KEY` and
-`ELEVENLABS_VOICE_ID`, dictation and spoken pronunciation refuse and everything
-else works — the API says which are missing at boot. Word senses come from
+`OPENAI_API_KEY` is the only one you need. Without `ELEVENLABS_API_KEY`,
+dictation falls back to transcribing with OpenAI; without it and
+`ELEVENLABS_VOICE_ID`, spoken pronunciation of words the dictionary has no
+recording for refuses, and everything else works — the API says which are
+missing at boot. Word senses come from
 WordNet on local disk, so the part that cards are grounded in needs no network
 and no key at all.
 

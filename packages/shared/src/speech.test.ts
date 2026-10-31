@@ -42,6 +42,13 @@ describe('isAudioMediaType', () => {
     expect(isAudioMediaType('AUDIO/WEBM')).toBe(true);
   });
 
+  // What Safari (and so the installed iPhone app) records. Without this the
+  // list could drop 'audio/mp4' and nothing here would notice.
+  it('accepts the mp4 audio Safari records, with or without a codec', () => {
+    expect(isAudioMediaType('audio/mp4')).toBe(true);
+    expect(isAudioMediaType('audio/mp4;codecs=mp4a.40.2')).toBe(true);
+  });
+
   it('refuses anything that is not audio', () => {
     expect(isAudioMediaType('video/mp4')).toBe(false);
     expect(isAudioMediaType('application/json')).toBe(false);

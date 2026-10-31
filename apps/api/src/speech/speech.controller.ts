@@ -1,12 +1,14 @@
-import { Controller, Get, Param, Res } from '@nestjs/common';
+import { Controller, Get, Param, Res, UseGuards } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import type { Response } from 'express';
 import { SpeakWord, type SpeakResponse } from '@auto-learn/shared';
+import { SignedInGuard } from '../auth/signed-in.guard';
 import { RATE_LIMITS } from '../common/rate-limit';
 import { ZodBody } from '../common/zod.pipe';
 import { SpeechService } from './speech.service';
 
 @Controller('speak')
+@UseGuards(SignedInGuard)
 export class SpeechController {
   constructor(private readonly service: SpeechService) {}
 

@@ -1,12 +1,14 @@
-import { Body, Controller, Post, Res } from '@nestjs/common';
+import { Body, Controller, Post, Res, UseGuards } from '@nestjs/common';
 import type { Response } from 'express';
 import { Throttle } from '@nestjs/throttler';
 import { ProposeRequest, type ProposeResponse } from '@auto-learn/shared';
+import { SignedInGuard } from '../auth/signed-in.guard';
 import { RATE_LIMITS } from '../common/rate-limit';
 import { ZodBody } from '../common/zod.pipe';
 import { ProposeService } from './propose.service';
 
 @Controller('propose')
+@UseGuards(SignedInGuard)
 export class ProposeController {
   constructor(private readonly service: ProposeService) {}
 

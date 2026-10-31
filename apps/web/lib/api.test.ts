@@ -1,4 +1,13 @@
-import { ApiFailure, fetchCardStream, proposeStream } from './api';
+import { resetApiToken } from './api-token';
+import {
+  ApiFailure,
+  converse,
+  dictate,
+  fetchCardStream,
+  proposeStream,
+  reportEvent,
+  speak,
+} from './api';
 
 /**
  * The NDJSON reader.
@@ -50,6 +59,7 @@ function respond(chunks: string[], init: { ok?: boolean; status?: number } = {})
 
 const line = (value: unknown) => `${JSON.stringify(value)}\n`;
 
+beforeEach(() => resetApiToken());
 afterEach(() => jest.restoreAllMocks());
 
 describe('proposeStream', () => {
@@ -265,5 +275,133 @@ describe('fetchCardStream', () => {
     await expect(fetchCardStream(request, () => {})).rejects.toMatchObject({
       detail: { code: 'too_many_sentences' },
     });
+  });
+});
+
+/**
+ * The bearer token.
+ *
+ * Every call that spends the key carries one, and a locked API answers 401
+ * `sign_in_required` without it. `fetch` is told apart by URL here because the
+ * token route and the API share one mock.
+ */
+describe('the API token', () => {
+  const REPLY = { reply: 'Sounds good.', review: null, skipped: 'unavailable' };
+
+  const json = (status: number, payload: unknown) => ({
+    ok: status >= 200 && status < 300,
+    status,
+    json: async () => payload,
+  });
+
+  const signInRequired = json(401, {
+    code: 'sign_in_required',
+    message: 'Sign in to use auto-learn here.',
+  });
+
+  /** Answers the token route from `tokens` in turn and /converse from `replies`. */
+  function serve(tokens: string[], replies: unknown[]) {
+    const fetchMock: jest.Mock = jest.fn(async (url: string) => {
+      if (url.endsWith('/api/auth/api-token')) {
+        return json(200, { token: tokens.shift(), expiresIn: 300 });
+      }
+      return replies.shift();
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+    return fetchMock;
+  }
+
+  const converseCalls = (fetchMock: jest.Mock) =>
+    fetchMock.mock.calls.filter(([url]) => String(url).endsWith('/converse'));
+
+  const request = {
+    scenario: 'free-talk' as const,
+    history: [],
+    utterance: 'I go.',
+  };
+
+  it('sends the bearer token on converse', async () => {
+    const fetchMock = serve(['t1'], [json(200, REPLY)]);
+
+    await converse(request);
+
+    const [[, init]] = converseCalls(fetchMock);
+    expect(init.headers).toMatchObject({
+      Authorization: 'Bearer t1',
+      'Content-Type': 'application/json',
+    });
+  });
+
+  it('retries once with a fresh token after sign_in_required', async () => {
+    const fetchMock = serve(['t1', 't2'], [signInRequired, json(200, REPLY)]);
+
+    await expect(converse(request)).resolves.toMatchObject({ reply: 'Sounds good.' });
+
+    const calls = converseCalls(fetchMock);
+    expect(calls).toHaveLength(2);
+    expect(calls[0][1].headers.Authorization).toBe('Bearer t1');
+    expect(calls[1][1].headers.Authorization).toBe('Bearer t2');
+  });
+
+  it('surfaces sign_in_required when the retry also fails', async () => {
+    const fetchMock = serve(['t1', 't2'], [signInRequired, signInRequired]);
+
+    await expect(converse(request)).rejects.toMatchObject({
+      detail: { code: 'sign_in_required' },
+    });
+    expect(converseCalls(fetchMock)).toHaveLength(2);
+  });
+
+  it('goes without a header, and does not retry, when signed out', async () => {
+    const fetchMock: jest.Mock = jest.fn(async (url: string) =>
+      url.endsWith('/api/auth/api-token')
+        ? json(401, { error: 'not_signed_in' })
+        : signInRequired,
+    );
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    await expect(converse(request)).rejects.toMatchObject({
+      detail: { code: 'sign_in_required' },
+    });
+
+    const calls = converseCalls(fetchMock);
+    expect(calls[0][1].headers.Authorization).toBeUndefined();
+    // A fresh token cannot exist for someone who is signed out; the second
+    // attempt would only repeat the refusal.
+    expect(calls).toHaveLength(1);
+  });
+
+  it('keeps the multipart boundary for the browser to write when dictating', async () => {
+    const fetchMock = serve(['t1'], [json(200, { transcript: 'hello there' })]);
+
+    await dictate(new Blob(['x']));
+
+    const [[, init]] = fetchMock.mock.calls.filter(([url]) =>
+      String(url).endsWith('/dictate'),
+    );
+    expect(init.headers).toEqual({ Authorization: 'Bearer t1' });
+  });
+
+  it('sends it on a GET too', async () => {
+    const fetchMock = serve(['t1'], [json(200, { word: 'hello', audio: 'AAAA', mediaType: 'audio/mpeg' })]);
+
+    await speak('hello');
+
+    const [[, init]] = fetchMock.mock.calls.filter(([url]) =>
+      String(url).includes('/speak/'),
+    );
+    expect(init.headers).toEqual({ Authorization: 'Bearer t1' });
+  });
+
+  it('does not send it with telemetry, which is not locked', () => {
+    const fetchMock = serve(['t1'], []);
+
+    reportEvent('suggestion_accepted');
+
+    // Not even a token request: a counter is not worth a round trip.
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(String(url)).toMatch(/\/telemetry$/);
+    expect(init.headers).toEqual({ 'Content-Type': 'application/json' });
   });
 });

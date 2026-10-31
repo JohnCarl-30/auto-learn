@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useRef, useState } from 'react';
 import {
   LoaderCircleIcon,
   MicIcon,
@@ -15,12 +16,13 @@ import {
   joinDictation,
   type FeedbackSkipped,
 } from '@auto-learn/shared';
-import { Notice, toneFor } from '@/components/notice';
+import { ApiNotice, Notice } from '@/components/notice';
 import { TeaserList } from '@/components/review-panel';
 import { SentenceView } from '@/components/sentence-view';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { WordCard } from '@/components/word-card';
+import { useBankSync } from '@/lib/use-bank-sync';
 import { useConversation, type LearnerTurn } from '@/lib/use-conversation';
 import { useDictation } from '@/lib/use-dictation';
 import { usePartnerVoice } from '@/lib/use-partner-voice';
@@ -33,7 +35,8 @@ const SKIPPED_NOTES: Record<FeedbackSkipped, string> = {
 };
 
 /**
- * The speaking partner: pick a room, hear the opener, and answer out loud.
+ * The speaking partner: opens in "Just talk" with the opener ready, so the mic
+ * is one press away; "Change" goes back to pick another room.
  *
  * Every turn the learner takes comes back reviewed under what they said, with
  * the same gates the writing page has. Nothing is corrected out loud — the
@@ -43,6 +46,11 @@ const SKIPPED_NOTES: Record<FeedbackSkipped, string> = {
 export function TalkPanel() {
   const voice = usePartnerVoice();
   const talk = useConversation({ onReply: (text) => voice.say(text) });
+  // The installed app opens here, not on the writing page, so this is where a
+  // signed-in learner's bank has to be pulled in from their other devices.
+  // Nothing on this page lists the bank, so the counter it returns is unused:
+  // the practice word reads the bank afresh each time a conversation starts.
+  useBankSync();
 
   // Appends, as the compose panel does: the transcript lands in the box to be
   // checked before it is sent, because an accented sentence misheard and then
@@ -53,8 +61,27 @@ export function TalkPanel() {
   const recording = dictation.status === 'recording';
   const transcribing = dictation.status === 'transcribing';
 
+  // Opening the app is opening a conversation: the first mount starts "Just
+  // talk" so the learner lands one press from the mic. Only the first mount —
+  // End and Change come back to the picker and must be left there. A ref, so
+  // Strict Mode's second effect run does not start it twice. The opener is
+  // shown but not spoken: nothing has been tapped yet, and iOS Safari and
+  // Chrome only let speech start from a tap, so it would be silent or flaky.
+  // "Hear that again" plays it; picking a room is a tap, so those do speak.
+  const autoStarted = useRef(false);
+  // Until that start has run, render nothing rather than flash the picker the
+  // learner is not meant to see.
+  const [settled, setSettled] = useState(false);
+  const { start } = talk;
+  useEffect(() => {
+    if (autoStarted.current) return;
+    autoStarted.current = true;
+    start('free-talk', { speak: false });
+    setSettled(true);
+  }, [start]);
+
   if (!talk.scenario) {
-    return <ScenarioPicker onPick={talk.start} />;
+    return settled ? <ScenarioPicker onPick={talk.start} /> : null;
   }
 
   const startRecording = () => {
@@ -67,9 +94,15 @@ export function TalkPanel() {
   return (
     <div className="space-y-6" data-testid="talk">
       <div className="flex items-center justify-between gap-3">
-        <span className="text-sm text-muted-foreground" data-testid="scenario">
-          {SCENARIO_LABELS[talk.scenario]}
-        </span>
+        <div className="flex items-center gap-1">
+          <span className="text-sm text-muted-foreground" data-testid="scenario">
+            {SCENARIO_LABELS[talk.scenario]}
+          </span>
+          {/* Same way back to the picker as End; the name says what it is for. */}
+          <Button variant="ghost" size="sm" onClick={talk.end} data-testid="change">
+            Change
+          </Button>
+        </div>
         <div className="flex items-center gap-1">
           {voice.supported && (
             <Button
@@ -88,6 +121,37 @@ export function TalkPanel() {
           </Button>
         </div>
       </div>
+
+      {talk.practiceWord && (
+        // Polite: "You used it." arrives after the reply, and a screen reader
+        // should hear it without being cut off mid-sentence.
+        <p
+          className="text-sm text-muted-foreground"
+          data-testid="practice-word"
+          aria-live="polite"
+        >
+          {talk.practiceWord.used ? (
+            <>
+              <span className="font-medium text-foreground">{talk.practiceWord.word}</span>
+              {' — '}
+              <span>You used it.</span>
+              {talk.practiceWord.justBanked && (
+                <>
+                  {' '}
+                  <span>Added to your bank.</span>
+                </>
+              )}
+            </>
+          ) : (
+            <>
+              Try using:{' '}
+              <span className="font-medium text-foreground">{talk.practiceWord.word}</span>
+              {' — '}
+              {talk.practiceWord.definition}
+            </>
+          )}
+        </p>
+      )}
 
       <ol className="space-y-5" aria-label="Conversation">
         {talk.turns.map((turn) =>
@@ -126,15 +190,19 @@ export function TalkPanel() {
       )}
 
       {talk.error && (
-        <Notice
-          message={talk.error.message}
-          tone={toneFor(talk.error.code)}
-          testId="talk-notice"
-        />
+        // ApiNotice, so a locked API's refusal comes with the way to sign in.
+        <ApiNotice error={talk.error} testId="talk-notice" />
       )}
 
+      {/*
+        Stuck to the bottom of the screen so the mic and Send stay under the
+        thumb however long the conversation gets. The inset keeps them clear of
+        the home indicator in an installed iPhone app (and the floor of 0.5rem
+        keeps them off the screen edge where there is no inset), and the
+        background stops the transcript showing through as it scrolls under.
+      */}
       <form
-        className="space-y-2"
+        className="sticky bottom-0 space-y-2 border-t bg-background pt-3 pb-[max(env(safe-area-inset-bottom),0.5rem)]"
         onSubmit={(event) => {
           event.preventDefault();
           void talk.send();
@@ -164,12 +232,17 @@ export function TalkPanel() {
                 ? 'Writing that down…'
                 : 'Check what I heard, then send.'}
           </span>
+          {/*
+            44px square at least, Apple's minimum touch target: these two are
+            pressed every turn, by thumb, often while walking. `lg` alone is 36.
+          */}
           <div className="flex items-center gap-2">
             <Button
               type="button"
               data-testid="talk-mic"
               variant={recording ? 'secondary' : 'outline'}
-              size="sm"
+              size="lg"
+              className="h-11 min-w-11"
               disabled={talk.pending || transcribing}
               aria-label={recording ? 'Stop recording' : 'Answer out loud'}
               onClick={() => (recording ? dictation.stop() : startRecording())}
@@ -184,7 +257,8 @@ export function TalkPanel() {
             </Button>
             <Button
               type="submit"
-              size="sm"
+              size="lg"
+              className="h-11 min-w-11"
               data-testid="send"
               disabled={talk.pending || recording || !talk.draft.trim()}
             >
@@ -192,13 +266,24 @@ export function TalkPanel() {
             </Button>
           </div>
         </div>
-        {dictation.problem && (
-          <Notice
-            message={dictation.problem.message}
-            tone={dictation.problem.code ? toneFor(dictation.problem.code) : 'guidance'}
-            testId="dictation-notice"
-          />
-        )}
+        {/*
+          A problem with a code came from the server (the recorder path), so
+          it can be the sign-in refusal and gets its link; one without is the
+          browser's own (permission, silence) and is only ever guidance.
+        */}
+        {dictation.problem &&
+          (dictation.problem.code ? (
+            <ApiNotice
+              error={{ code: dictation.problem.code, message: dictation.problem.message }}
+              testId="dictation-notice"
+            />
+          ) : (
+            <Notice
+              message={dictation.problem.message}
+              tone="guidance"
+              testId="dictation-notice"
+            />
+          ))}
       </form>
     </div>
   );

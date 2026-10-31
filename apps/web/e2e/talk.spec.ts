@@ -16,7 +16,7 @@ test('a turn reaches the partner, and a failed one keeps your words', async ({
   await page.getByTestId('talk-link').click();
   await expect(page).toHaveURL(/\/talk$/);
 
-  await page.getByTestId('scenario-free-talk').click();
+  // The panel opens in "Just talk" by itself; there is no room to pick.
   await expect(page.getByTestId('partner-turn')).toContainText(
     'How has your week been so far?',
   );

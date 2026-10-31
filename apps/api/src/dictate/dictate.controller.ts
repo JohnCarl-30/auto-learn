@@ -5,6 +5,7 @@ import {
   Post,
   UploadedFile,
   UseFilters,
+  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -15,11 +16,13 @@ import {
   type ApiError,
   type DictateResponse,
 } from '@auto-learn/shared';
+import { SignedInGuard } from '../auth/signed-in.guard';
 import { RATE_LIMITS } from '../common/rate-limit';
 import { UploadErrorFilter } from './upload-error.filter';
 import { DictateService } from './dictate.service';
 
 @Controller('dictate')
+@UseGuards(SignedInGuard)
 @UseFilters(UploadErrorFilter)
 export class DictateController {
   constructor(private readonly service: DictateService) {}

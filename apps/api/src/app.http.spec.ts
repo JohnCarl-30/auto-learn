@@ -7,7 +7,11 @@ jest.mock('ai', () => ({
   generateSpeech: jest.fn(),
   transcribe: jest.fn(),
 }));
-jest.mock('@ai-sdk/openai', () => ({ openai: jest.fn() }));
+// `.transcription` too: with no ElevenLabs key set, `transcribeModel()` falls
+// through to OpenAI, and the mock has to be callable and carry that method.
+jest.mock('@ai-sdk/openai', () => ({
+  openai: Object.assign(jest.fn(), { transcription: jest.fn() }),
+}));
 jest.mock('@ai-sdk/elevenlabs', () => ({
   elevenLabs: { speech: jest.fn(), transcription: jest.fn() },
 }));
@@ -15,6 +19,7 @@ jest.mock('@ai-sdk/elevenlabs', () => ({
 import { INestApplication } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { Test } from '@nestjs/testing';
+import { ThrottlerStorage, ThrottlerStorageService } from '@nestjs/throttler';
 import request from 'supertest';
 import { sign } from 'jsonwebtoken';
 import {
@@ -492,6 +497,12 @@ describe('HTTP surface', () => {
 
   describe('POST /dictate', () => {
     beforeEach(() => {
+      // This block alone sends more than /dictate's ten-a-minute allowance, and
+      // the `APP_GUARD` override above does not actually disable the throttler
+      // (Nest registers a global guard under a generated token, which
+      // `overrideProvider(APP_GUARD)` never matches). Emptying the counters
+      // keeps each test independent of how many of its neighbours ran first.
+      app.get<ThrottlerStorageService>(ThrottlerStorage).storage.clear();
       listen.mockReset();
       listen.mockResolvedValue({ text: 'The evidence was substantial.' });
     });
@@ -510,6 +521,19 @@ describe('HTTP surface', () => {
       expect(response.body as DictateResponse).toEqual({
         transcript: 'The evidence was substantial.',
       });
+    });
+
+    /**
+     * Safari records audio/mp4, not the audio/webm Chrome does, and the
+     * installed iPhone app has no other way to dictate. Going through the real
+     * route is what makes this mean something: the upload's fileFilter
+     * (`isAudioMediaType`) runs here, and it would turn an unlisted type away
+     * as a 400 before the service ever saw it.
+     */
+    it('accepts an audio/mp4 recording, which is what Safari records', async () => {
+      await recording(2_048, 'audio/mp4').expect(201);
+
+      expect(listen).toHaveBeenCalledTimes(1);
     });
 
     it('counts that someone spoke rather than typed', async () => {
@@ -658,6 +682,81 @@ describe('HTTP surface', () => {
         .get('/me')
         .set('Authorization', `Bearer ${forged}`)
         .expect(401);
+    });
+  });
+
+  /**
+   * The guard has its own spec; this is about the wiring. A controller that
+   * forgot `@UseGuards(SignedInGuard)` passes every unit test and still leaves
+   * the key open, so each route that spends it is asked directly. Bodies are
+   * empty on purpose: the guard runs before validation, so a locked route
+   * answers 401 and never gets as far as complaining about the body.
+   */
+  describe('with REQUIRE_SIGN_IN on', () => {
+    const SECRET = 'the-secret-the-web-app-signs-with';
+
+    beforeAll(() => {
+      process.env.REQUIRE_SIGN_IN = 'true';
+      process.env.API_JWT_SECRET = SECRET;
+    });
+
+    afterAll(() => {
+      delete process.env.REQUIRE_SIGN_IN;
+      delete process.env.API_JWT_SECRET;
+    });
+
+    it.each([
+      ['post', '/converse'],
+      ['post', '/converse/word'],
+      ['post', '/propose'],
+      ['post', '/propose/stream'],
+      ['post', '/card'],
+      ['post', '/dictate'],
+      ['get', '/speak/ubiquitous'],
+    ] as const)('refuses an unsigned %s %s', async (method, path) => {
+      const response = await request(server())[method](path).expect(401);
+
+      expect(response.body).toEqual({
+        code: 'sign_in_required',
+        message: 'Sign in to use auto-learn here.',
+      });
+    });
+
+    it('lets a signed-in caller through to the route', async () => {
+      const token = sign({}, SECRET, {
+        algorithm: 'HS256',
+        subject: 'u1',
+        issuer: API_TOKEN_ISSUER,
+        audience: API_TOKEN_AUDIENCE,
+        expiresIn: '5m',
+      });
+
+      // 400: past the guard and into validation, which is where an empty body
+      // belongs.
+      await request(server())
+        .post('/converse')
+        .set('Authorization', `Bearer ${token}`)
+        .send({})
+        .expect(400);
+    });
+
+    /**
+     * The ruled trade-off, pinned at the wiring level: only the exact string
+     * locks, so a near-miss reaches validation instead of being refused. main.ts
+     * warns about it at boot.
+     */
+    it('stays open for a near-miss value such as TRUE', async () => {
+      process.env.REQUIRE_SIGN_IN = 'TRUE';
+      try {
+        await request(server()).post('/converse').send({}).expect(400);
+      } finally {
+        process.env.REQUIRE_SIGN_IN = 'true';
+      }
+    });
+
+    it('leaves the routes that spend nothing open', async () => {
+      await request(server()).get('/health').expect(200);
+      await request(server()).get('/telemetry').expect(200);
     });
   });
 });

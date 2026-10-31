@@ -60,13 +60,32 @@ export function maskLemma(text: string, lemma: string, mask = '_____'): string {
 }
 
 /**
+ * The token a sentence used for a lemma, exactly as written.
+ *
+ * A card lookup checks that the word it is given appears in the sentence, so
+ * the speaking partner has to send "mitigated" for a turn that said
+ * "mitigated", not the lemma. Same conservative inflection set as above, so a
+ * word only counts as used where `findReused` would also count it.
+ */
+export function findUsedForm(sentence: string, lemma: string): string | null {
+  const base = lemma.toLowerCase();
+  const forms = new Set([base, ...inflectionsOf(base)]);
+
+  for (const token of sentence.split(/\s+/)) {
+    const bare = bareWord(token);
+    if (bare && forms.has(bare.toLowerCase())) return bare;
+  }
+  return null;
+}
+
+/**
  * A small, closed set of regular English inflections.
  *
  * Not a stemmer on purpose: an aggressive stemmer matches "substance" to
  * "substantial" and claims a reuse that never happened. These forms only
  * *add* to the base, so they cannot collapse two distinct words together.
  */
-function inflectionsOf(base: string): string[] {
+export function inflectionsOf(base: string): string[] {
   const forms = [`${base}s`, `${base}es`, `${base}ed`, `${base}ing`];
 
   // consonant + y -> ies / ied  (study -> studies, studied)

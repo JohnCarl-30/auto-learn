@@ -18,6 +18,7 @@ describe('toneFor', () => {
     expect(toneFor('rate_limited')).toBe('guidance');
     expect(toneFor('recording_too_long')).toBe('guidance');
     expect(toneFor('no_speech_detected')).toBe('guidance');
+    expect(toneFor('sign_in_required')).toBe('guidance');
   });
 
   it('keeps everything else red', () => {
@@ -50,6 +51,28 @@ describe('ApiNotice', () => {
 
     rerender(<ApiNotice error={error('no_speech_detected')} />);
     expect(screen.getByTestId('silence-notice')).toBeInTheDocument();
+  });
+
+  it('links to sign-in when sign-in is required', () => {
+    render(
+      <ApiNotice
+        error={error('sign_in_required', 'Sign in to use auto-learn here.')}
+      />,
+    );
+
+    expect(screen.getByTestId('signin-notice')).toHaveTextContent(
+      'Sign in to use auto-learn here.',
+    );
+    expect(screen.getByRole('link', { name: 'Sign in' })).toHaveAttribute(
+      'href',
+      '/signin',
+    );
+  });
+
+  it('offers no link for a refusal that sign-in would not fix', () => {
+    render(<ApiNotice error={error('rate_limited')} />);
+
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
   });
 
   it('says what the server said', () => {
