@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { z } from 'zod';
+import { PasteSignInLink } from '@/components/paste-sign-in-link';
 
 export const metadata: Metadata = {
   title: 'Check your email · auto-learn',
@@ -36,6 +37,14 @@ export default async function SentPage({
         )}{' '}
         It works once and expires in 15 minutes.
       </p>
+      {/*
+        For the installed iPhone app, whose cookies are its own: a tapped link
+        signs in Safari instead. Shown to everyone, because this page cannot
+        tell an installed app from a tab, and on a laptop it is simply unused.
+      */}
+      <div className="mt-8">
+        <PasteSignInLink />
+      </div>
       <p className="mt-6 text-sm text-muted-foreground">
         Nothing arrived?{' '}
         <Link href="/signin" className="underline underline-offset-4">
