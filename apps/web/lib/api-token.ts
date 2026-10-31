@@ -67,7 +67,13 @@ export async function authHeaders(
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-/** For tests, and for the moment someone signs out of a tab that stays open. */
+/**
+ * For tests. Nothing calls it on sign-out: sign-out is a server action
+ * (app/account/actions.ts), which cannot reach this tab's module state. A token
+ * cached before signing out can therefore still be sent until it expires, at
+ * most five minutes, and the API accepts it until then because it is signed,
+ * not looked up. The session it was minted from is already gone.
+ */
 export function resetApiToken(): void {
   cached = null;
 }

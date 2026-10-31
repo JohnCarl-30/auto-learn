@@ -154,15 +154,20 @@ measuring a product that is quietly getting thinner.
 
 ## Costs
 
-`/propose` and `/card` each spend a model call, behind no login. The per-IP
-limits in `common/rate-limit.ts` bound one caller, not a distributed one. Set a
-spend cap on the OpenAI key too — the rate limit protects against a script, the
-cap protects against everything else.
+`/propose` and `/card` each spend a model call, behind no login unless the
+deploy sets `REQUIRE_SIGN_IN=true` (see below). The per-IP limits in
+`common/rate-limit.ts` bound one caller, not a distributed one. Cap the spend
+too — OpenAI sets budgets per project, not per key, so give the deploy its own
+project, cap that, and make the key inside it (the steps are under OpenAI
+below). The rate limit protects against a script, the cap protects against
+everything else.
 
 Sign-in adds a Postgres and an email provider. Both are free at this size —
 users, sessions and unredeemed links are a few kilobytes per person, and the
-only mail sent is one link per sign-in. Note that accounts do not reduce the
-model spend above: an account is not a gate, and `/propose` is still open.
+only mail sent is one link per sign-in. Note that accounts alone do not reduce
+the model spend above: an account is not a gate, and `/propose` stays open to
+anyone unless `REQUIRE_SIGN_IN=true` is set, which is what the free setup
+below does.
 
 ## Free, for one person
 
@@ -299,16 +304,42 @@ never for evals, never as a CI secret. The sign-in lock keeps strangers out;
 the cap bounds the rest, such as a leaked token or a loop. This is the one
 running cost, and it is the same advice as under Costs.
 
+Set the cap knowing which models run, because they are not the ones the
+design's estimate assumed. That estimate ("under $1/month") was priced on
+`gpt-4o-mini`; `apps/api/src/llm/config.ts` actually runs `gpt-5.6-luna` for
+replies and reviews (`/converse`, `/propose`) and `gpt-5.6-terra` for word cards
+(`/card`), at the prices listed there, plus `gpt-4o-mini-transcribe` when the
+phone falls back to recording. Expect the monthly bill to be higher than the
+design's estimate, and pick the cap from what you are willing to spend, not
+from that figure. The models are a deliberate choice and are not changed by
+this setup.
+
 ### iPhone
 
-Open the Vercel URL in Safari, tap Share, then Add to Home Screen. Open it from
-the home screen, sign in with the Resend account's email, and allow the
-microphone when asked.
+iOS keeps a home-screen app's cookies separate from Safari's. Tapping the
+emailed sign-in link opens it in Safari, which signs in Safari and leaves the
+installed app signed out, so every call that spends the key would come back
+401. The link is pasted into the app instead:
 
-**Not yet verified on a device.** The emailed sign-in link opens in Safari, and
-iOS keeps a home-screen app's cookies separate from Safari's, so the installed
-app may still show signed out after the link is tapped. That is the symptom to
-look for. The first real deploy will settle what order works (sign in before
-or after adding to the home screen, or neither), and this paragraph gets updated
-then; until it has, treat the steps above as the intended flow, not a tested
-one.
+1. Open the Vercel URL in Safari, tap Share, then Add to Home Screen.
+2. Open the app from the home screen.
+3. Tap Sign in and request a link with the Resend account's email. The app
+   shows "Check your email" with a **Paste your sign-in link** field.
+4. In Mail, long-press the link and choose Copy Link. Do not tap it.
+5. Switch back to the app, paste the link into the field and tap Sign in.
+   The link works once and expires 15 minutes after it was sent.
+6. Allow the microphone when asked.
+
+The field only accepts a sign-in link for this same site (an `/api/auth/callback/`
+address on the Vercel URL); anything else is refused with a message and never
+opened. If your mail provider rewrites links (click tracking, safe-links
+scanning), the copied link points elsewhere and will be refused; turn the
+rewriting off for these mails or use the fallback.
+
+Fallback: skip the home-screen app and use it in a Safari tab. Tapping the
+link then signs in that same Safari, and everything works there.
+
+**Not yet verified on a device.** The paste flow is built and unit-tested, but
+nobody has run it on an iPhone yet. The first real deploy will settle whether
+it works as written, and this section gets updated then; until it has, treat
+the steps above as the intended flow, not a tested one.
