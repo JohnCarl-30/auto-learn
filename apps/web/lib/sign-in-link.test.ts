@@ -17,6 +17,7 @@ describe('signInLinkFrom', () => {
     ['plain http to this host', 'http://auto-learn.example/api/auth/callback/resend'],
     ['a lookalike subdomain', 'https://auto-learn.example.evil.example/api/auth/callback/resend'],
     ['a script', 'javascript:alert(1)'],
+    ['credentials before this host', 'https://x@auto-learn.example/api/auth/callback/resend'],
   ])('rejects %s', (_, input) => {
     expect(signInLinkFrom(input, ORIGIN)).toBeNull();
   });
@@ -28,6 +29,10 @@ describe('signInLinkFrom', () => {
     ['the same, encoded', `${ORIGIN}/api/auth/callback/%2e%2e/%2e%2e/%2e%2e/account`],
   ])('rejects %s', (_, input) => {
     expect(signInLinkFrom(input, ORIGIN)).toBeNull();
+  });
+
+  it('rejects a script even where the page origin is opaque', () => {
+    expect(signInLinkFrom('javascript:/api/auth/callback/x', 'null')).toBeNull();
   });
 
   it.each([[''], ['not a link'], ['/api/auth/callback/resend?token=abc']])(

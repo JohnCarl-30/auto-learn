@@ -22,7 +22,11 @@ export function signInLinkFrom(input: string, origin: string): string | null {
   } catch {
     return null;
   }
+  // An opaque origin is the string "null", which a `javascript:` URL also has.
+  if (url.protocol !== 'https:' && url.protocol !== 'http:') return null;
   if (url.origin !== origin) return null;
+  // Credentials in a sign-in link are never ours; they only make it look odd.
+  if (url.username || url.password) return null;
   if (!url.pathname.startsWith('/api/auth/callback/')) return null;
   return url.href;
 }
