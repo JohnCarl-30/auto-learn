@@ -273,7 +273,19 @@ export function useDictation(onTranscript: (transcript: string) => void) {
       };
 
       recognition.current = active;
-      active.start();
+      try {
+        active.start();
+      } catch {
+        // A recogniser that refuses to start (Safari can throw here instead of
+        // firing `error`) never fires `end` either, so nothing would clear the
+        // ref and the guard in `start` would refuse every press after this
+        // one. Let go of it and take this press over with the recorder, for
+        // good, as the unusable-service errors above do.
+        recognition.current = null;
+        setEngine('recorder');
+        void startRecorder();
+        return;
+      }
       setStatus('recording');
     },
     [startRecorder],

@@ -346,6 +346,35 @@ describe('useDictation', () => {
       },
     );
 
+    /**
+     * `start()` throwing fires no `end`, so a ref left pointing at the dead
+     * recogniser would make every later press do nothing until a remount.
+     */
+    it('records instead when the recogniser throws on start', async () => {
+      const { result } = renderHook(() => useDictation(jest.fn()));
+      const start = jest
+        .spyOn(FakeRecognition.prototype, 'start')
+        .mockImplementation(() => {
+          throw new Error('InvalidStateError');
+        });
+
+      try {
+        await act(() => result.current.start());
+
+        expect(result.current.engine).toBe('recorder');
+        await waitFor(() => expect(recorders[0]?.state).toBe('recording'));
+        expect(result.current.status).toBe('recording');
+
+        // The mic is not dead: the next press records again.
+        act(() => result.current.stop());
+        await waitFor(() => expect(result.current.status).toBe('idle'));
+        await act(() => result.current.start());
+        expect(recorders).toHaveLength(2);
+      } finally {
+        start.mockRestore();
+      }
+    });
+
     it('can press again after a fallback even if the browser never says it ended', async () => {
       const { result } = renderHook(() => useDictation(jest.fn()));
 
