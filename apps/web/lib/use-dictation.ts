@@ -59,7 +59,19 @@ function pickMimeType(): string | undefined {
   );
 }
 
-export function useDictation(onTranscript: (transcript: string) => void) {
+/**
+ * `maxSeconds` is how long the recorder runs before it is stopped for the
+ * person. Lesson answers pass a longer one; everything else keeps the minute.
+ * Only the recorder has this timer: the browser recogniser takes one phrase per
+ * press (`continuous` is false), so the limit does not reach it.
+ */
+export function useDictation(
+  onTranscript: (transcript: string) => void,
+  options?: { maxSeconds?: number },
+) {
+  // A number rather than the options object, so a caller passing a fresh
+  // literal each render does not rebuild `start` on every render.
+  const maxSeconds = options?.maxSeconds ?? MAX_RECORDING_SECONDS;
   const [status, setStatus] = useState<DictationStatus>('idle');
   const [problem, setProblem] = useState<DictationProblem | null>(null);
   // Lazy, so the lookup runs once per mount rather than on every render. State
@@ -186,9 +198,9 @@ export function useDictation(onTranscript: (transcript: string) => void) {
     // and then telling them it was too long.
     stopAt.current = setTimeout(
       () => active.state !== 'inactive' && active.stop(),
-      MAX_RECORDING_SECONDS * 1000,
+      maxSeconds * 1000,
     );
-  }, [release]);
+  }, [release, maxSeconds]);
 
   const listen = useCallback(
     (Recognition: new () => BrowserRecognition) => {
