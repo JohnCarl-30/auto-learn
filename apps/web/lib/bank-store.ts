@@ -81,6 +81,8 @@ export async function writeBank(
               synonyms, use_cases, register, added_via, added_at,
               times_reused, last_reused_at
             )
+     -- review_step and review_due_at are left out on purpose: a sync never
+     -- resets a word's review schedule.
      on conflict (user_id, id) do update set
        word           = excluded.word,
        lemma          = excluded.lemma,

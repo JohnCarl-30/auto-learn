@@ -2,8 +2,11 @@ import { describe, expect, it } from 'vitest';
 import {
   countFillers,
   isRecallCorrect,
+  LessonCompleteRequest,
   LessonFeedbackRequest,
+  LessonProgress,
   MAX_ANSWER_CHARS,
+  ReviewAnswerRequest,
 } from './lesson';
 
 describe('countFillers', () => {
@@ -68,5 +71,50 @@ describe('LessonFeedbackRequest', () => {
         .success,
     ).toBe(false);
     expect(LessonFeedbackRequest.safeParse({ ...base, unit: 8 }).success).toBe(false);
+  });
+});
+
+describe('LessonCompleteRequest', () => {
+  it('rejects a unit outside 1–7 and an empty prompt id', () => {
+    const base = { unit: 1, promptId: 'u1-01', wordCorrect: true, retried: false };
+    expect(LessonCompleteRequest.safeParse(base).success).toBe(true);
+    expect(LessonCompleteRequest.safeParse({ ...base, unit: 0 }).success).toBe(false);
+    expect(LessonCompleteRequest.safeParse({ ...base, promptId: '' }).success).toBe(false);
+  });
+});
+
+describe('ReviewAnswerRequest', () => {
+  it('rejects an empty entry id', () => {
+    expect(ReviewAnswerRequest.safeParse({ entryId: 'argue:1', right: true }).success).toBe(true);
+    expect(ReviewAnswerRequest.safeParse({ entryId: '', right: true }).success).toBe(false);
+  });
+});
+
+describe('LessonProgress', () => {
+  const sample = {
+    xp: 40,
+    streak: 3,
+    doneToday: 2,
+    counts: { '1': 5, '2': 1 },
+    highestUnlocked: 2,
+    pathFinished: false,
+    recentPromptIds: ['u2-01', 'u1-05'],
+    dueEntryIds: ['argue:1', 'cite:1', 'weigh:1'],
+  };
+
+  it('parses a full sample', () => {
+    expect(LessonProgress.safeParse(sample).success).toBe(true);
+  });
+
+  it('rejects more than three due entries, and more than twenty recent prompts', () => {
+    expect(
+      LessonProgress.safeParse({ ...sample, dueEntryIds: [...sample.dueEntryIds, 'x:1'] }).success,
+    ).toBe(false);
+    expect(
+      LessonProgress.safeParse({
+        ...sample,
+        recentPromptIds: Array.from({ length: 21 }, (_, i) => `u1-${i}`),
+      }).success,
+    ).toBe(false);
   });
 });

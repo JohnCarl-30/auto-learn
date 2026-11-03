@@ -103,6 +103,43 @@ CREATE TABLE IF NOT EXISTS bank_entries (
 CREATE INDEX IF NOT EXISTS bank_entries_user_added_idx
   ON bank_entries (user_id, added_at);
 
+-- ─── The daily lesson ────────────────────────────────────────────────────────
+--
+-- Word review lives on the bank row it reschedules. A word is on exactly one
+-- rung of the review ladder at a time, so two columns beat a table, and "which
+-- of this person's words are due" stays a single indexed-by-user read.
+--
+-- The sync upsert (writeBank) does not name these columns in its DO UPDATE, so
+-- a bank sync from any device never resets a schedule.
+ALTER TABLE bank_entries ADD COLUMN IF NOT EXISTS review_step   integer NOT NULL DEFAULT 0;
+-- Null means never reviewed, which counts as due now.
+ALTER TABLE bank_entries ADD COLUMN IF NOT EXISTS review_due_at timestamptz;
+
+-- One row per finished lesson, kept forever and never updated: the streak, the
+-- XP total, the per-unit counts and the recent-prompt list are all derived from
+-- this table on read, so there is no running total to drift out of step with it.
+--
+-- `manila_date` is stored rather than derived because the streak is counted in
+-- the learner's own day (Asia/Manila), and a date computed in SQL from a
+-- timestamptz would depend on the session's time zone. The app computes it once,
+-- with the same function the streak tests pin, and writes it down.
+--
+-- `xp` is stored for the same reason as the date: it is what the lesson paid
+-- when it happened, so a later change to the XP rules cannot rewrite history.
+CREATE TABLE IF NOT EXISTS lesson_completions (
+  id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id      uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  completed_at timestamptz NOT NULL DEFAULT now(),
+  manila_date  date NOT NULL,
+  unit         integer NOT NULL CHECK (unit BETWEEN 1 AND 7),
+  prompt_id    text NOT NULL,
+  xp           integer NOT NULL
+);
+
+-- Every read is "this person's completions", by day for the streak.
+CREATE INDEX IF NOT EXISTS lesson_completions_user_date_idx
+  ON lesson_completions (user_id, manila_date);
+
 CREATE INDEX IF NOT EXISTS sessions_user_id_idx ON sessions ("userId");
 CREATE INDEX IF NOT EXISTS accounts_user_id_idx ON accounts ("userId");
 

@@ -192,3 +192,48 @@ export const LessonFeedbackResponse = z.object({
   review: ProposeResponse.nullable(),
 });
 export type LessonFeedbackResponse = z.infer<typeof LessonFeedbackResponse>;
+
+// --- Lesson state: progress, completions and word reviews --------------------
+
+/**
+ * Everything the path and the lesson screen need to draw themselves, in one
+ * read. Derived on the server from the completions table and the bank, so a
+ * second device shows the same streak and the same unlocked unit.
+ *
+ * `counts` is completed lessons per unit, keyed by the unit number as a string
+ * because JSON object keys are strings; a unit with none is simply absent.
+ * `recentPromptIds` is newest first, across every unit, and is what
+ * `pickPrompt` steers clear of. `dueEntryIds` are bank words whose review is
+ * due, most overdue first; three at most, so a lesson never opens with a pile.
+ */
+export const LessonProgress = z.object({
+  xp: z.number().int(),
+  streak: z.number().int(),
+  doneToday: z.number().int(),
+  counts: z.record(z.string(), z.number().int()),
+  highestUnlocked: UnitIdSchema,
+  pathFinished: z.boolean(),
+  recentPromptIds: z.array(z.string()).max(20),
+  dueEntryIds: z.array(z.string()).max(3),
+});
+export type LessonProgress = z.infer<typeof LessonProgress>;
+
+/**
+ * A finished lesson. There is no xp here on purpose: the server works it out
+ * from the two flags, so the number cannot be asked for. The response is the
+ * refreshed `LessonProgress`.
+ */
+export const LessonCompleteRequest = z.object({
+  unit: UnitIdSchema,
+  promptId: z.string().min(1),
+  wordCorrect: z.boolean(),
+  retried: z.boolean(),
+});
+export type LessonCompleteRequest = z.infer<typeof LessonCompleteRequest>;
+
+/** One answer in the word review. The response is `{ ok: true }`. */
+export const ReviewAnswerRequest = z.object({
+  entryId: z.string().min(1),
+  right: z.boolean(),
+});
+export type ReviewAnswerRequest = z.infer<typeof ReviewAnswerRequest>;
