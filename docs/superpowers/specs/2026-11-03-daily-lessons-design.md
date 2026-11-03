@@ -44,11 +44,15 @@ One lesson a day, about five minutes, three steps:
 1. **Review (about 1 minute).** Up to three bank words that are due today. Each
    is a fill-in-the-blank: John's own sentence with the word masked, the way the
    recall drill already does it (`maskLemma`), falling back to the definition for
-   words with no sentence on this device. Right pushes the word's next review
-   further out; wrong brings it back sooner. If nothing is due, the step is
-   skipped.
-2. **New word (about 30 seconds).** One word, shown as the existing word card
-   (definition, pronunciation, say-it-back). It should fit today's unit.
+   words with no sentence on this device. John types the word; it counts as
+   right if it matches the lemma or one of the inflections `reuse.ts` already
+   knows (`inflectionsOf`), case-insensitive. A wrong answer shows the word. Right
+   pushes the word's next review further out; wrong brings it back sooner. If
+   nothing is due, the step is skipped.
+2. **New word (about 30 seconds).** One word John has not banked, suggested by
+   the model for today's unit and checked against WordNet, shown as the existing
+   word card (definition, pronunciation, say-it-back). Always new: practising
+   banked words is step 1's job, so this step does not use `pickBankWord`.
 3. **Speak (about 3 minutes).** A prompt from today's unit, e.g. "Explain your
    last project in 30 seconds." John answers out loud, and should try to use
    today's word. Feedback comes back after they finish, never during:
@@ -154,10 +158,19 @@ codebase's own rules and are my calls:
   `CONVERSE_MODEL`) given the unit, the prompt and the transcript, returning a
   Zod-validated verdict with quotes. The rewrite reuses
   `ProposeService.propose` on the sentence the model marks as weakest.
-- **Today's word** comes from the same order as `pickBankWord` when the bank has
-  a due-for-practice word, else a model suggestion for the unit checked against
-  WordNet, as Pocket Partner does. A suggested word joins the bank only after a
-  correct use, keeping the bank's "earned" rule.
+- **Today's word is always new** (see step 2). The suggestion request sends the
+  banked lemmas to exclude, capped like `MAX_KNOWN_WORDS`. It joins the bank only
+  after a correct use in step 3, keeping the bank's "earned" rule.
+- **Review answers are typed**, matched against the lemma and its known
+  inflections. Typing one word on a phone is fine, and a typed right answer is
+  worth more than a self-marked one before pushing a word 30 days out.
+- **Where things run:** Postgres and accounts live only in the Next.js app; the
+  NestJS API has no database (`lib/sync.ts`). So the API stays stateless and
+  owns the model calls (`/lesson/feedback`, the word suggestion), while the web
+  app owns lesson completions, XP, streak and the review columns, written through
+  its own server routes the way `lib/bank-store.ts` does.
+- **Which unit:** a lesson is on the newest unlocked unit by default; earlier
+  units can be replayed. After unit 7, lessons draw prompts from all units.
 - **Typing is allowed** when no mic path works, and the lesson still counts.
 
 ## Left to the builder
