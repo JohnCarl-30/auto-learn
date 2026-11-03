@@ -5,8 +5,8 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: 'auto-learn',
     short_name: 'auto-learn',
-    // Installing is for talking: the app opens on the speaking partner.
-    start_url: '/talk',
+    // Installing is for the daily habit: the app opens on today's lesson.
+    start_url: '/learn',
     display: 'standalone',
     // The light theme in globals.css: --background (white) behind the splash,
     // --primary (near-black) for the browser chrome and the icon's ground.

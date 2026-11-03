@@ -20,10 +20,12 @@ export default function TalkPage() {
             <span className="text-muted-foreground">· Talk</span>
           </h1>
           <div className="flex items-center gap-4">
+            <Link href="/learn" className="text-sm text-muted-foreground hover:text-foreground">
+              Learn
+            </Link>
             <Link href="/" className="text-sm text-muted-foreground hover:text-foreground">
               Write
             </Link>
-            {/* The installed app opens here, so this is where signing in has to be. */}
             <AccountMenu />
             <ThemeToggle />
           </div>

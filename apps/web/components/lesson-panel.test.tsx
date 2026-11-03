@@ -1,0 +1,203 @@
+/**
+ * `useLesson` is mocked: its steps are tested in lib/use-lesson.test.tsx, and
+ * here the question is only what each step puts on screen and which way each
+ * button sends the learner.
+ */
+jest.mock('@/lib/use-lesson', () => ({ useLesson: jest.fn() }));
+jest.mock('@/lib/api', () => ({
+  ApiFailure: class ApiFailure extends Error {},
+  fetchCardStream: jest.fn(),
+  reportEvent: jest.fn(),
+  speak: jest.fn(),
+}));
+jest.mock('@/lib/bank', () => ({ bankWord: jest.fn() }));
+const mockDictation = { status: 'idle', problem: null, start: jest.fn(), stop: jest.fn() };
+jest.mock('@/lib/use-dictation', () => ({ useDictation: () => mockDictation }));
+
+import { act, render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { UNITS, type LessonFeedbackResponse, type LessonProgress } from '@auto-learn/shared';
+import { useLesson, type SpokenResult } from '@/lib/use-lesson';
+import { LessonPanel } from './lesson-panel';
+
+const lesson = useLesson as jest.Mock;
+
+const progress: LessonProgress = {
+  xp: 120,
+  streak: 3,
+  doneToday: 1,
+  counts: { '1': 5, '2': 2 },
+  highestUnlocked: 2,
+  pathFinished: false,
+  recentPromptIds: [],
+  dueEntryIds: [],
+};
+
+const spoken = (wordUse: LessonFeedbackResponse['wordUse']): SpokenResult => ({
+  answer: 'An answer.',
+  seconds: 30,
+  fillers: { total: 0, byWord: {} },
+  feedback: {
+    firstSentence: 'An answer.',
+    pointFirst: true,
+    pointFirstNote: '',
+    parts: [],
+    structureNote: '',
+    wordUse,
+    reviewedText: null,
+    review: null,
+  },
+});
+
+/** A lesson in the given state; everything not named is inert. */
+function lessonAt(over: Partial<ReturnType<typeof useLesson>>) {
+  return {
+    step: 'loading',
+    progress,
+    unit: UNITS[1],
+    prompt: UNITS[1].prompts[0],
+    reviews: [],
+    reviewIndex: 0,
+    answerReview: jest.fn().mockResolvedValue(true),
+    advanceReview: jest.fn(),
+    word: null,
+    continueToSpeak: jest.fn(),
+    submitAnswer: jest.fn(),
+    attempts: [],
+    canRetry: false,
+    retry: jest.fn(),
+    finish: jest.fn(),
+    bankedWord: false,
+    error: null,
+    ...over,
+  };
+}
+
+beforeEach(() => {
+  lesson.mockReset();
+  mockDictation.start.mockReset();
+});
+
+describe('LessonPanel', () => {
+  it('shows the review cue with a Check button', () => {
+    lesson.mockReturnValue(
+      lessonAt({
+        step: 'review',
+        reviews: [
+          { entryId: 'e1', lemma: 'argue', cue: 'We ____ about tabs.', cueIsDefinition: false },
+        ],
+      }),
+    );
+    render(<LessonPanel />);
+    expect(screen.getByText('We ____ about tabs.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Check' })).toBeInTheDocument();
+  });
+
+  it('checks a review answer once, then shows the word and Next', async () => {
+    const answerReview = jest.fn().mockResolvedValue(false);
+    lesson.mockReturnValue(
+      lessonAt({
+        step: 'review',
+        reviews: [{ entryId: 'e1', lemma: 'argue', cue: 'to give reasons', cueIsDefinition: true }],
+        answerReview,
+      }),
+    );
+    const user = userEvent.setup();
+    render(<LessonPanel />);
+
+    await user.type(screen.getByLabelText('The missing word'), 'argu');
+    await user.click(screen.getByRole('button', { name: 'Check' }));
+
+    expect(await screen.findByTestId('review-result')).toHaveTextContent('argue');
+    expect(screen.getByRole('button', { name: 'Check' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Next' })).toBeInTheDocument();
+    expect(answerReview).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows the XP this lesson earned and the streak when done', () => {
+    // The word used correctly and the retry taken: 10 + 5 + 5.
+    lesson.mockReturnValue(
+      lessonAt({ step: 'done', attempts: [spoken('unused'), spoken('correct')] }),
+    );
+    render(<LessonPanel />);
+    expect(screen.getByText('+20 XP')).toBeInTheDocument();
+    expect(screen.getByText('3-day streak')).toBeInTheDocument();
+  });
+
+  it('dims the locked units on the path and marks them disabled', () => {
+    lesson.mockReturnValue(lessonAt({ step: 'done', attempts: [spoken(null)] }));
+    render(<LessonPanel />);
+
+    const path = screen.getByRole('list', { name: 'Your path' });
+    const units = within(path).getAllByRole('button');
+    expect(units).toHaveLength(7);
+    expect(units[0]).toHaveAttribute('aria-disabled', 'false');
+    expect(units[1]).toHaveAttribute('aria-disabled', 'false');
+    for (const locked of units.slice(2)) {
+      expect(locked).toHaveAttribute('aria-disabled', 'true');
+    }
+    expect(units[1]).toHaveTextContent('2/5');
+  });
+
+  it('starts a lesson in an unlocked unit when it is tapped, and ignores a locked one', async () => {
+    lesson.mockReturnValue(lessonAt({ step: 'done', attempts: [spoken(null)] }));
+    const user = userEvent.setup();
+    render(<LessonPanel />);
+    const units = within(screen.getByRole('list', { name: 'Your path' })).getAllByRole('button');
+
+    await user.click(units[4]);
+    expect(lesson).toHaveBeenLastCalledWith(undefined);
+
+    await user.click(units[0]);
+    expect(lesson).toHaveBeenLastCalledWith(1);
+  });
+
+  it('offers Finish only once there is an attempt, and the retry while it is allowed', () => {
+    lesson.mockReturnValue(
+      lessonAt({ step: 'feedback', attempts: [spoken(null)], canRetry: true }),
+    );
+    render(<LessonPanel />);
+    expect(screen.getByRole('button', { name: 'Finish' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Try once more' })).toBeInTheDocument();
+  });
+
+  it('sends a typed answer with no length, since nothing timed it', async () => {
+    const submitAnswer = jest.fn().mockResolvedValue(undefined);
+    lesson.mockReturnValue(lessonAt({ step: 'speak', submitAnswer }));
+    const user = userEvent.setup();
+    render(<LessonPanel />);
+
+    expect(screen.getByTestId('prompt')).toHaveTextContent(UNITS[1].prompts[0].text);
+    await user.type(screen.getByLabelText('Your answer'), 'Coding early helps.');
+    await user.click(screen.getByRole('button', { name: /Submit/ }));
+
+    expect(submitAnswer).toHaveBeenCalledWith('Coding early helps.', null);
+  });
+
+  it('hides the unit 6 question until Start, then records after five seconds', async () => {
+    jest.useFakeTimers();
+    try {
+      lesson.mockReturnValue(
+        lessonAt({ step: 'speak', unit: UNITS[5], prompt: UNITS[5].prompts[0] }),
+      );
+      const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+      render(<LessonPanel />);
+
+      expect(screen.queryByTestId('prompt')).toBeNull();
+      await user.click(screen.getByRole('button', { name: 'Start' }));
+      expect(screen.getByTestId('prompt')).toHaveTextContent(UNITS[5].prompts[0].text);
+      expect(screen.getByTestId('countdown')).toHaveTextContent('Recording in 5…');
+
+      // A second at a time: each tick renders before the next is scheduled.
+      for (const left of [4, 3, 2, 1]) {
+        act(() => jest.advanceTimersByTime(1000));
+        expect(screen.getByTestId('countdown')).toHaveTextContent(`Recording in ${left}…`);
+      }
+      expect(mockDictation.start).not.toHaveBeenCalled();
+      act(() => jest.advanceTimersByTime(1000));
+      expect(mockDictation.start).toHaveBeenCalledTimes(1);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+});
