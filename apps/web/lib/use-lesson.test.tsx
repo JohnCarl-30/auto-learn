@@ -218,7 +218,8 @@ describe('useLesson', () => {
       word: 'argue',
     });
     await waitFor(() => expect(result.current.bankedWord).toBe(true));
-    expect(bankWord).toHaveBeenCalledWith(card, 'Um, we should argue less.', 'accepted');
+    // The sentence it was used in, not the whole answer: it becomes a review cue.
+    expect(bankWord).toHaveBeenCalledWith(card, 'We should argue less.', 'accepted');
   });
 
   it('keeps the learner on speak with an error when feedback fails', async () => {

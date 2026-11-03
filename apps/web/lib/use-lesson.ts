@@ -161,14 +161,13 @@ export function useLesson(unitId?: UnitId) {
    * Silent on failure; the feedback already says the word was used.
    */
   const bankTodaysWord = useCallback(
-    async (word: SessionWord, answer: string, feedback: LessonFeedbackResponse) => {
+    async (word: SessionWord, feedback: LessonFeedbackResponse) => {
       const { review, reviewedText } = feedback;
       if (!review || !reviewedText) return;
       try {
         // The same split the server reviewed, so the index names its sentence.
-        const forms = splitSentences(reviewedText).map((sentence) =>
-          findUsedForm(sentence, word.word),
-        );
+        const sentences = splitSentences(reviewedText);
+        const forms = sentences.map((sentence) => findUsedForm(sentence, word.word));
         const sentenceIndex = forms.findIndex((form) => form !== null);
         const form = forms[sentenceIndex];
         if (!form) return;
@@ -180,7 +179,9 @@ export function useLesson(unitId?: UnitId) {
           word: form,
         });
         if (response.kind !== 'card') return;
-        await bankWord(response.card, answer, 'accepted');
+        // Only the sentence the word was used in: it becomes the masked review
+        // cue in later lessons, and a whole two-minute answer is no cue.
+        await bankWord(response.card, sentences[sentenceIndex], 'accepted');
         setBankedWord(true);
       } catch {
         // Silent: the word stays one to practise.
@@ -208,7 +209,7 @@ export function useLesson(unitId?: UnitId) {
         setError(null);
         setStep('feedback');
         if (setup.word && feedback.wordUse === 'correct') {
-          void bankTodaysWord(setup.word, answer, feedback);
+          void bankTodaysWord(setup.word, feedback);
         }
       } catch (failure) {
         // Stay on speak, answer and all, so trying again is one tap.
