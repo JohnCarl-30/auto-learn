@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { LoaderCircleIcon } from 'lucide-react';
+import { LoaderCircleIcon, Volume2Icon } from 'lucide-react';
 import { lessonXp, type LessonProgress, type SessionWord, type UnitId } from '@auto-learn/shared';
 import { LessonFeedback } from '@/components/lesson-feedback';
 import { LessonPath } from '@/components/lesson-path';
@@ -12,6 +12,7 @@ import { SayItBack } from '@/components/say-it-back';
 import { SpeakStep } from '@/components/speak-step';
 import { Button } from '@/components/ui/button';
 import { useLesson, type SpokenResult } from '@/lib/use-lesson';
+import { usePartnerVoice } from '@/lib/use-partner-voice';
 
 /**
  * The daily lesson. A new lesson (a unit tapped on the path, "Another lesson")
@@ -105,6 +106,9 @@ function LessonBody({
 
 /** Today's word, met before the answer it should turn up in. */
 function WordStep({ word, onContinue }: { word: SessionWord; onContinue: () => void }) {
+  const voice = usePartnerVoice();
+  const recorded = word.pronunciation?.audioUrl;
+
   return (
     <section className="space-y-4" aria-label="Today's word" data-testid="word-step">
       <div className="space-y-1">
@@ -112,15 +116,33 @@ function WordStep({ word, onContinue }: { word: SessionWord; onContinue: () => v
         <div className="flex items-center gap-2">
           <h2 className="text-3xl font-semibold tracking-tight">{word.word}</h2>
           {/*
-            No recording comes with a suggested word, so it is synthesised on
-            the first tap. Keyed on the word: the button keeps its source for
-            the life of the mount.
+            The dictionary's recording when it has one. Otherwise the browser's
+            own voice, as the partner on /talk speaks, because /speak is
+            ElevenLabs only and the free setup has no key for it: a button that
+            always says "Couldn't play that" teaches nothing. Spoken straight
+            from the tap, not after a failed request, because iOS can refuse
+            speech that does not start from one. /speak is left for a browser
+            with no voice at all. Keyed on the word: the button keeps its
+            source for the life of the mount.
           */}
-          <PronounceButton
-            key={word.word}
-            word={word.word}
-            pronunciation={{ ipa: null, audioUrl: null }}
-          />
+          {recorded || !voice.supported ? (
+            <PronounceButton
+              key={word.word}
+              word={word.word}
+              pronunciation={word.pronunciation ?? { ipa: null, audioUrl: null }}
+            />
+          ) : (
+            <Button
+              type="button"
+              data-testid="pronounce"
+              variant="ghost"
+              size="sm"
+              aria-label={`Hear ${word.word}`}
+              onClick={() => voice.say(word.word, { force: true })}
+            >
+              <Volume2Icon />
+            </Button>
+          )}
         </div>
         <p className="text-lg leading-relaxed">{word.definition}</p>
       </div>

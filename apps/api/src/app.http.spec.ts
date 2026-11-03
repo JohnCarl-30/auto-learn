@@ -158,7 +158,7 @@ describe('HTTP surface', () => {
 
     it('answers with a reply and a review in the shared contract, as 200', async () => {
       (generateText as unknown as jest.Mock).mockResolvedValueOnce({
-        text: 'Oh no, how many exams do you have left?',
+        text: 'Oh no, how many are left?',
         usage: undefined,
       });
       (generateObject as unknown as jest.Mock).mockResolvedValueOnce({
@@ -186,9 +186,12 @@ describe('HTTP surface', () => {
         .expect(200);
 
       const body = ConverseResponse.parse(response.body);
-      expect(body.reply).toBe('Oh no, how many exams do you have left?');
+      expect(body.reply).toBe('Oh no, how many are left?');
       expect(body.review?.sentences[0].gated[0].original).toBe('many exam');
-      expect(JSON.stringify(body.review)).not.toContain('many exams');
+      // The raw bytes, not the parsed body: Zod drops keys it does not know, so
+      // a replacement leaked under a stray key would vanish from `body` and
+      // still reach the browser. The reply above is worded not to contain it.
+      expect(response.text).not.toContain('many exams');
     });
 
     it('rejects a scenario it has no partner for', async () => {
@@ -277,8 +280,9 @@ describe('HTTP surface', () => {
       expect(body.firstSentence).toBe('I build bots.');
       expect(body.reviewedText).toBe('They help shops.');
       expect(body.review?.sentences[0].gated[0].original).toBe('help');
-      // The rewrite is the same gated proposal as everywhere else.
-      expect(JSON.stringify(body)).not.toContain('assist');
+      // The rewrite is the same gated proposal as everywhere else. Checked on
+      // the raw bytes: the parsed body would hide a leak under a stray key.
+      expect(response.text).not.toContain('assist');
     });
 
     it('rejects a unit the path does not have', async () => {
@@ -703,7 +707,9 @@ describe('HTTP surface', () => {
 
       const error = ApiErrorOf(response.body);
       expect(error.code).toBe('recording_too_long');
+      // Named both limits: this one route takes the minute and the lesson's three.
       expect(error.message).toContain('60 seconds');
+      expect(error.message).toContain('3 minutes for a lesson answer');
       expect(listen).not.toHaveBeenCalled();
     });
 

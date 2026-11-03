@@ -14,15 +14,16 @@ export type DictateResponse = z.infer<typeof DictateResponse>;
  * refuses on size. The two are not the same check, and pretending the client
  * cap is the enforcement is how you end up with neither.
  *
- * The byte limit is deliberately loose rather than the ~360KB that the longest
- * recording (a 120 second lesson answer) produces at our chosen bitrate.
+ * The byte limit is deliberately loose rather than the ~540KB that the longest
+ * recording (a 180 second lesson answer) produces at our chosen bitrate.
  * Browsers do not all honour `audioBitsPerSecond`, and a tight limit would turn
  * "Safari picked a different bitrate" into an unexplainable failure. Its job is
- * bounding memory, and 2MB covers that 120 seconds even at the worst bitrate a
- * browser will realistically choose.
+ * bounding memory, and 3MB covers that 180 seconds even at the worst bitrate a
+ * browser will realistically choose (about 140kbps, three times Chrome's
+ * unasked-for default).
  */
 export const MAX_RECORDING_SECONDS = 60;
-export const MAX_RECORDING_BYTES = 2 * 1024 * 1024;
+export const MAX_RECORDING_BYTES = 3 * 1024 * 1024;
 
 /**
  * Set explicitly because the default is not what you would guess: Chrome picks

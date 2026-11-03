@@ -63,13 +63,19 @@ export async function readProgress(
         limit $2`,
       [userId, RECENT_PROMPTS],
     ),
-    // Never reviewed (null) counts as due now and sorts first, then the most
+    // Never reviewed (null) is due once the word is a day old, the first rung
+    // of the ladder, and not before: a word banked in this lesson would
+    // otherwise be asked back in the very next one, a minute after it was
+    // learned, which tests short-term memory and nothing else. Words banked
+    // before lessons existed are older than a day, so they are due today, as
+    // the schema promised them. Never reviewed sorts first, then the most
     // overdue; `added_at` breaks ties so a fresh bank is worked oldest first.
     pool().query<{ id: string }>(
       `select id
          from bank_entries
         where user_id = $1
-          and (review_due_at is null or review_due_at <= $2)
+          and (review_due_at <= $2
+               or (review_due_at is null and added_at <= $2 - interval '1 day'))
         order by review_due_at nulls first, added_at
         limit $3`,
       [userId, now, DUE_PER_LESSON],

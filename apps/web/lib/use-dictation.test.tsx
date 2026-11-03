@@ -187,7 +187,7 @@ describe('useDictation', () => {
   });
 
   /**
-   * Lesson answers get two minutes and everything else keeps the minute. The
+   * Lesson answers get three minutes and everything else keeps the minute. The
    * cases pin the second the recorder stops, not just that it stops.
    */
   describe('the recording limit', () => {
@@ -200,16 +200,20 @@ describe('useDictation', () => {
         await Promise.resolve();
       });
 
-    it('lets a lesson answer run to two minutes', async () => {
+    it('lets a lesson answer run to three minutes, past the 120 s target', async () => {
+      expect(MAX_LESSON_RECORDING_SECONDS).toBe(180);
       const { result } = renderHook(() =>
         useDictation(jest.fn(), { maxSeconds: MAX_LESSON_RECORDING_SECONDS }),
       );
 
       await act(() => result.current.start());
-      await advance(61);
+      await advance(121);
       expect(recorders[0].state).toBe('recording');
 
-      await advance(MAX_LESSON_RECORDING_SECONDS - 61);
+      await advance(MAX_LESSON_RECORDING_SECONDS - 122);
+      expect(recorders[0].state).toBe('recording');
+
+      await advance(1);
       expect(recorders[0].state).toBe('inactive');
     });
 

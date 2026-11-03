@@ -96,9 +96,11 @@ front door of this product does not need an account.
 ## Daily lessons
 
 `/learn` hands you a short lesson, about five minutes, aimed at saying what you
-mean clearly and in order. It has three steps: type back up to three of your
-banked words that are due, meet one new word on its card, then answer a prompt
-out loud. Feedback on the answer comes after you finish, never while you speak:
+mean clearly and in order. It has three steps: fill in the missing word for up
+to three of your banked words that are due, meet one new word on its card, then
+answer a prompt out loud. A step with nothing in it is skipped: the review when
+no word is due (a word you have just banked is first due a day later), the new
+word when none is suggested. Feedback on the answer comes after you finish, never while you speak:
 whether the point came first, whether the unit's shape was there, how long you
 spoke and which filler words were heard, and whether you used the day's word.
 You may try the same prompt once more. The installed app opens here.

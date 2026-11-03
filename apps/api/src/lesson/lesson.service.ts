@@ -32,11 +32,25 @@ import {
   ConverseService,
   SPOKEN_TRANSFORM,
 } from '../converse/converse.service';
+import { DictionaryService } from '../dictionary/dictionary.service';
 import { ProposeService } from '../propose/propose.service';
 import { TelemetryService } from '../telemetry/telemetry.service';
 
-/** Lower-cased with runs of whitespace collapsed, so a quote is matched by its words. */
-const squash = (text: string) => text.toLowerCase().replace(/\s+/g, ' ').trim();
+/**
+ * A quote reduced to its words, so it is matched by what was said rather than
+ * how it was typed. Curly apostrophes become straight ones and every other mark
+ * but the apostrophe goes, because a model quoting "I’m building bots" from "I'm
+ * building bots." has quoted the learner exactly, and calling it not heard
+ * would tell them they left out a part they said. The apostrophe stays because
+ * it is part of the word ("its" and "it's" are different words).
+ */
+const squash = (text: string) =>
+  text
+    .replace(/[\u2018\u2019\u02bc]/g, "'")
+    .replace(/[^\p{L}\p{N}\s']/gu, '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
 
 @Injectable()
 export class LessonService {
@@ -46,6 +60,7 @@ export class LessonService {
     private readonly propose: ProposeService,
     private readonly converse: ConverseService,
     private readonly telemetry: TelemetryService,
+    private readonly dictionary: DictionaryService,
   ) {}
 
   /**
@@ -54,14 +69,24 @@ export class LessonService {
    * The conversation's picker with a different question: same one-word parse,
    * same bank filter, same WordNet check, and the same refusal to ever be an
    * error. The unit is already range-checked by the request schema.
+   *
+   * Then the word's pronunciation, which the conversation does without: the
+   * lesson's word step has a button to hear it, and a dictionary recording
+   * plays without the paid voice. `pronunciation()` never throws, and a word
+   * with no recording is the button's ordinary case, so this cannot cost the
+   * learner the word.
    */
-  suggestWord(request: LessonWordRequest): Promise<SessionWordResponse> {
+  async suggestWord(request: LessonWordRequest): Promise<SessionWordResponse> {
     const unit = UNITS[request.unit - 1];
-    return this.converse.suggestCheckedWord(
+    const found = await this.converse.suggestCheckedWord(
       LESSON_WORD_SYSTEM_PROMPT,
       lessonWordUserPrompt({ unit, known: request.known }),
       request.known,
     );
+    if (!found.word) return found;
+
+    const pronunciation = await this.dictionary.pronunciation(found.word.word);
+    return { word: { ...found.word, pronunciation } };
   }
 
   /**
@@ -219,7 +244,8 @@ export class LessonService {
     const said = squash(answer);
     return parts.map(({ label, quote }) => ({
       label,
-      quote: quote?.trim() && said.includes(squash(quote)) ? quote : null,
+      quote:
+        quote && squash(quote) && said.includes(squash(quote)) ? quote : null,
     }));
   }
 }

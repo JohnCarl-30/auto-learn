@@ -6,7 +6,11 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import type { Response } from 'express';
-import { MAX_RECORDING_SECONDS, type ApiError } from '@auto-learn/shared';
+import {
+  MAX_LESSON_RECORDING_SECONDS,
+  MAX_RECORDING_SECONDS,
+  type ApiError,
+} from '@auto-learn/shared';
 
 /** Whether a thrown body is already one of ours. */
 function isApiError(body: unknown): body is ApiError {
@@ -47,10 +51,12 @@ export class UploadErrorFilter implements ExceptionFilter {
     // `getStatus()` hands back a plain number, so compare like one.
     const tooLong = status === Number(HttpStatus.PAYLOAD_TOO_LARGE);
 
+    // Both limits, because one route takes both: a lesson answer may run past
+    // the minute that holds everywhere else.
     const body: ApiError = tooLong
       ? {
           code: 'recording_too_long',
-          message: `That recording is too long. I take up to ${MAX_RECORDING_SECONDS} seconds at a time.`,
+          message: `That recording is too long. I take up to ${MAX_RECORDING_SECONDS} seconds at a time, or ${MAX_LESSON_RECORDING_SECONDS / 60} minutes for a lesson answer.`,
         }
       : {
           code: 'invalid_request',

@@ -112,7 +112,8 @@ CREATE INDEX IF NOT EXISTS bank_entries_user_added_idx
 -- The sync upsert (writeBank) does not name these columns in its DO UPDATE, so
 -- a bank sync from any device never resets a schedule.
 ALTER TABLE bank_entries ADD COLUMN IF NOT EXISTS review_step   integer NOT NULL DEFAULT 0;
--- Null means never reviewed, which counts as due now.
+-- Null means never reviewed, which counts as due once the word is a day old
+-- (see readProgress in lib/lesson-store.ts).
 ALTER TABLE bank_entries ADD COLUMN IF NOT EXISTS review_due_at timestamptz;
 
 -- One row per finished lesson, kept forever and never updated: the streak, the

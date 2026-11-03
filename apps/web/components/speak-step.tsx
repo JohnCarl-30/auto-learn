@@ -13,6 +13,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { useDictation } from '@/lib/use-dictation';
 import { clock } from '@/lib/utils';
 
+/** How long before the recorder stops itself the learner is told it will. */
+const CLOSING_SECONDS = 15;
+
 /**
  * The prompt, answered out loud.
  *
@@ -186,6 +189,15 @@ export function SpeakStep({
               </Button>
             </div>
           </div>
+          {/*
+            Its own region, apart from the ticking clock above, so a screen
+            reader hears it once when it appears rather than every second.
+          */}
+          <p aria-live="polite" className="text-sm text-muted-foreground" data-testid="time-left">
+            {recording &&
+              elapsed >= MAX_LESSON_RECORDING_SECONDS - CLOSING_SECONDS &&
+              `${CLOSING_SECONDS} seconds left. Finish your thought.`}
+          </p>
         </form>
       )}
 

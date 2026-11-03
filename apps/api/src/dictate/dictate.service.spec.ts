@@ -77,4 +77,22 @@ describe('DictateService', () => {
     expect(telemetry.snapshot().dictationsFailed).toBe(2);
     expect(telemetry.snapshot().dictations).toBe(0);
   });
+
+  /**
+   * A three-minute lesson answer takes longer to transcribe than a one-minute
+   * turn, and the old twenty seconds was sized for the turn. One retry, as
+   * before: the timeout grew, the number of attempts did not.
+   */
+  it('gives a long recording time to transcribe, with one retry', async () => {
+    const timeout = jest.spyOn(AbortSignal, 'timeout');
+    listen.mockResolvedValue({ text: 'Said.' });
+
+    await new DictateService(new TelemetryService()).dictate(audio);
+
+    expect(timeout).toHaveBeenCalledWith(45_000);
+    expect(listen).toHaveBeenCalledWith(
+      expect.objectContaining({ maxRetries: 1 }),
+    );
+    timeout.mockRestore();
+  });
 });

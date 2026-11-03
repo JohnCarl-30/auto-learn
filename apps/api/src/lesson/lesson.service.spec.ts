@@ -21,6 +21,7 @@ import type {
   ProposeResponse,
 } from '@auto-learn/shared';
 import type { ConverseService } from '../converse/converse.service';
+import type { DictionaryService } from '../dictionary/dictionary.service';
 import { LESSON_WORD_SYSTEM_PROMPT } from '../llm/prompts';
 import type { ProposeService } from '../propose/propose.service';
 import type { TelemetryService } from '../telemetry/telemetry.service';
@@ -29,6 +30,7 @@ import { LessonService } from './lesson.service';
 const verdictOf = generateObject as jest.Mock;
 const propose = jest.fn<Promise<ProposeResponse>, [unknown]>();
 const suggestCheckedWord = jest.fn();
+const pronunciation = jest.fn();
 const spend = jest.fn();
 
 const REVIEW: ProposeResponse = { sessionId: 's1', sentences: [] };
@@ -63,6 +65,7 @@ beforeEach(() => {
   verdictOf.mockReset();
   propose.mockReset();
   suggestCheckedWord.mockReset();
+  pronunciation.mockReset();
   spend.mockReset();
   verdictOf.mockResolvedValue({ object: verdict(), usage: undefined });
   propose.mockResolvedValue(REVIEW);
@@ -75,6 +78,7 @@ const service = () =>
     { propose } as unknown as ProposeService,
     { suggestCheckedWord } as unknown as ConverseService,
     { spend } as unknown as TelemetryService,
+    { pronunciation } as unknown as DictionaryService,
   );
 
 describe('LessonService.feedback', () => {
@@ -289,6 +293,32 @@ describe('LessonService.feedback', () => {
       { label: 'example', quote: null },
     ]);
   });
+
+  /**
+   * Models type curly apostrophes and drop or add full stops; a quote is the
+   * learner's words whatever marks surround them. An invented quote is still
+   * invented once the marks are gone.
+   */
+  it('matches a quote by its words, not its punctuation', async () => {
+    verdictOf.mockResolvedValue({
+      object: verdict({
+        parts: [
+          { label: 'point', quote: 'I’m building bots' },
+          { label: 'reason', quote: 'They’re cheaper than staff.' },
+        ],
+      }),
+      usage: undefined,
+    });
+
+    const result = await service().feedback(
+      request({ answer: "I'm building bots. They help shops, like a clerk." }),
+    );
+
+    expect(result.parts).toEqual([
+      { label: 'point', quote: 'I’m building bots' },
+      { label: 'reason', quote: null },
+    ]);
+  });
 });
 
 describe('LessonService.suggestWord', () => {
@@ -309,14 +339,31 @@ describe('LessonService.suggestWord', () => {
     expect(known).toEqual(['allocate']);
   });
 
-  it('returns whatever the checked picker returns', async () => {
-    const found = {
+  it('adds the dictionary pronunciation to the word the picker found', async () => {
+    const heard = { ipa: '/ˈmɪtɪɡeɪt/', audioUrl: 'https://x/mitigate.mp3' };
+    suggestCheckedWord.mockResolvedValue({
       word: { word: 'mitigate', definition: 'make less severe' },
-    };
-    suggestCheckedWord.mockResolvedValue(found);
+    });
+    pronunciation.mockResolvedValue(heard);
 
-    await expect(service().suggestWord({ unit: 1, known: [] })).resolves.toBe(
-      found,
-    );
+    await expect(
+      service().suggestWord({ unit: 1, known: [] }),
+    ).resolves.toEqual({
+      word: {
+        word: 'mitigate',
+        definition: 'make less severe',
+        pronunciation: heard,
+      },
+    });
+    expect(pronunciation).toHaveBeenCalledWith('mitigate');
+  });
+
+  it('looks nothing up when there is no word', async () => {
+    suggestCheckedWord.mockResolvedValue({ word: null });
+
+    await expect(
+      service().suggestWord({ unit: 1, known: [] }),
+    ).resolves.toEqual({ word: null });
+    expect(pronunciation).not.toHaveBeenCalled();
   });
 });

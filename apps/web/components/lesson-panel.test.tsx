@@ -11,12 +11,15 @@ jest.mock('@/lib/api', () => ({
   speak: jest.fn(),
 }));
 jest.mock('@/lib/bank', () => ({ bankWord: jest.fn() }));
+jest.mock('@/lib/audio', () => ({ playAudio: jest.fn(), synthesisedSrc: jest.fn() }));
 const mockDictation = { status: 'idle', problem: null, start: jest.fn(), stop: jest.fn() };
 jest.mock('@/lib/use-dictation', () => ({ useDictation: () => mockDictation }));
 
-import { act, render, screen, within } from '@testing-library/react';
+import { act, cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { UNITS, type LessonFeedbackResponse, type LessonProgress } from '@auto-learn/shared';
+import { speak } from '@/lib/api';
+import { playAudio } from '@/lib/audio';
 import { useLesson, type SpokenResult } from '@/lib/use-lesson';
 import { LessonPanel } from './lesson-panel';
 
@@ -76,6 +79,8 @@ function lessonAt(over: Partial<ReturnType<typeof useLesson>>) {
 beforeEach(() => {
   lesson.mockReset();
   mockDictation.start.mockReset();
+  (playAudio as jest.Mock).mockReset();
+  (speak as jest.Mock).mockReset();
 });
 
 describe('LessonPanel', () => {
@@ -112,6 +117,55 @@ describe('LessonPanel', () => {
     expect(screen.getByRole('button', { name: 'Check' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Next' })).toBeInTheDocument();
     expect(answerReview).toHaveBeenCalledTimes(1);
+  });
+
+  describe("today's word", () => {
+    const word = { word: 'mitigate', definition: 'make less severe' };
+
+    // Unmounted first: the voice cancels itself on the way out.
+    afterEach(() => {
+      cleanup();
+      delete (window as unknown as { speechSynthesis?: unknown }).speechSynthesis;
+    });
+
+    it('plays the dictionary recording when there is one', async () => {
+      lesson.mockReturnValue(
+        lessonAt({
+          step: 'word',
+          word: { ...word, pronunciation: { ipa: null, audioUrl: 'https://x/m.mp3' } },
+        }),
+      );
+      const user = userEvent.setup();
+      render(<LessonPanel />);
+
+      await user.click(screen.getByRole('button', { name: 'Hear mitigate' }));
+      expect(playAudio).toHaveBeenCalledWith('https://x/m.mp3');
+      expect(speak).not.toHaveBeenCalled();
+    });
+
+    it("speaks it in the browser's voice when nobody recorded it, not through /speak", async () => {
+      const speakAloud = jest.fn();
+      Object.defineProperty(window, 'speechSynthesis', {
+        value: { speak: speakAloud, cancel: jest.fn(), getVoices: () => [] },
+        configurable: true,
+      });
+      (globalThis as unknown as { SpeechSynthesisUtterance: unknown }).SpeechSynthesisUtterance =
+        class {
+          constructor(readonly text: string) {}
+        };
+      lesson.mockReturnValue(
+        lessonAt({
+          step: 'word',
+          word: { ...word, pronunciation: { ipa: '/x/', audioUrl: null } },
+        }),
+      );
+      const user = userEvent.setup();
+      render(<LessonPanel />);
+
+      await user.click(screen.getByRole('button', { name: 'Hear mitigate' }));
+      expect(speakAloud).toHaveBeenCalledWith(expect.objectContaining({ text: 'mitigate' }));
+      expect(speak).not.toHaveBeenCalled();
+    });
   });
 
   it('shows the XP this lesson earned and the streak when done', () => {
@@ -172,6 +226,24 @@ describe('LessonPanel', () => {
     await user.click(screen.getByRole('button', { name: /Submit/ }));
 
     expect(submitAnswer).toHaveBeenCalledWith('Coding early helps.', null);
+  });
+
+  it('warns fifteen seconds before the recorder stops itself, and not before', () => {
+    jest.useFakeTimers();
+    mockDictation.status = 'recording';
+    try {
+      lesson.mockReturnValue(lessonAt({ step: 'speak' }));
+      render(<LessonPanel />);
+
+      act(() => jest.advanceTimersByTime(164_000));
+      expect(screen.getByTestId('time-left')).toBeEmptyDOMElement();
+
+      act(() => jest.advanceTimersByTime(1_000));
+      expect(screen.getByTestId('time-left')).toHaveTextContent('15 seconds left');
+    } finally {
+      mockDictation.status = 'idle';
+      jest.useRealTimers();
+    }
   });
 
   it('hides the unit 6 question until Start, then records after five seconds', async () => {

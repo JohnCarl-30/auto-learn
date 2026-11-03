@@ -37,6 +37,10 @@ describe('countFillers', () => {
     expect(countFillers('I enjoy things, like coffee and tea').total).toBe(0);
   });
 
+  it('counts "like," at the very start, and not the end of a hyphenated word', () => {
+    expect(countFillers('Like, it was child-like, honestly').byWord).toEqual({ like: 1 });
+  });
+
   it('does not count a filler inside a longer word', () => {
     expect(countFillers('The anomaly was humming, and her errand was ahead').total).toBe(0);
   });

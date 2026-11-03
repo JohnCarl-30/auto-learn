@@ -133,8 +133,11 @@ adds two things to a deploy:
   recognition, which ends at the first pause and would cut an answer short. The
   recording goes to `/dictate`, which transcribes with OpenAI unless
   `ELEVENLABS_API_KEY` is set (the free setup leaves it unset). That is one
-  transcription per spoken answer, up to 2 minutes of audio, billed to the same
-  `OPENAI_API_KEY`; a retry is a second one.
+  transcription per spoken answer, up to 3 minutes of audio, billed to the same
+  `OPENAI_API_KEY`; a retry is a second one. Today's word needs no voice key
+  either: it plays the dictionary's recording when there is one, and otherwise
+  the browser's own voice, so it never calls the ElevenLabs-only `/speak`
+  unless the browser has no voice at all.
 
 Without `AUTH_RESEND_KEY` the link is written to the runtime log instead of
 emailed. That is a real way to run a demo, and a bad way to run anything with

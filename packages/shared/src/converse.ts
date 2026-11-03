@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { MAX_KNOWN_WORDS, ProposeResponse } from './propose';
+import { Pronunciation } from './speech';
 
 /**
  * The speaking partner: a short conversation, out loud, where every turn the
@@ -162,10 +163,17 @@ export const SessionWordRequest = z.object({
 });
 export type SessionWordRequest = z.infer<typeof SessionWordRequest>;
 
-/** The definition is WordNet's gloss, retrieved rather than generated. */
+/**
+ * The definition is WordNet's gloss, retrieved rather than generated.
+ *
+ * `pronunciation` is the dictionary's, and only the daily lesson asks for it:
+ * its word step has a button to hear the word, the conversation's panel has
+ * none. Optional, so /talk's responses are exactly what they were.
+ */
 export const SessionWord = z.object({
   word: z.string(),
   definition: z.string(),
+  pronunciation: Pronunciation.optional(),
 });
 export type SessionWord = z.infer<typeof SessionWord>;
 

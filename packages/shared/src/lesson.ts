@@ -17,12 +17,16 @@ import { MAX_KNOWN_WORDS, ProposeResponse } from './propose';
  * How long a lesson answer may run. The browser stops the recorder here; the
  * server can only see bytes, so `MAX_RECORDING_BYTES` is sized to hold this much
  * audio at a worst-case bitrate (see dictate.ts).
+ *
+ * Above the longest target (unit 7's 120 s) on purpose: a learner who is
+ * talking to the target and a little over should finish their sentence, not be
+ * cut off by the very number they were asked to reach.
  */
-export const MAX_LESSON_RECORDING_SECONDS = 120;
+export const MAX_LESSON_RECORDING_SECONDS = 180;
 
 /**
- * The longest answer text a feedback request accepts. A 120 s answer is roughly
- * 300 words, so this is generous for speech and exists to bound the prompt for
+ * The longest answer text a feedback request accepts. A 180 s answer is roughly
+ * 450 words, so this is generous for speech and exists to bound the prompt for
  * someone who types or pastes instead.
  */
 export const MAX_ANSWER_CHARS = 3000;
@@ -59,14 +63,17 @@ export const FILLERS = [
  * only signal that separates them ("it was like, huge" against "I like
  * coffee"). Miscounting the verb blames the learner for correct English, so it
  * counts only with a comma directly after it. A comma before it is not enough:
- * "things, like coffee" introduces an example. The lookbehind keeps hyphenated
- * words such as "child-like," out.
+ * "things, like coffee" introduces an example. The start of the text or a
+ * character that is neither a word character nor a hyphen must come before it,
+ * which keeps hyphenated words such as "child-like," out. That character is
+ * matched rather than looked behind for because Safari before 16.4 cannot parse
+ * a lookbehind, and a regex it cannot parse breaks every page that imports this.
  */
 const FILLER_PATTERN = new RegExp(
   `\\b(${FILLERS.filter((word) => word !== 'like')
     .sort((a, b) => b.length - a.length)
     .map((word) => word.replace(' ', '\\s+'))
-    .join('|')})\\b|(?<![\\w-])(like)(?=\\s*,)`,
+    .join('|')})\\b|(?:^|[^\\w-])(like)(?=\\s*,)`,
   'g',
 );
 
