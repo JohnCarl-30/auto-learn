@@ -17,3 +17,4 @@ export * from './identity';
 export * from './sync';
 export * from './converse';
 export * from './lesson-path';
+export * from './lesson';
