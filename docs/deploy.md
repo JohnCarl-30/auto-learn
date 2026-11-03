@@ -111,7 +111,8 @@ Three things go wrong here, in this order of likelihood:
    request 401s and the only clue is "Sign in again to do that."
 2. **The tables were never created.** `pnpm --filter web db:migrate` has to run
    once against the production database. Until it does, clicking a sign-in link
-   is a 500.
+   is a 500. Run it again after the daily lessons change (see below), which
+   adds to `schema.sql`: the file is idempotent, so a second run is harmless.
 3. **The from-address is at an unverified domain.** Resend accepts the key and
    refuses the message; the failure is in the function log, not on the page.
 
@@ -120,6 +121,20 @@ API — a bank is user data, and the API holds none. One consequence worth knowi
 before someone reports it as a bug: a word picked up on a second device has no
 sentence under it, because sentences never leave the browser they were written
 in. The drill falls back to the definition and says why.
+
+The daily lesson at `/learn` (see the README) rides on the same accounts, and
+adds two things to a deploy:
+
+- **Re-run the schema.** It adds `review_step` and `review_due_at` to
+  `bank_entries` and a `lesson_completions` table. Until it runs against the
+  production database, the lesson routes fail; the rest of the app is unaffected.
+  Existing words start due today.
+- **Spoken answers always use the recorder**, never the browser's own speech
+  recognition, which ends at the first pause and would cut an answer short. The
+  recording goes to `/dictate`, which transcribes with OpenAI unless
+  `ELEVENLABS_API_KEY` is set (the free setup leaves it unset). That is one
+  transcription per spoken answer, up to 2 minutes of audio, billed to the same
+  `OPENAI_API_KEY`; a retry is a second one.
 
 Without `AUTH_RESEND_KEY` the link is written to the runtime log instead of
 emailed. That is a real way to run a demo, and a bad way to run anything with

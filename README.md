@@ -93,6 +93,26 @@ needs to make a request as somebody, it mints a five-minute token signed with
 `GET /me` asks for one today; every other route is open on purpose, because the
 front door of this product does not need an account.
 
+## Daily lessons
+
+`/learn` hands you a short lesson, about five minutes, aimed at saying what you
+mean clearly and in order. It has three steps: type back up to three of your
+banked words that are due, meet one new word on its card, then answer a prompt
+out loud. Feedback on the answer comes after you finish, never while you speak:
+whether the point came first, whether the unit's shape was there, how long you
+spoke and which filler words were heard, and whether you used the day's word.
+You may try the same prompt once more. The installed app opens here.
+
+Take as many a day as you like. Each one earns XP, one a day keeps the streak
+(counted in Manila days), and five in a unit unlock the next of seven.
+
+It needs an account, so the Postgres from [Signing in](#signing-in): the streak
+and the review schedule are saved there, which is what lets a phone and a laptop
+agree. Signed out, `/learn` asks you to sign in and the rest of the app works as
+before. **Re-run `apps/web/db/schema.sql` after pulling this change**
+(`pnpm --filter web db:migrate`): it adds two review columns to `bank_entries`
+and a `lesson_completions` table, and is safe to run again.
+
 ## Layout
 
 |                     |                                                                                                          |
