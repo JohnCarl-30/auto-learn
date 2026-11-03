@@ -47,6 +47,10 @@ export const RATE_LIMITS = {
    * Five a minute is someone flicking between rooms; more is not practice.
    */
   sessionWord: { ttl: minutes(1), limit: 5 },
+  /** A verdict and a rewrite, two model calls like a conversation turn, so the same allowance. */
+  lesson: { ttl: minutes(1), limit: 10 },
+  /** One word per lesson, fetched when the step opens; five a minute is flicking between units. */
+  lessonWord: { ttl: minutes(1), limit: 5 },
 } as const;
 
 /**

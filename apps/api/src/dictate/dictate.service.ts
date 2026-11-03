@@ -8,6 +8,9 @@ import {
 } from '../llm/models';
 import { TelemetryService } from '../telemetry/telemetry.service';
 
+/** Per attempt; see the call below for why it is this long. */
+const DICTATE_TIMEOUT_MS = 45_000;
+
 @Injectable()
 export class DictateService {
   private readonly logger = new Logger(DictateService.name);
@@ -33,10 +36,15 @@ export class DictateService {
         audio,
         providerOptions: transcribeProviderOptions,
         // Matching the speech route's reasoning rather than inheriting the
-        // SDK's two: someone is holding a recording, and three attempts at a
-        // twenty-second timeout is a minute of not knowing whether it worked.
+        // SDK's two: someone is holding a recording, and three attempts at the
+        // timeout below would be over two minutes of not knowing whether it
+        // worked.
         maxRetries: MODEL_MAX_RETRIES_VOICE,
-        abortSignal: AbortSignal.timeout(20_000),
+        // Sized for the longest recording, a three-minute lesson answer, not
+        // the one-minute turn: transcription time grows with the audio, and a
+        // timeout that only fits short clips fails exactly the answers that
+        // took the most effort to give.
+        abortSignal: AbortSignal.timeout(DICTATE_TIMEOUT_MS),
       });
       text = result.text;
       // Seconds, because that is the unit ElevenLabs bills this route in.

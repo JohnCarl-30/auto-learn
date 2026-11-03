@@ -4,7 +4,7 @@ jest.mock('./api', () => ({
 }));
 
 import { act, renderHook, waitFor } from '@testing-library/react';
-import { MAX_RECORDING_SECONDS } from '@auto-learn/shared';
+import { MAX_LESSON_RECORDING_SECONDS, MAX_RECORDING_SECONDS } from '@auto-learn/shared';
 import { ApiFailure, dictate } from './api';
 import { useDictation } from './use-dictation';
 import type { BrowserRecognitionEvent } from './speech-recognition';
@@ -184,6 +184,49 @@ describe('useDictation', () => {
     } finally {
       jest.useRealTimers();
     }
+  });
+
+  /**
+   * Lesson answers get three minutes and everything else keeps the minute. The
+   * cases pin the second the recorder stops, not just that it stops.
+   */
+  describe('the recording limit', () => {
+    beforeEach(() => jest.useFakeTimers());
+    afterEach(() => jest.useRealTimers());
+
+    const advance = (seconds: number) =>
+      act(async () => {
+        jest.advanceTimersByTime(seconds * 1000);
+        await Promise.resolve();
+      });
+
+    it('lets a lesson answer run to three minutes, past the 120 s target', async () => {
+      expect(MAX_LESSON_RECORDING_SECONDS).toBe(180);
+      const { result } = renderHook(() =>
+        useDictation(jest.fn(), { maxSeconds: MAX_LESSON_RECORDING_SECONDS }),
+      );
+
+      await act(() => result.current.start());
+      await advance(121);
+      expect(recorders[0].state).toBe('recording');
+
+      await advance(MAX_LESSON_RECORDING_SECONDS - 122);
+      expect(recorders[0].state).toBe('recording');
+
+      await advance(1);
+      expect(recorders[0].state).toBe('inactive');
+    });
+
+    it('keeps the minute when no limit is given', async () => {
+      const { result } = renderHook(() => useDictation(jest.fn()));
+
+      await act(() => result.current.start());
+      await advance(MAX_RECORDING_SECONDS - 1);
+      expect(recorders[0].state).toBe('recording');
+
+      await advance(1);
+      expect(recorders[0].state).toBe('inactive');
+    });
   });
 
   /**
@@ -483,6 +526,45 @@ describe('useDictation', () => {
 
       expect(recognisers[0].aborted).toBe(true);
       expect(heard).not.toHaveBeenCalled();
+    });
+
+    /**
+     * A lesson answer needs the whole answer, and the recogniser ends at the
+     * first pause. So a lesson asks for the recorder even where the browser
+     * could listen for itself.
+     */
+    it('records instead when asked for the recorder, even with a recogniser', async () => {
+      const { result } = renderHook(() => useDictation(jest.fn(), { engine: 'recorder' }));
+
+      expect(result.current.engine).toBe('recorder');
+      await act(() => result.current.start());
+
+      expect(recognisers).toHaveLength(0);
+      expect(recorders[0].state).toBe('recording');
+    });
+
+    it('still listens with the browser when no engine is asked for', async () => {
+      const { result } = renderHook(() => useDictation(jest.fn()));
+
+      await act(() => result.current.start());
+
+      expect(result.current.engine).toBe('browser');
+      expect(recognisers[0].started).toBe(true);
+      expect(recorders).toHaveLength(0);
+    });
+
+    it('says the browser cannot record when asked for the recorder without MediaRecorder', async () => {
+      delete (window as unknown as Record<string, unknown>).MediaRecorder;
+      const { result } = renderHook(() => useDictation(jest.fn(), { engine: 'recorder' }));
+
+      await act(() => result.current.start());
+
+      expect(result.current.problem).toEqual({
+        message: "This browser won't let me record audio.",
+        code: null,
+      });
+      expect(recognisers).toHaveLength(0);
+      expect(result.current.status).toBe('idle');
     });
   });
 

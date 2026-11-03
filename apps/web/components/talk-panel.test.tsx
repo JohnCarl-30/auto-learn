@@ -140,7 +140,7 @@ describe('TalkPanel', () => {
     expect(send).not.toHaveBeenCalled();
   });
 
-  it('pulls the bank in from other devices, since the installed app opens here', () => {
+  it('pulls the bank in from other devices, since the installed app can reach it without the writing page', () => {
     render(<TalkPanel />);
     expect(useBankSync).toHaveBeenCalled();
   });

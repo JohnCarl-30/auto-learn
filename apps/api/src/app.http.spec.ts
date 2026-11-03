@@ -33,6 +33,7 @@ import {
   API_TOKEN_AUDIENCE,
   API_TOKEN_ISSUER,
   ConverseResponse,
+  LessonFeedbackResponse,
   MAX_RECORDING_BYTES,
   ProposeStreamEvent,
 } from '@auto-learn/shared';
@@ -157,7 +158,7 @@ describe('HTTP surface', () => {
 
     it('answers with a reply and a review in the shared contract, as 200', async () => {
       (generateText as unknown as jest.Mock).mockResolvedValueOnce({
-        text: 'Oh no, how many exams do you have left?',
+        text: 'Oh no, how many are left?',
         usage: undefined,
       });
       (generateObject as unknown as jest.Mock).mockResolvedValueOnce({
@@ -185,9 +186,12 @@ describe('HTTP surface', () => {
         .expect(200);
 
       const body = ConverseResponse.parse(response.body);
-      expect(body.reply).toBe('Oh no, how many exams do you have left?');
+      expect(body.reply).toBe('Oh no, how many are left?');
       expect(body.review?.sentences[0].gated[0].original).toBe('many exam');
-      expect(JSON.stringify(body.review)).not.toContain('many exams');
+      // The raw bytes, not the parsed body: Zod drops keys it does not know, so
+      // a replacement leaked under a stray key would vanish from `body` and
+      // still reach the browser. The reply above is worded not to contain it.
+      expect(response.text).not.toContain('many exams');
     });
 
     it('rejects a scenario it has no partner for', async () => {
@@ -222,6 +226,114 @@ describe('HTTP surface', () => {
         .expect(502);
 
       expect((response.body as ApiError).code).toBe('upstream_failed');
+    });
+  });
+
+  describe('POST /lesson/feedback', () => {
+    const lesson = {
+      unit: 1,
+      promptId: 'u1-01',
+      answer: 'I build bots. They help shops.',
+      word: null,
+    };
+
+    it('answers in the shared contract, as 200, with the gate intact', async () => {
+      // The verdict is the first model call and the rewrite of the weakest
+      // sentence the second; both are `generateObject`.
+      (generateObject as unknown as jest.Mock)
+        .mockResolvedValueOnce({
+          object: {
+            pointFirst: true,
+            pointFirstNote: 'You led with what you built.',
+            parts: [{ label: 'point', quote: 'I build bots.' }],
+            structureNote: 'Short and clear.',
+            wordUse: 'unused',
+            weakestSentence: 1,
+          },
+          usage: undefined,
+        })
+        .mockResolvedValueOnce({
+          object: {
+            sentences: [
+              {
+                index: 0,
+                edits: [
+                  {
+                    type: 'word-choice',
+                    original: 'help',
+                    replacement: 'assist',
+                    reason: 'More precise.',
+                  },
+                ],
+              },
+            ],
+          },
+          usage: undefined,
+        });
+
+      const response = await request(server())
+        .post('/lesson/feedback')
+        .send(lesson)
+        .expect(200);
+
+      const body = LessonFeedbackResponse.parse(response.body);
+      expect(body.firstSentence).toBe('I build bots.');
+      expect(body.reviewedText).toBe('They help shops.');
+      expect(body.review?.sentences[0].gated[0].original).toBe('help');
+      // The rewrite is the same gated proposal as everywhere else. Checked on
+      // the raw bytes: the parsed body would hide a leak under a stray key.
+      expect(response.text).not.toContain('assist');
+    });
+
+    it('rejects a unit the path does not have', async () => {
+      const response = await request(server())
+        .post('/lesson/feedback')
+        .send({ ...lesson, unit: 9 })
+        .expect(400);
+
+      expect((response.body as ApiError).code).toBe('invalid_request');
+    });
+
+    it('rejects a prompt the unit does not have', async () => {
+      const response = await request(server())
+        .post('/lesson/feedback')
+        .send({ ...lesson, promptId: 'u1-99' })
+        .expect(400);
+
+      expect((response.body as ApiError).code).toBe('invalid_prompt');
+    });
+
+    it('rejects a blank answer', async () => {
+      const response = await request(server())
+        .post('/lesson/feedback')
+        .send({ ...lesson, answer: '   ' })
+        .expect(400);
+
+      expect((response.body as ApiError).code).toBe('invalid_request');
+    });
+  });
+
+  describe('POST /lesson/word', () => {
+    it('rejects a unit the path does not have', async () => {
+      const response = await request(server())
+        .post('/lesson/word')
+        .send({ unit: 0, known: [] })
+        .expect(400);
+
+      expect((response.body as ApiError).code).toBe('invalid_request');
+    });
+
+    it('answers with no word, not an error, when the model is down', async () => {
+      (generateText as unknown as jest.Mock).mockRejectedValueOnce(
+        new Error('down'),
+      );
+
+      const response = await request(server())
+        .post('/lesson/word')
+        .send({ unit: 1, known: [] })
+        .expect(200);
+
+      expect(response.body).toEqual({ word: null });
     });
   });
 
@@ -595,7 +707,9 @@ describe('HTTP surface', () => {
 
       const error = ApiErrorOf(response.body);
       expect(error.code).toBe('recording_too_long');
+      // Named both limits: this one route takes the minute and the lesson's three.
       expect(error.message).toContain('60 seconds');
+      expect(error.message).toContain('3 minutes for a lesson answer');
       expect(listen).not.toHaveBeenCalled();
     });
 
@@ -708,6 +822,8 @@ describe('HTTP surface', () => {
     it.each([
       ['post', '/converse'],
       ['post', '/converse/word'],
+      ['post', '/lesson/feedback'],
+      ['post', '/lesson/word'],
       ['post', '/propose'],
       ['post', '/propose/stream'],
       ['post', '/card'],

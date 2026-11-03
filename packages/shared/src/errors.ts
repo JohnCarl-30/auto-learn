@@ -7,6 +7,9 @@ export const ApiErrorCode = z.enum([
   'session_not_found',
   'suggestion_not_found',
   'word_not_in_sentence',
+  // A lesson answer named a prompt its unit does not have: a stale client or a
+  // hand-built request, never something the learner did.
+  'invalid_prompt',
   'no_dictionary_entry',
   'recording_too_long',
   'no_speech_detected',

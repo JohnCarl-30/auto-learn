@@ -46,9 +46,10 @@ const SKIPPED_NOTES: Record<FeedbackSkipped, string> = {
 export function TalkPanel() {
   const voice = usePartnerVoice();
   const talk = useConversation({ onReply: (text) => voice.say(text) });
-  // The installed app opens here, not on the writing page, so this is where a
-  // signed-in learner's bank has to be pulled in from their other devices.
-  // Nothing on this page lists the bank, so the counter it returns is unused:
+  // The installed app opens on /learn, not on the writing page, so a learner
+  // can reach this page without ever opening the writing page; it pulls a
+  // signed-in learner's bank in from their other devices itself. Nothing on
+  // this page lists the bank, so the counter it returns is unused:
   // the practice word reads the bank afresh each time a conversation starts.
   useBankSync();
 

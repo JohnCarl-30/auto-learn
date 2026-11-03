@@ -59,14 +59,29 @@ function pickMimeType(): string | undefined {
   );
 }
 
-export function useDictation(onTranscript: (transcript: string) => void) {
+/**
+ * `maxSeconds` is how long the recorder runs before it is stopped for the
+ * person. Lesson answers pass a longer one; everything else keeps the minute.
+ * Only the recorder has this timer: the browser recogniser takes one phrase per
+ * press (`continuous` is false), so the limit does not reach it. That is why
+ * `engine: 'recorder'` exists: a lesson answer needs the whole answer, so the
+ * caller can rule the recogniser out even where the browser has one.
+ */
+export function useDictation(
+  onTranscript: (transcript: string) => void,
+  options?: { maxSeconds?: number; engine?: 'recorder' },
+) {
+  // A number rather than the options object, so a caller passing a fresh
+  // literal each render does not rebuild `start` on every render.
+  const maxSeconds = options?.maxSeconds ?? MAX_RECORDING_SECONDS;
   const [status, setStatus] = useState<DictationStatus>('idle');
   const [problem, setProblem] = useState<DictationProblem | null>(null);
   // Lazy, so the lookup runs once per mount rather than on every render. State
   // rather than a ref because a fallback is for the rest of the hook's life and
-  // `start` has to see it on the next press.
+  // `start` has to see it on the next press. A caller that asked for the
+  // recorder never reaches the lookup.
   const [engine, setEngine] = useState<DictationEngine>(() =>
-    recognitionConstructor() ? 'browser' : 'recorder',
+    options?.engine !== 'recorder' && recognitionConstructor() ? 'browser' : 'recorder',
   );
 
   const recorder = useRef<MediaRecorder | null>(null);
@@ -186,9 +201,9 @@ export function useDictation(onTranscript: (transcript: string) => void) {
     // and then telling them it was too long.
     stopAt.current = setTimeout(
       () => active.state !== 'inactive' && active.stop(),
-      MAX_RECORDING_SECONDS * 1000,
+      maxSeconds * 1000,
     );
-  }, [release]);
+  }, [release, maxSeconds]);
 
   const listen = useCallback(
     (Recognition: new () => BrowserRecognition) => {

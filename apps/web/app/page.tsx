@@ -47,6 +47,13 @@ export default function Page() {
           <h1 className="text-2xl font-semibold tracking-tight">auto-learn</h1>
           <div className="flex items-center gap-4">
             <Link
+              href="/learn"
+              data-testid="learn-link"
+              className="text-sm text-muted-foreground hover:text-foreground"
+            >
+              Learn
+            </Link>
+            <Link
               href="/talk"
               data-testid="talk-link"
               className="text-sm text-muted-foreground hover:text-foreground"

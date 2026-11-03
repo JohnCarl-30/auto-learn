@@ -55,6 +55,12 @@ export const PROPOSE_MAX_OUTPUT_TOKENS = 2000;
 /** A reply is one to three spoken sentences; anything near this cap is a monologue. */
 export const CONVERSE_MAX_OUTPUT_TOKENS = 300;
 export const CARD_MAX_OUTPUT_TOKENS = 1200;
+/**
+ * A lesson verdict is five short fields and a quote or two per part, so this
+ * is room to spare for a three-part unit and no room for an essay on someone's
+ * answer.
+ */
+export const LESSON_FEEDBACK_MAX_OUTPUT_TOKENS = 600;
 
 /**
  * Failure policy for both calls.
@@ -105,6 +111,14 @@ export const sessionWordProviderOptions = {
   openai: {
     reasoningEffort: 'none',
     promptCacheKey: 'auto-learn:session-word:v1',
+  },
+} as const;
+
+/** The lesson verdict has its own system prompt, so its own cache key. */
+export const lessonFeedbackProviderOptions = {
+  openai: {
+    reasoningEffort: 'none',
+    promptCacheKey: 'auto-learn:lesson-feedback:v1',
   },
 } as const;
 

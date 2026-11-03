@@ -1,9 +1,14 @@
+import { UNITS } from '@auto-learn/shared';
 import {
   CARD_SYSTEM_PROMPT,
   CONVERSE_SYSTEM_PROMPT,
+  LESSON_FEEDBACK_SYSTEM_PROMPT,
+  LESSON_WORD_SYSTEM_PROMPT,
   PROPOSE_SYSTEM_PROMPT,
   cardUserPrompt,
   converseUserPrompt,
+  lessonFeedbackUserPrompt,
+  lessonWordUserPrompt,
   proposeSystemPrompt,
   proposeUserPrompt,
 } from './prompts';
@@ -37,6 +42,8 @@ describe('proposeUserPrompt', () => {
     expect(PROPOSE_SYSTEM_PROMPT).not.toContain('${');
     expect(CARD_SYSTEM_PROMPT).not.toContain('${');
     expect(CONVERSE_SYSTEM_PROMPT).not.toContain('${');
+    expect(LESSON_WORD_SYSTEM_PROMPT).not.toContain('${');
+    expect(LESSON_FEEDBACK_SYSTEM_PROMPT).not.toContain('${');
   });
 });
 
@@ -175,5 +182,59 @@ describe('converseUserPrompt', () => {
     expect(CONVERSE_SYSTEM_PROMPT).toContain(
       'never repeat their sentence back in better words',
     );
+  });
+});
+
+describe('lesson prompts', () => {
+  const unit = UNITS[1];
+
+  it('numbers the answer from zero, matching the weakestSentence the model returns', () => {
+    const prompt = lessonFeedbackUserPrompt({
+      unit,
+      prompt: 'Is it worth paying for a tool you use every day?',
+      sentences: ['I think yes.', 'It saves time.'],
+      word: null,
+    });
+    expect(prompt).toContain('0. I think yes.');
+    expect(prompt).toContain('1. It saves time.');
+  });
+
+  it('names the unit, its parts, the question and the word', () => {
+    const prompt = lessonFeedbackUserPrompt({
+      unit,
+      prompt: 'Is it worth paying for a tool you use every day?',
+      sentences: ['I think yes.'],
+      word: 'mitigate',
+    });
+    expect(prompt).toContain('Point, reason, example');
+    expect(prompt).toContain('point, reason, example');
+    expect(prompt).toContain('Is it worth paying');
+    expect(prompt).toContain('Target word: mitigate');
+  });
+
+  it('says so when the unit has no target word', () => {
+    expect(
+      lessonFeedbackUserPrompt({
+        unit,
+        prompt: 'A question?',
+        sentences: ['An answer.'],
+        word: null,
+      }),
+    ).toContain('Target word: (none)');
+  });
+
+  it('keeps the rules that protect the gate and the learner', () => {
+    expect(LESSON_FEEDBACK_SYSTEM_PROMPT).toContain(
+      'Never rewrite or correct their sentences',
+    );
+    expect(LESSON_FEEDBACK_SYSTEM_PROMPT).toContain('Quote the student');
+    expect(LESSON_FEEDBACK_SYSTEM_PROMPT).toContain('imperfect');
+  });
+
+  it('lists the bank for the word, and says so when it is empty', () => {
+    expect(
+      lessonWordUserPrompt({ unit, known: ['allocate', 'mitigate'] }),
+    ).toContain('allocate, mitigate');
+    expect(lessonWordUserPrompt({ unit, known: [] })).toContain('(none yet)');
   });
 });
