@@ -4,12 +4,15 @@ import {
   CardStreamEvent,
   ConverseResponse,
   DictateResponse,
+  LessonFeedbackResponse,
   ProposeResponse,
   ProposeStreamEvent,
   SessionWordResponse,
   SpeakResponse,
   type CardRequest,
   type ConverseRequest,
+  type LessonFeedbackRequest,
+  type LessonWordRequest,
   type SessionWordRequest,
   type ProposeRequest,
   type PartOfSpeech,
@@ -321,6 +324,25 @@ export function converse(body: ConverseRequest): Promise<ConverseResponse> {
 /** A word to practise in a conversation. `{ word: null }` when none was found. */
 export function suggestWord(body: SessionWordRequest): Promise<SessionWordResponse> {
   return post('/converse/word', body, SessionWordResponse);
+}
+
+/**
+ * The lesson's target word, from the same picker as the speaking partner's.
+ * The server answers `{ word: null }` rather than failing, so a lesson never
+ * waits on this.
+ */
+export function lessonWord(body: LessonWordRequest): Promise<SessionWordResponse> {
+  return post('/lesson/word', body, SessionWordResponse);
+}
+
+/**
+ * Feedback on one spoken (or typed) answer. Refuses with `invalid_prompt` for a
+ * prompt not in the unit, and `upstream_failed` when the model does.
+ */
+export function lessonFeedback(
+  body: LessonFeedbackRequest,
+): Promise<LessonFeedbackResponse> {
+  return post('/lesson/feedback', body, LessonFeedbackResponse);
 }
 
 /**
