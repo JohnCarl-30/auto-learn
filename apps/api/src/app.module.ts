@@ -12,6 +12,7 @@ import { DictateModule } from './dictate/dictate.module';
 import { TelemetryModule } from './telemetry/telemetry.module';
 import { AuthModule } from './auth/auth.module';
 import { ConverseModule } from './converse/converse.module';
+import { LessonModule } from './lesson/lesson.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { ConverseModule } from './converse/converse.module';
     DictateModule,
     AuthModule,
     ConverseModule,
+    LessonModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ApiThrottlerGuard }],
 })

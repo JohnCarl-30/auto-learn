@@ -39,8 +39,10 @@ import { TelemetryService } from '../telemetry/telemetry.service';
  * fluent speaker, and grammar alone would leave every weak word unflagged —
  * which is most of what there is to teach in speech. Not "academic" either:
  * nobody wants office-hours small talk raised to essay register.
+ *
+ * Exported because a lesson answer is spoken too and is reviewed the same way.
  */
-const SPOKEN_TRANSFORM: TransformOption = 'natural';
+export const SPOKEN_TRANSFORM: TransformOption = 'natural';
 
 @Injectable()
 export class ConverseService {
@@ -139,19 +141,34 @@ export class ConverseService {
     }
   }
 
+  /** A word to practise in this conversation, or null. */
+  suggestWord(request: SessionWordRequest): Promise<SessionWordResponse> {
+    return this.suggestCheckedWord(
+      SESSION_WORD_SYSTEM_PROMPT,
+      sessionWordUserPrompt(request),
+      request.known,
+    );
+  }
+
   /**
-   * A word to practise in this conversation, or null.
+   * Asks the model for one word and keeps it only if it is new to the learner
+   * and WordNet knows it. Shared with the daily lesson, which differs from a
+   * conversation only in the prompt it asks with.
    *
    * Never an error: a missing word must not stand between the learner and
    * talking, so every failure — the model, an empty answer, a word WordNet has
    * never heard of — comes back as `{ word: null }` and the panel shows nothing.
    */
-  async suggestWord(request: SessionWordRequest): Promise<SessionWordResponse> {
+  async suggestCheckedWord(
+    system: string,
+    prompt: string,
+    known: string[],
+  ): Promise<SessionWordResponse> {
     try {
       const { text, usage } = await generateText({
         model: converseModel(),
-        system: SESSION_WORD_SYSTEM_PROMPT,
-        prompt: sessionWordUserPrompt(request),
+        system,
+        prompt,
         providerOptions: sessionWordProviderOptions,
         // One word. The cap keeps a chatty answer from costing a paragraph.
         maxOutputTokens: 16,
@@ -169,8 +186,8 @@ export class ConverseService {
 
       // The prompt asks for a word the learner does not have; this makes sure.
       // A banked word offered as new would be counted, carded and "added" again.
-      const known = new Set(request.known.map((k) => k.toLowerCase()));
-      if (known.has(word)) return { word: null };
+      const have = new Set(known.map((k) => k.toLowerCase()));
+      if (have.has(word)) return { word: null };
 
       const found = await this.dictionary.lookup(word);
       if (found.status !== 'found') return { word: null };

@@ -3,6 +3,7 @@ import {
   TRANSFORM_INSTRUCTIONS,
   type ConverseTurn,
   type DictionarySense,
+  type LessonUnit,
   type Scenario,
   type TransformOption,
 } from '@auto-learn/shared';
@@ -122,6 +123,92 @@ export function sessionWordUserPrompt(input: {
     `Words the student already has: ${input.known.length ? input.known.join(', ') : '(none yet)'}`,
     '',
     'The word:',
+  ].join('\n');
+}
+
+/**
+ * One word to try in today's lesson, for the same grounding rule as above: only
+ * the word comes from the model, and WordNet supplies the definition.
+ *
+ * Its own prompt rather than the conversation's, because the question differs.
+ * A conversation word has to fit a situation; this one has to fit an answer
+ * about the learner's own life, given aloud in half a minute, so it must be a
+ * word that is easy to say and that someone could use without changing the
+ * subject.
+ */
+export const LESSON_WORD_SYSTEM_PROMPT = `You choose one English word for a university student, learning English as a second language, to try using in a short spoken answer about their own life: their studies, projects, opinions and everyday things.
+
+Rules:
+- One word only, in its dictionary form. No phrase, no explanation, no punctuation.
+- A word they could say naturally in an answer like that, whatever the question: a step above everyday vocabulary, one a fluent speaker would use out loud, not a rare or literary one.
+- Easy to say. Avoid words that are hard to pronounce or that are mostly written.
+- Never one of the words the student already has.`;
+
+/** The unit and the bank, in the user half so the system prompt stays cacheable. */
+export function lessonWordUserPrompt(input: {
+  unit: LessonUnit;
+  known: string[];
+}): string {
+  return [
+    `The exercise: ${input.unit.title}. ${input.unit.goal}`,
+    `Words the student already has: ${input.known.length ? input.known.join(', ') : '(none yet)'}`,
+    '',
+    'The word:',
+  ].join('\n');
+}
+
+/**
+ * Judges the shape of a spoken answer, and nothing else.
+ *
+ * Narrow on purpose. Grammar and word choice belong to the rewrite, which runs
+ * through the gated propose path, so a verdict that also commented on wording
+ * would hand out the very words the gate withholds. The transcript is the
+ * learner's speech run through a recogniser: a mis-heard word is the
+ * recogniser's mistake, and marking it as theirs would teach them to distrust a
+ * correct answer.
+ */
+export const LESSON_FEEDBACK_SYSTEM_PROMPT = `You give feedback on a short spoken answer from a university student learning English as a second language.
+
+You will be given the exercise (its name, what it practises and the parts an answer should have), the question that was asked, the student's target word if there is one, and the transcript of what they said, split into numbered sentences.
+
+Judge only two things: the structure of the answer, and whether the target word was used correctly.
+
+Rules:
+- Quote the student's exact words. Copy them character for character from the transcript. If a part is not there, its quote is null; never invent one.
+- Never rewrite or correct their sentences, and never suggest better words. A separate step does that.
+- Do not comment on grammar, accent, or word choice, except to say whether the target word was used correctly in its sentence.
+- The transcript comes from speech recognition and may be imperfect. Do not blame the student for a word that looks mis-heard, a missing full stop, or odd punctuation.
+- Be kind and specific. Say what worked first. One short sentence per note, in plain English a B2-level learner can follow.
+- "pointFirst" is true only if the first sentence states the main point or answers the question directly.
+- Include one entry in "parts" for each part the exercise lists, in the same order and with the same label.
+- "wordUse" is "correct" if the target word, or a regular form of it, is used with the right meaning; "incorrect" if it is used with the wrong meaning or form; "unused" if it is absent. If there is no target word, answer "unused".
+- "weakestSentence" is the number of the sentence that most weakens the structure: vague, off the point, or doing no work. Use the number shown beside it. Choose one even when the answer is good.`;
+
+/**
+ * The exercise, the question and the numbered answer — all in the user half so
+ * the system prompt above stays one cacheable constant.
+ *
+ * Sentences are numbered from zero, because `weakestSentence` is an index into
+ * `splitSentences(answer)` and the model reports the number it was shown. The
+ * transcript sits under a label for the same reason as the conversation's: if
+ * the learner said something instruction-shaped, it is a thing that was said.
+ */
+export function lessonFeedbackUserPrompt(input: {
+  unit: LessonUnit;
+  prompt: string;
+  sentences: string[];
+  word: string | null;
+}): string {
+  const numbered = input.sentences.map((s, i) => `${i}. ${s}`).join('\n');
+
+  return [
+    `Exercise: ${input.unit.title}. ${input.unit.goal}`,
+    `Parts an answer should have, in order: ${input.unit.parts.join(', ')}`,
+    `The question: ${input.prompt}`,
+    `Target word: ${input.word ?? '(none)'}`,
+    '',
+    'What the student said:',
+    numbered,
   ].join('\n');
 }
 
