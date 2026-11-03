@@ -1,6 +1,6 @@
 # Daily lessons: a Duolingo-style path for speaking clearly
 
-Date: 2026-11-03. Status: draft, not yet approved by John.
+Date: 2026-11-03. Status: approved by John in chat on 2026-11-03.
 
 ## Why
 
@@ -39,7 +39,7 @@ speaking partner). What it lacks is everything that makes Duolingo a habit:
 
 ## The lesson
 
-One lesson a day, about five minutes, three steps:
+A lesson takes about five minutes and has three steps. John can take as many a day as they like:
 
 1. **Review (about 1 minute).** Up to three bank words that are due today. Each
    is a fill-in-the-blank: John's own sentence with the word masked, the way the
@@ -131,6 +131,8 @@ codebase's own rules and are my calls:
   main event and vocabulary in support.
 - Situations: public speaking and everyday articulating.
 - Just for them for now; others maybe later.
+- As many lessons a day as John wants. Every lesson earns XP and counts toward
+  unlocking the next unit; the streak needs one lesson a day.
 
 ## My calls (John can override)
 
