@@ -14,8 +14,8 @@ import { signInRequired } from './auth/signed-in.guard';
  * and those are worth being able to run.
  */
 function checkApiKeys(logger: Logger): void {
-  if (!process.env.OPENAI_API_KEY) {
-    logger.warn('OPENAI_API_KEY is not set.');
+  if (!process.env.OPENAI_API_KEY && !process.env.OLLAMA_MODEL) {
+    logger.warn('OPENAI_API_KEY is not set (nor OLLAMA_MODEL).');
     logger.warn('  /propose and word cards will return 502 until it is.');
     logger.warn('  Copy apps/api/.env.example to apps/api/.env and add a key.');
     logger.warn('  Grammar notes, the sentence cap and validation still work.');

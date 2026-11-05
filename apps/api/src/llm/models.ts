@@ -1,5 +1,5 @@
 import { elevenLabs } from '@ai-sdk/elevenlabs';
-import { openai } from '@ai-sdk/openai';
+import { createOpenAI, openai } from '@ai-sdk/openai';
 
 /**
  * Provider wiring, and nothing else. Everything a caller might want to *read*
@@ -18,9 +18,26 @@ import {
   TRANSCRIBE_MODEL,
 } from './config';
 
-export const proposeModel = () => openai(PROPOSE_MODEL);
-export const cardModel = () => openai(CARD_MODEL);
-export const converseModel = () => openai(CONVERSE_MODEL);
+/**
+ * A local Ollama model in place of every OpenAI text model when OLLAMA_MODEL
+ * is set: free and offline, for running the app without a key. Ollama speaks
+ * OpenAI's chat API, so the provider already installed reaches it.
+ *
+ * Read at call time, as `transcribeModel` is, because the environment is
+ * loaded after the module graph.
+ */
+const textModel = (id: string) => {
+  const local = process.env.OLLAMA_MODEL;
+  if (!local) return openai(id);
+  return createOpenAI({
+    baseURL: process.env.OLLAMA_BASE_URL || 'http://localhost:11434/v1',
+    apiKey: 'ollama',
+  }).chat(local);
+};
+
+export const proposeModel = () => textModel(PROPOSE_MODEL);
+export const cardModel = () => textModel(CARD_MODEL);
+export const converseModel = () => textModel(CONVERSE_MODEL);
 
 /**
  * ElevenLabs when its key is set, OpenAI otherwise — so the free deploy
