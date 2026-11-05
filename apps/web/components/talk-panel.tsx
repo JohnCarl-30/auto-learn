@@ -16,6 +16,7 @@ import {
   joinDictation,
   type FeedbackSkipped,
 } from '@auto-learn/shared';
+import { CallStage } from '@/components/call-stage';
 import { ApiNotice, Notice } from '@/components/notice';
 import { TeaserList } from '@/components/review-panel';
 import { SentenceView } from '@/components/sentence-view';
@@ -93,199 +94,208 @@ export function TalkPanel() {
   };
 
   return (
-    <div className="space-y-6" data-testid="talk">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-1">
-          <span className="text-sm text-muted-foreground" data-testid="scenario">
-            {SCENARIO_LABELS[talk.scenario]}
-          </span>
-          {/* Same way back to the picker as End; the name says what it is for. */}
-          <Button variant="ghost" size="sm" onClick={talk.end} data-testid="change">
-            Change
-          </Button>
-        </div>
-        <div className="flex items-center gap-1">
-          {voice.supported && (
-            <Button
-              variant="ghost"
-              size="sm"
-              data-testid="mute"
-              aria-label={voice.muted ? 'Read replies aloud' : 'Stop reading replies aloud'}
-              aria-pressed={voice.muted}
-              onClick={voice.toggleMuted}
-            >
-              {voice.muted ? <VolumeXIcon /> : <Volume2Icon />}
-            </Button>
-          )}
-          <Button variant="ghost" size="sm" onClick={talk.end} data-testid="end">
-            End
-          </Button>
-        </div>
-      </div>
-
-      {talk.practiceWord && (
-        // Polite: "You used it." arrives after the reply, and a screen reader
-        // should hear it without being cut off mid-sentence.
-        <p
-          className="text-sm text-muted-foreground"
-          data-testid="practice-word"
-          aria-live="polite"
-        >
-          {talk.practiceWord.used ? (
-            <>
-              <span className="font-medium text-foreground">{talk.practiceWord.word}</span>
-              {' — '}
-              <span>You used it.</span>
-              {talk.practiceWord.justBanked && (
-                <>
-                  {' '}
-                  <span>Added to your bank.</span>
-                </>
-              )}
-            </>
-          ) : (
-            <>
-              Try using:{' '}
-              <span className="font-medium text-foreground">{talk.practiceWord.word}</span>
-              {' — '}
-              {talk.practiceWord.definition}
-            </>
-          )}
-        </p>
-      )}
-
-      <ol className="space-y-5" aria-label="Conversation">
-        {talk.turns.map((turn) =>
-          turn.role === 'partner' ? (
-            <li key={turn.id} data-testid="partner-turn" className="space-y-1">
-              <p className="text-xs font-medium text-muted-foreground">Partner</p>
-              <div className="flex items-start gap-2">
-                <p className="flex-1 rounded-lg bg-muted px-3.5 py-2.5 leading-relaxed">
-                  {turn.text}
-                </p>
-                {voice.supported && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    aria-label="Hear that again"
-                    onClick={() => voice.say(turn.text, { force: true })}
-                  >
-                    <Volume2Icon />
-                  </Button>
-                )}
-              </div>
-            </li>
-          ) : (
-            <li key={turn.id} data-testid="learner-turn" className="space-y-2">
-              <p className="text-xs font-medium text-muted-foreground">You</p>
-              <LearnerTurnView turn={turn} talk={talk} />
-            </li>
-          ),
-        )}
-      </ol>
-
-      {talk.pending && (
-        <p role="status" className="text-sm text-muted-foreground" data-testid="thinking">
-          Your partner is thinking…
-        </p>
-      )}
-
-      {talk.error && (
-        // ApiNotice, so a locked API's refusal comes with the way to sign in.
-        <ApiNotice error={talk.error} testId="talk-notice" />
-      )}
-
-      {/*
-        Stuck to the bottom of the screen so the mic and Send stay under the
-        thumb however long the conversation gets. The inset keeps them clear of
-        the home indicator in an installed iPhone app (and the floor of 0.5rem
-        keeps them off the screen edge where there is no inset), and the
-        background stops the transcript showing through as it scrolls under.
-      */}
-      <form
-        className="sticky bottom-0 space-y-2 border-t bg-background pt-3 pb-[max(env(safe-area-inset-bottom),0.5rem)]"
-        onSubmit={(event) => {
-          event.preventDefault();
-          void talk.send();
-        }}
-      >
-        <Textarea
-          value={talk.draft}
-          onChange={(event) => talk.setDraft(event.target.value)}
-          onKeyDown={(event) => {
-            // Enter sends, as in any chat; Shift-Enter is a new line.
-            if (event.key === 'Enter' && !event.shiftKey) {
-              event.preventDefault();
-              void talk.send();
-            }
-          }}
-          placeholder="Press the mic and answer, or type."
-          rows={3}
-          className="resize-none text-base leading-relaxed"
-          aria-label="Your answer"
-          data-testid="answer"
-        />
+    // One column on a phone; on a desktop the call sits on the left and the
+    // conversation runs beside it.
+    <div className="lg:grid lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:items-start lg:gap-10">
+      <CallStage
+        listening={recording}
+        speaking={voice.speaking}
+        thinking={talk.pending}
+      />
+      <div className="space-y-6" data-testid="talk">
         <div className="flex items-center justify-between gap-3">
-          <span className="text-sm text-muted-foreground">
-            {recording
-              ? 'Listening…'
-              : transcribing
-                ? 'Writing that down…'
-                : 'Check what I heard, then send.'}
-          </span>
-          {/*
-            44px square at least, Apple's minimum touch target: these two are
-            pressed every turn, by thumb, often while walking. `lg` alone is 36.
-          */}
-          <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              data-testid="talk-mic"
-              variant={recording ? 'secondary' : 'outline'}
-              size="lg"
-              className="h-11 min-w-11"
-              disabled={talk.pending || transcribing}
-              aria-label={recording ? 'Stop recording' : 'Answer out loud'}
-              onClick={() => (recording ? dictation.stop() : startRecording())}
-            >
-              {transcribing ? (
-                <LoaderCircleIcon className="animate-spin" />
-              ) : recording ? (
-                <SquareIcon />
-              ) : (
-                <MicIcon />
-              )}
+          <div className="flex items-center gap-1">
+            <span className="text-sm text-muted-foreground" data-testid="scenario">
+              {SCENARIO_LABELS[talk.scenario]}
+            </span>
+            {/* Same way back to the picker as End; the name says what it is for. */}
+            <Button variant="ghost" size="sm" onClick={talk.end} data-testid="change">
+              Change
             </Button>
-            <Button
-              type="submit"
-              size="lg"
-              className="h-11 min-w-11"
-              data-testid="send"
-              disabled={talk.pending || recording || !talk.draft.trim()}
-            >
-              <SendIcon /> Send
+          </div>
+          <div className="flex items-center gap-1">
+            {voice.supported && (
+              <Button
+                variant="ghost"
+                size="sm"
+                data-testid="mute"
+                aria-label={voice.muted ? 'Read replies aloud' : 'Stop reading replies aloud'}
+                aria-pressed={voice.muted}
+                onClick={voice.toggleMuted}
+              >
+                {voice.muted ? <VolumeXIcon /> : <Volume2Icon />}
+              </Button>
+            )}
+            <Button variant="ghost" size="sm" onClick={talk.end} data-testid="end">
+              End
             </Button>
           </div>
         </div>
+
+        {talk.practiceWord && (
+          // Polite: "You used it." arrives after the reply, and a screen reader
+          // should hear it without being cut off mid-sentence.
+          <p
+            className="text-sm text-muted-foreground"
+            data-testid="practice-word"
+            aria-live="polite"
+          >
+            {talk.practiceWord.used ? (
+              <>
+                <span className="font-medium text-foreground">{talk.practiceWord.word}</span>
+                {' — '}
+                <span>You used it.</span>
+                {talk.practiceWord.justBanked && (
+                  <>
+                    {' '}
+                    <span>Added to your bank.</span>
+                  </>
+                )}
+              </>
+            ) : (
+              <>
+                Try using:{' '}
+                <span className="font-medium text-foreground">{talk.practiceWord.word}</span>
+                {' — '}
+                {talk.practiceWord.definition}
+              </>
+            )}
+          </p>
+        )}
+
+        <ol className="space-y-5" aria-label="Conversation">
+          {talk.turns.map((turn) =>
+            turn.role === 'partner' ? (
+              <li key={turn.id} data-testid="partner-turn" className="space-y-1">
+                <p className="text-xs font-medium text-muted-foreground">Partner</p>
+                <div className="flex items-start gap-2">
+                  <p className="flex-1 rounded-lg bg-muted px-3.5 py-2.5 leading-relaxed">
+                    {turn.text}
+                  </p>
+                  {voice.supported && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      aria-label="Hear that again"
+                      onClick={() => voice.say(turn.text, { force: true })}
+                    >
+                      <Volume2Icon />
+                    </Button>
+                  )}
+                </div>
+              </li>
+            ) : (
+              <li key={turn.id} data-testid="learner-turn" className="space-y-2">
+                <p className="text-xs font-medium text-muted-foreground">You</p>
+                <LearnerTurnView turn={turn} talk={talk} />
+              </li>
+            ),
+          )}
+        </ol>
+
+        {talk.pending && (
+          <p role="status" className="text-sm text-muted-foreground" data-testid="thinking">
+            Your partner is thinking…
+          </p>
+        )}
+
+        {talk.error && (
+          // ApiNotice, so a locked API's refusal comes with the way to sign in.
+          <ApiNotice error={talk.error} testId="talk-notice" />
+        )}
+
         {/*
-          A problem with a code came from the server (the recorder path), so
-          it can be the sign-in refusal and gets its link; one without is the
-          browser's own (permission, silence) and is only ever guidance.
+          Stuck to the bottom of the screen so the mic and Send stay under the
+          thumb however long the conversation gets. The inset keeps them clear of
+          the home indicator in an installed iPhone app (and the floor of 0.5rem
+          keeps them off the screen edge where there is no inset), and the
+          background stops the transcript showing through as it scrolls under.
         */}
-        {dictation.problem &&
-          (dictation.problem.code ? (
-            <ApiNotice
-              error={{ code: dictation.problem.code, message: dictation.problem.message }}
-              testId="dictation-notice"
-            />
-          ) : (
-            <Notice
-              message={dictation.problem.message}
-              tone="guidance"
-              testId="dictation-notice"
-            />
-          ))}
-      </form>
+        <form
+          className="sticky bottom-0 space-y-2 border-t bg-background pt-3 pb-[max(env(safe-area-inset-bottom),0.5rem)]"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void talk.send();
+          }}
+        >
+          <Textarea
+            value={talk.draft}
+            onChange={(event) => talk.setDraft(event.target.value)}
+            onKeyDown={(event) => {
+              // Enter sends, as in any chat; Shift-Enter is a new line.
+              if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                void talk.send();
+              }
+            }}
+            placeholder="Press the mic and answer, or type."
+            rows={3}
+            className="resize-none text-base leading-relaxed"
+            aria-label="Your answer"
+            data-testid="answer"
+          />
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-sm text-muted-foreground">
+              {recording
+                ? 'Listening…'
+                : transcribing
+                  ? 'Writing that down…'
+                  : 'Check what I heard, then send.'}
+            </span>
+            {/*
+              44px square at least, Apple's minimum touch target: these two are
+              pressed every turn, by thumb, often while walking. `lg` alone is 36.
+            */}
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                data-testid="talk-mic"
+                variant={recording ? 'secondary' : 'outline'}
+                size="lg"
+                className="h-11 min-w-11"
+                disabled={talk.pending || transcribing}
+                aria-label={recording ? 'Stop recording' : 'Answer out loud'}
+                onClick={() => (recording ? dictation.stop() : startRecording())}
+              >
+                {transcribing ? (
+                  <LoaderCircleIcon className="animate-spin" />
+                ) : recording ? (
+                  <SquareIcon />
+                ) : (
+                  <MicIcon />
+                )}
+              </Button>
+              <Button
+                type="submit"
+                size="lg"
+                className="h-11 min-w-11"
+                data-testid="send"
+                disabled={talk.pending || recording || !talk.draft.trim()}
+              >
+                <SendIcon /> Send
+              </Button>
+            </div>
+          </div>
+          {/*
+            A problem with a code came from the server (the recorder path), so
+            it can be the sign-in refusal and gets its link; one without is the
+            browser's own (permission, silence) and is only ever guidance.
+          */}
+          {dictation.problem &&
+            (dictation.problem.code ? (
+              <ApiNotice
+                error={{ code: dictation.problem.code, message: dictation.problem.message }}
+                testId="dictation-notice"
+              />
+            ) : (
+              <Notice
+                message={dictation.problem.message}
+                tone="guidance"
+                testId="dictation-notice"
+              />
+            ))}
+        </form>
+      </div>
     </div>
   );
 }
