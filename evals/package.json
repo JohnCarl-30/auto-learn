@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "eval": "tsx src/cli.ts",
+    "latency": "tsx src/latency.ts",
     "record-dictionary": "tsx src/record-dictionary.ts",
     "validate-judge": "tsx src/validate-judge.ts",
     "test": "vitest run",

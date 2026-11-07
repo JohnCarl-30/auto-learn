@@ -1,5 +1,3 @@
-import { existsSync, readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { cardScorers } from './scorers/card';
 import { proposeScorers } from './scorers/propose';
 import { cardSuite } from './suites/card';
@@ -12,6 +10,7 @@ import {
   writeRunFile,
 } from './report';
 import { runSuite, type Suite } from './runner';
+import { loadApiEnv } from './env';
 import { JUDGE_MODEL } from './judge';
 import type { SuiteRun } from './types';
 
@@ -64,27 +63,6 @@ function parseArgs(argv: string[]) {
     updateBaseline: flags.has('update-baseline'),
     fromLast: flags.has('from-last'),
   };
-}
-
-/**
- * The API's `.env` is the one that already holds this key, and asking someone
- * to keep a second copy in sync is asking for an eval run against a key that
- * expired six weeks ago.
- */
-function loadApiEnv(): void {
-  if (process.env.OPENAI_API_KEY) return;
-
-  const path = fileURLToPath(new URL('../../apps/api/.env', import.meta.url));
-  if (!existsSync(path)) return;
-
-  for (const line of readFileSync(path, 'utf8').split('\n')) {
-    const match = /^\s*([A-Z0-9_]+)\s*=\s*(.*)$/.exec(line);
-    if (!match) continue;
-    const [, key, raw] = match;
-    if (key && !process.env[key]) {
-      process.env[key] = raw!.trim().replace(/^["']|["']$/g, '');
-    }
-  }
 }
 
 function printList(): void {
@@ -150,7 +128,7 @@ async function main(): Promise<number> {
     return 0;
   }
 
-  loadApiEnv();
+  if (!process.env.OPENAI_API_KEY) loadApiEnv();
   if (!process.env.OPENAI_API_KEY) {
     process.stderr.write(
       'OPENAI_API_KEY is not set, and apps/api/.env did not supply one.\n' +
