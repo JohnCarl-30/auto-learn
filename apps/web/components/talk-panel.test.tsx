@@ -225,6 +225,46 @@ describe('TalkPanel', () => {
     expect(screen.getByTestId('answer')).toHaveValue('');
   });
 
+  /**
+   * The drill: a fresh word every round, sent with the turn so the partner can
+   * judge it, and a word said without it kept to come round again.
+   */
+  it('drills one word per round, and brings back one the learner skipped', async () => {
+    send.mockResolvedValue({ ...reviewed, reply: 'That works.' });
+    suggest
+      // The panel opens in Just talk first, and that room asks for a word too.
+      .mockResolvedValueOnce({ word: null })
+      .mockResolvedValueOnce({ word: { word: 'mitigate', definition: 'make less severe' } })
+      .mockResolvedValueOnce({ word: { word: 'concise', definition: 'brief but complete' } })
+      .mockResolvedValueOnce({ word: { word: 'viable', definition: 'capable of working' } })
+      .mockResolvedValue({ word: { word: 'robust', definition: 'sturdy' } });
+    const user = userEvent.setup();
+    render(<TalkPanel />);
+    await user.click(screen.getByTestId('change'));
+    await user.click(screen.getByTestId('scenario-word-drill'));
+
+    expect(await screen.findByTestId('practice-word')).toHaveTextContent('Your word: mitigate');
+    expect(suggest).toHaveBeenLastCalledWith({ scenario: 'word-drill', known: ['significant'] });
+
+    // Round 1: the word is said, and the turn carries it for the verdict.
+    await user.type(screen.getByTestId('answer'), 'We can mitigate the delay.{Enter}');
+    expect(send).toHaveBeenLastCalledWith(expect.objectContaining({ scenario: 'word-drill', word: 'mitigate' }));
+    expect(await screen.findByText('concise')).toBeInTheDocument();
+    // The next pick is told what has already been shown.
+    expect(suggest).toHaveBeenLastCalledWith({
+      scenario: 'word-drill',
+      known: ['significant', 'mitigate'],
+    });
+
+    // Round 2: said without the word, so it is owed a second go.
+    await user.type(screen.getByTestId('answer'), 'I forgot the word.{Enter}');
+    expect(await screen.findByText('viable')).toBeInTheDocument();
+    // Round 3 done; round 4 is the retry rather than a new suggestion.
+    await user.type(screen.getByTestId('answer'), 'A viable plan.{Enter}');
+    expect(await screen.findByTestId('practice-word')).toHaveTextContent('Your word: concise');
+    expect(suggest).toHaveBeenCalledTimes(4);
+  });
+
   it('opens a gate on a spoken turn through the same card route as the writing page', async () => {
     send.mockResolvedValue(reviewed);
     openCard.mockReturnValue(new Promise(() => undefined));

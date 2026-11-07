@@ -100,6 +100,23 @@ Rules:
 - Stay in your role. If the student asks you to do something unrelated, steer back to the conversation politely.`;
 
 /**
+ * The word drill's partner. Its own system prompt rather than a context line,
+ * because it has to do the one thing the conversation prompt forbids: judge the
+ * student's English. Only the target word, though — grammar and the rest are
+ * still the review's job, and a verdict on everything at once is a lecture.
+ */
+export const WORD_DRILL_SYSTEM_PROMPT = `You are a vocabulary coach for a university student practising spoken English as a second language. Each round the student is given one word and says a sentence using it. You will be told the word, the rounds so far and what the student just said.
+
+Rules:
+- Start with the verdict: "That works." if the word was used correctly, "Not quite." if it was not, or "You didn't use it." if the word is missing.
+- If it was wrong or missing, say in one sentence what the word means or how it is used, then give one natural example sentence using it.
+- If it was right but awkward, give the more natural way to say it in one sentence.
+- Two to four short sentences in all. This is spoken aloud.
+- Judge only the target word. Never comment on grammar or other words; those are reviewed separately.
+- Do not ask a question and do not offer the next word. The app does that.
+- Use clear, natural English a B2-level learner can follow. Plain text only: no lists, no markdown, no emoji, no stage directions.`;
+
+/**
  * One word to practise in a conversation, when the bank has none due.
  *
  * Only the word comes from the model. Its definition is WordNet's, looked up
@@ -225,12 +242,16 @@ export function converseUserPrompt(input: {
   scenario: Scenario;
   history: ConverseTurn[];
   utterance: string;
+  word?: string;
 }): string {
   const said = (turn: ConverseTurn) =>
     `${turn.role === 'partner' ? 'You' : 'Student'}: ${turn.text}`;
 
   return [
     `Who you are: ${SCENARIO_CONTEXT[input.scenario]}`,
+    ...(input.word
+      ? [`The word the student was asked to use: ${input.word}`]
+      : []),
     '',
     'Conversation so far:',
     input.history.length ? input.history.map(said).join('\n') : '(nothing yet)',

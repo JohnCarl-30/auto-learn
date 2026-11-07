@@ -26,6 +26,7 @@ import { DictionaryService } from '../dictionary/dictionary.service';
 import {
   CONVERSE_SYSTEM_PROMPT,
   SESSION_WORD_SYSTEM_PROMPT,
+  WORD_DRILL_SYSTEM_PROMPT,
   converseUserPrompt,
   sessionWordUserPrompt,
 } from '../llm/prompts';
@@ -69,6 +70,7 @@ export class ConverseService {
         request.scenario,
         recentTurns(request.history),
         request.utterance,
+        request.word,
       ),
       this.review(request),
     ]);
@@ -81,12 +83,17 @@ export class ConverseService {
     scenario: Scenario,
     history: ConverseTurn[],
     utterance: string,
+    word?: string,
   ): Promise<string> {
     try {
       const { text, usage } = await generateText({
         model: converseModel(),
-        system: CONVERSE_SYSTEM_PROMPT,
-        prompt: converseUserPrompt({ scenario, history, utterance }),
+        // The drill judges the word; every room is told not to judge anything.
+        system:
+          scenario === 'word-drill'
+            ? WORD_DRILL_SYSTEM_PROMPT
+            : CONVERSE_SYSTEM_PROMPT,
+        prompt: converseUserPrompt({ scenario, history, utterance, word }),
         providerOptions: converseProviderOptions,
         maxOutputTokens: CONVERSE_MAX_OUTPUT_TOKENS,
         // Someone has stopped talking and is waiting to hear back. One retry,

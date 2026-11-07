@@ -183,6 +183,17 @@ describe('converseUserPrompt', () => {
       'never repeat their sentence back in better words',
     );
   });
+
+  it('names the word only when one was set', () => {
+    const drill = converseUserPrompt({
+      scenario: 'word-drill',
+      history: [],
+      utterance: 'We must mitigate the risk.',
+      word: 'mitigate',
+    });
+    expect(drill).toContain('The word the student was asked to use: mitigate');
+    expect(prompt).not.toContain('asked to use');
+  });
 });
 
 describe('lesson prompts', () => {

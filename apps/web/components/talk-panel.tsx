@@ -158,7 +158,7 @@ export function TalkPanel() {
               </>
             ) : (
               <>
-                Try using:{' '}
+                {talk.scenario === 'word-drill' ? 'Your word:' : 'Try using:'}{' '}
                 <span className="font-medium text-foreground">{talk.practiceWord.word}</span>
                 {' — '}
                 {talk.practiceWord.definition}
