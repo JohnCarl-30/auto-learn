@@ -8,6 +8,7 @@ import {
   ProposeResponse,
   ProposeStreamEvent,
   SessionWordResponse,
+  SpeakReplyResponse,
   SpeakResponse,
   type CardRequest,
   type ConverseRequest,
@@ -376,6 +377,14 @@ export async function dictate(recording: Blob): Promise<DictateResponse> {
  */
 export function speak(word: string): Promise<SpeakResponse> {
   return get(`/speak/${encodeURIComponent(word)}`, SpeakResponse);
+}
+
+/**
+ * A whole reply in the partner's voice. Fails when the API has no local
+ * engine, and the voice hook then reads the line with the browser's own.
+ */
+export function speakReply(text: string): Promise<SpeakReplyResponse> {
+  return post('/speak', { text }, SpeakReplyResponse);
 }
 
 /**

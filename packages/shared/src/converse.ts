@@ -23,6 +23,12 @@ export const Scenario = z.enum([
   'seminar',
   'group-project',
   'free-talk',
+  /**
+   * Not a room but a drill: one word at a time, a sentence from the learner,
+   * and a verdict on how the word was used. The same loop as the rooms, with
+   * the partner's small talk swapped for a judgement.
+   */
+  'word-drill',
 ]);
 export type Scenario = z.infer<typeof Scenario>;
 
@@ -31,6 +37,7 @@ export const SCENARIO_LABELS: Record<Scenario, string> = {
   seminar: 'Seminar discussion',
   'group-project': 'Group project meeting',
   'free-talk': 'Just talk',
+  'word-drill': 'Word drill',
 };
 
 /** One line of user-facing copy, so the choice is not a guess between four titles. */
@@ -39,6 +46,7 @@ export const SCENARIO_HINTS: Record<Scenario, string> = {
   seminar: 'Argue for a position and answer a follow-up.',
   'group-project': 'Split the work and agree on a deadline.',
   'free-talk': 'Anything at all, at your own pace.',
+  'word-drill': 'Get a word, say a sentence with it, hear how you did.',
 };
 
 /**
@@ -57,6 +65,8 @@ export const SCENARIO_CONTEXT: Record<Scenario, string> = {
     'You are a classmate in the same group project. Help plan who does what and by when, and push back if a plan sounds unrealistic.',
   'free-talk':
     'You are a friendly classmate chatting between lectures. Follow whatever topic the student brings up.',
+  'word-drill':
+    'You are a vocabulary coach running a quick word drill. The student is given one word at a time and says a sentence using it; the words can be about anything in student life.',
 };
 
 /**
@@ -73,6 +83,8 @@ export const SCENARIO_OPENERS: Record<Scenario, string> = {
   'group-project':
     "Okay, the presentation is in two weeks. Which part of the project would you like to take on?",
   'free-talk': 'Hey! How has your week been so far?',
+  'word-drill':
+    "Let's drill some words. I'll give you one at a time; say a sentence using it, and I'll tell you how it landed.",
 };
 
 /**
@@ -106,6 +118,8 @@ export const ConverseRequest = z.object({
   utterance: z.string().trim().min(1).max(MAX_TURN_CHARS),
   /** Banked lemmas, as on /propose, so feedback prefers a word not yet taught. */
   known: z.array(z.string()).max(MAX_KNOWN_WORDS).optional(),
+  /** The word the learner was asked to use this turn. The drill sends it; the rooms do not. */
+  word: z.string().trim().min(1).max(48).optional(),
 });
 export type ConverseRequest = z.infer<typeof ConverseRequest>;
 

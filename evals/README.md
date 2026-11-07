@@ -124,6 +124,34 @@ what CI wants; add `--from-last` to record the run you have just finished
 reading, so agreeing with a number does not cost a second run to write it down. A baseline updated in its own commit
 is a baseline nobody can review.
 
+## How long the partner takes
+
+The suites above ask whether an answer is good. On /talk the other question is
+how long it takes, because a partner who answers well in fourteen seconds is
+one nobody keeps talking to.
+
+```
+pnpm --filter @auto-learn/evals latency                 # five turns against the running API
+pnpm --filter @auto-learn/evals latency --trials=8 --api=http://localhost:3401
+pnpm --filter @auto-learn/evals latency --budget=4000   # exit 1 when first sound p50 is over 4 s
+```
+
+It times the running stack over HTTP, the way the browser meets it, so the API,
+its model (Ollama or OpenAI, whichever `apps/api/.env` names) and the voice
+engine behind `/speak` all have to be up. Four numbers per turn:
+
+| Stage | What it is |
+| --- | --- |
+| `reply` | The model's answer alone, called with the production prompt |
+| `converse` | `POST /converse`: the reply and the grammar review, which the API waits for together |
+| `speak` | `POST /speak`: the reply turned into audio |
+| `first sound` | `converse + speak`: when the learner first hears anything |
+
+`converse − reply` is what waiting for the review costs the reply; `speak` is
+what the voice costs. Those two gaps are where the time goes, and the summary
+line says so. Runs land in `results/runs/` beside the others. There is no
+baseline for this one: the number depends on the machine it ran on.
+
 ## Checking the judge
 
 A judged score is a measurement, and an unvalidated measurement is a number

@@ -102,6 +102,25 @@ function rewriteSentence(target: OpenTarget, change: (sentence: Sentence) => Sen
 }
 
 /**
+ * The drill's next word: always a fresh suggestion, never the bank's due word.
+ * The due word is the same one until it is used, and a drill where the word
+ * you fumbled is the word you get again, every round, is a wall. `shown` is
+ * this session's words, sent along with the bank so none comes twice.
+ */
+async function chooseDrillWord(shown: string[]): Promise<PracticeWord | null> {
+  try {
+    const known = [...(await knownWords().catch(() => [] as string[])), ...shown];
+    const { word } = await suggestWord({ scenario: 'word-drill', known });
+    return word && { ...word, lemma: word.word, banked: false, used: false };
+  } catch {
+    return null;
+  }
+}
+
+/** Every fourth round of the drill is a second go at a word said without it. */
+const RETRY_EVERY = 4;
+
+/**
  * The word offered at the start of a conversation: a banked word due for
  * practice if there is one, otherwise one the API suggests for this room.
  *
@@ -149,6 +168,11 @@ export function useConversation({ onReply }: { onReply?: (text: string) => void 
    * a conversation that is already over.
    */
   const sessionRef = useRef(0);
+  /**
+   * The drill's rounds: the words shown, and the ones the learner answered
+   * without using, kept to come back once a few rounds on.
+   */
+  const drillRef = useRef({ round: 0, shown: [] as string[], missed: [] as PracticeWord[] });
 
   // Read inside the callbacks without rebuilding them every time a turn
   // arrives, the way use-dictation holds its transcript handler.
@@ -163,6 +187,15 @@ export function useConversation({ onReply }: { onReply?: (text: string) => void 
     setOpen(null);
     setCard(null);
     setSaved(false);
+  }, []);
+
+  const nextDrillWord = useCallback(async (session: number) => {
+    const drill = drillRef.current;
+    drill.round += 1;
+    const back = drill.round % RETRY_EVERY === 0 ? drill.missed.shift() : undefined;
+    const word = back ?? (await chooseDrillWord(drill.shown));
+    if (word && !back) drill.shown.push(word.lemma);
+    if (sessionRef.current === session) setPracticeWord(word);
   }, []);
 
   const start = useCallback(
@@ -180,11 +213,16 @@ export function useConversation({ onReply }: { onReply?: (text: string) => void 
       // Not awaited: the opener is free and immediate, and stays that way.
       const session = ++sessionRef.current;
       setPracticeWord(null);
+      drillRef.current = { round: 0, shown: [], missed: [] };
+      if (next === 'word-drill') {
+        void nextDrillWord(session);
+        return;
+      }
       void choosePracticeWord(next).then((word) => {
         if (word && sessionRef.current === session) setPracticeWord(word);
       });
     },
-    [dismiss],
+    [dismiss, nextDrillWord],
   );
 
   const end = useCallback(() => {
@@ -220,9 +258,12 @@ export function useConversation({ onReply }: { onReply?: (text: string) => void 
       if (!form) return;
 
       // The word was used, so it is banked even if the conversation has since
-      // ended; only the word on screen belongs to one conversation.
+      // ended; only the word on screen belongs to one conversation — and in
+      // the drill it may already be the next word, so the mark checks which.
       const current = () => sessionRef.current === session;
-      if (current()) setPracticeWord((w) => w && { ...w, used: true });
+      const mark = (change: Partial<PracticeWord>) =>
+        setPracticeWord((w) => (w && w.lemma === word.lemma ? { ...w, ...change } : w));
+      if (current()) mark({ used: true });
       if (!review) return;
 
       try {
@@ -235,9 +276,7 @@ export function useConversation({ onReply }: { onReply?: (text: string) => void 
         if (response.kind !== 'card') return;
         await bankWord(response.card, utterance, 'accepted');
         setBankVersion((v) => v + 1);
-        if (current()) {
-          setPracticeWord((w) => w && { ...w, banked: true, justBanked: true });
-        }
+        if (current()) mark({ banked: true, justBanked: true });
       } catch {
         // Silent: the word stays one to practise, and the turn already landed.
       }
@@ -262,6 +301,7 @@ export function useConversation({ onReply }: { onReply?: (text: string) => void 
         history: asHistory(turnsRef.current),
         utterance,
         known,
+        ...(scenario === 'word-drill' && practiceWord ? { word: practiceWord.lemma } : {}),
       });
 
       setTurns((current) => [
@@ -293,6 +333,15 @@ export function useConversation({ onReply }: { onReply?: (text: string) => void 
       if (practiceWord && !practiceWord.banked) {
         void bankIfUsed(practiceWord, utterance, result.review, session);
       }
+
+      // The drill moves on every round. A word that went unsaid is kept to
+      // come back; the verdict on one that was said is the partner's reply.
+      if (scenario === 'word-drill') {
+        if (practiceWord && !findUsedForm(utterance, practiceWord.lemma)) {
+          drillRef.current.missed.push(practiceWord);
+        }
+        void nextDrillWord(session);
+      }
     } catch (failure) {
       // The turn is not added and the draft stays: nothing was answered, so
       // nothing happened, and the learner can send the same words again.
@@ -300,7 +349,7 @@ export function useConversation({ onReply }: { onReply?: (text: string) => void 
     } finally {
       setPending(false);
     }
-  }, [bankIfUsed, draft, pending, practiceWord, scenario]);
+  }, [bankIfUsed, draft, nextDrillWord, pending, practiceWord, scenario]);
 
   const load = useCallback(
     async (target: OpenTarget, request: Parameters<typeof fetchCardStream>[0]) => {

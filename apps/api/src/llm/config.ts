@@ -167,6 +167,14 @@ export const SPEECH_MODEL = 'eleven_v3';
  */
 export const speechVoice = () => process.env.ELEVENLABS_VOICE_ID ?? '';
 
+/**
+ * A local speech engine for the partner's replies — VoiceStudio, or anything
+ * else that speaks OpenAI's audio API — e.g. http://localhost:3900/v1. Unset,
+ * the browser's own voice reads them. Nothing here costs a key, which is why
+ * /speak may take a whole sentence on this path and never on ElevenLabs'.
+ */
+export const voiceStudioUrl = () => process.env.VOICE_STUDIO_URL ?? '';
+
 export const transcribeProviderOptions = {
   elevenlabs: {
     /**

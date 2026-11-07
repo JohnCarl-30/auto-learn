@@ -108,6 +108,32 @@ describe('ConverseService', () => {
     ]);
   });
 
+  /**
+   * The drill is the one place the partner may judge the student's English,
+   * so it gets its own system prompt and is told the word; a room gets the
+   * conversation prompt and no word, even if a client sent one.
+   */
+  it('judges the word in the drill, and only there', async () => {
+    const { service } = setup();
+    await service.converse(
+      request({ scenario: 'word-drill', word: 'mitigate', history: [] }),
+    );
+    const drill = (
+      replyWith.mock.calls[0] as [{ system: string; prompt: string }]
+    )[0];
+    expect(drill.system).toContain('Judge only the target word');
+    expect(drill.prompt).toContain(
+      'The word the student was asked to use: mitigate',
+    );
+
+    await service.converse(request());
+    const room = (
+      replyWith.mock.calls[1] as [{ system: string; prompt: string }]
+    )[0];
+    expect(room.system).toContain('Never correct the student');
+    expect(room.prompt).not.toContain('asked to use');
+  });
+
   it('keeps the gate: no withheld wording reaches the client', async () => {
     const { service } = setup();
     const result = await service.converse(request());

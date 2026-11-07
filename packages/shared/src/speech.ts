@@ -52,6 +52,17 @@ export const SpeakResponse = z.object({
 export type SpeakResponse = z.infer<typeof SpeakResponse>;
 
 /**
+ * A whole reply, for the partner's voice. More than a word on purpose: this is
+ * only ever served by a local engine (VOICE_STUDIO_URL on the API), so there is
+ * no provider key for a sentence to spend. The cap is a long /converse reply.
+ */
+export const SpeakReply = z.object({ text: z.string().trim().min(1).max(1500) });
+export type SpeakReply = z.infer<typeof SpeakReply>;
+
+export const SpeakReplyResponse = SpeakResponse.omit({ word: true });
+export type SpeakReplyResponse = z.infer<typeof SpeakReplyResponse>;
+
+/**
  * What we accept from a microphone.
  *
  * Shared because two very distant places need to agree on it: the browser picks

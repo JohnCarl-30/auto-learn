@@ -1,15 +1,21 @@
 import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { generateSpeech } from 'ai';
 import { LRUCache } from 'lru-cache';
-import type { ApiError, SpeakResponse } from '@auto-learn/shared';
+import type {
+  ApiError,
+  SpeakReplyResponse,
+  SpeakResponse,
+} from '@auto-learn/shared';
 import { TelemetryService } from '../telemetry/telemetry.service';
 import {
   MODEL_MAX_RETRIES_VOICE,
   SPEECH_MODEL,
   SPEECH_OUTPUT_FORMAT,
+  partnerSpeechModel,
   speechModel,
   speechProviderOptions,
   speechVoice,
+  voiceStudioUrl,
 } from '../llm/models';
 
 @Injectable()
@@ -107,6 +113,38 @@ export class SpeechService {
       throw this.fail(
         'upstream_failed',
         "I couldn't say that one out loud just now.",
+      );
+    }
+  }
+
+  /**
+   * Says a whole reply, in the partner's voice — on the local engine only.
+   * No cache: a reply is rarely said twice, and the engine costs nothing.
+   */
+  async speakReply(text: string): Promise<SpeakReplyResponse> {
+    if (!voiceStudioUrl()) {
+      throw this.fail('upstream_failed', 'No local voice is configured.');
+    }
+
+    try {
+      const result = await generateSpeech({
+        model: partnerSpeechModel(),
+        text,
+        // The engine's own default: whichever voice is active in VoiceStudio,
+        // so a cloned one takes over there without a change here.
+        voice: 'default',
+        maxRetries: MODEL_MAX_RETRIES_VOICE,
+        // Synthesis runs at about real time, and the longest reply is some
+        // fifteen seconds of speech.
+        abortSignal: AbortSignal.timeout(30_000),
+      });
+
+      return { audio: result.audio.base64, mediaType: result.audio.mediaType };
+    } catch (error) {
+      this.logger.warn('partner speech failed', error);
+      throw this.fail(
+        'upstream_failed',
+        "The partner's voice isn't answering.",
       );
     }
   }

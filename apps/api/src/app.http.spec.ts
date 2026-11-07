@@ -7,6 +7,9 @@ jest.mock('ai', () => ({
   generateSpeech: jest.fn(),
   transcribe: jest.fn(),
 }));
+// A developer's .env may point the text models at Ollama; ConfigModule never
+// overrides a variable already set, so this keeps these tests on the OpenAI path.
+process.env.OLLAMA_MODEL = '';
 // `.transcription` too: with no ElevenLabs key set, `transcribeModel()` falls
 // through to OpenAI, and the mock has to be callable and carry that method.
 jest.mock('@ai-sdk/openai', () => ({

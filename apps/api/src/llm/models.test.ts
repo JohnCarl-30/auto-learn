@@ -1,12 +1,14 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   CARD_MODEL,
+  CONVERSE_MODEL,
   OPENAI_TRANSCRIBE_MODEL,
   PROPOSE_MODEL,
   SPEECH_MODEL,
   TRANSCRIBE_MODEL,
   cardModel,
   cardProviderOptions,
+  converseModel,
   proposeModel,
   proposeProviderOptions,
   speechModel,
@@ -78,6 +80,19 @@ describe('model wiring (against the real SDK)', () => {
     expect(transcribeModel().modelId).toBe(OPENAI_TRANSCRIBE_MODEL);
     expect(transcribeModel().modelId).toBe('gpt-4o-mini-transcribe');
     expect(transcribeModel().provider).toContain('openai');
+  });
+
+  it('sends every text call to Ollama when OLLAMA_MODEL is set', () => {
+    process.env.OLLAMA_MODEL = 'qwen3:1.7b';
+    try {
+      for (const model of [proposeModel(), cardModel(), converseModel()]) {
+        expect(model.modelId).toBe('qwen3:1.7b');
+        expect(model.provider).toContain('chat');
+      }
+    } finally {
+      delete process.env.OLLAMA_MODEL;
+    }
+    expect(converseModel().modelId).toBe(CONVERSE_MODEL);
   });
 
   it('resolves the speech model against the real ElevenLabs provider', () => {
