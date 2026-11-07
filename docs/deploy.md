@@ -55,6 +55,11 @@ Take the service URL when it comes up.
 Directory to the repo root, not `apps/web`** — the build has to compile
 `packages/shared` first, and it cannot reach outside the root directory.
 
+That is also why the root `package.json` lists `next` as a devDependency at the
+same version as `apps/web`: Vercel detects the framework from the root directory's
+`package.json`, and without it every deploy fails with `NEXT_NO_VERSION` before
+the build command runs. Bump both together.
+
 Set `NEXT_PUBLIC_API_URL` to the API URL from step 1.
 
 **This is why the order matters.** `NEXT_PUBLIC_*` is inlined at build time, not
