@@ -344,9 +344,9 @@ say "Two settings decide whether this works, and both are easy to miss."
 open_url "https://vercel.com/new"
 step "Import this repository."
 printf '\n'
-say "1. Root Directory: leave it at the repository root, NOT apps/web."
-say "   The build compiles packages/shared first and cannot reach above the"
-say "   root directory."
+say "1. Root Directory: apps/web, NOT the repository root."
+say "   Vercel looks for next in the root directory's package.json and"
+say "   refuses to build when it is not there."
 printf '\n'
 say "2. Environment variable:"
 step "   NEXT_PUBLIC_API_URL = $API_URL"

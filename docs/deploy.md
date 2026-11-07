@@ -51,9 +51,11 @@ Take the service URL when it comes up.
 
 ## 2. Web → Vercel
 
-`vercel.json` at the repo root sets the build. **Set the project's Root
-Directory to the repo root, not `apps/web`** — the build has to compile
-`packages/shared` first, and it cannot reach outside the root directory.
+`apps/web/vercel.json` sets the build. **Set the project's Root Directory to
+`apps/web`** — Vercel's Next.js builder looks for `next` in the root
+directory's `package.json` and refuses with `NEXT_NO_VERSION` when the root is
+the repo. pnpm still finds the workspace above it, so the build command can
+compile `packages/shared` first.
 
 That is also why the root `package.json` lists `next` as a devDependency at the
 same version as `apps/web`: Vercel detects the framework from the root directory's
@@ -295,7 +297,7 @@ a month are not a constraint, because a spun-down service draws none.
 
 ### Vercel
 
-As in step 2, with the Root Directory at the repo root. Environment:
+As in step 2, with the Root Directory at `apps/web`. Environment:
 
 | Variable | Value |
 |---|---|
