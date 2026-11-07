@@ -54,7 +54,8 @@ export function CallStage({
     <div className="hidden space-y-2 lg:sticky lg:top-6 lg:block" data-testid="call-stage">
       <figure
         className={cn(
-          'relative aspect-[4/3] overflow-hidden rounded-2xl bg-muted shadow-sm ring-2 ring-transparent transition-shadow duration-300',
+          // The hairline outline keeps the frame's edge where a bright clip meets a light page.
+          'relative aspect-[4/3] overflow-hidden rounded-2xl bg-muted shadow-sm outline-1 -outline-offset-1 outline-black/10 ring-2 ring-transparent transition-shadow duration-300 ease-out dark:outline-white/10',
           speaking && 'ring-primary',
         )}
       >
@@ -85,7 +86,8 @@ export function CallStage({
         {/* You, picture-in-picture, as every video call shows you to yourself. */}
         <div
           className={cn(
-            'absolute right-3 bottom-3 aspect-video w-[32%] overflow-hidden rounded-xl bg-neutral-800 shadow-lg ring-2 ring-white/70 transition-shadow duration-300',
+            // Concentric with the frame: its radius minus the 0.75rem inset, so the corners run parallel.
+            'absolute right-3 bottom-3 aspect-video w-[32%] overflow-hidden rounded-[calc(var(--radius-2xl)-0.75rem)] bg-neutral-800 shadow-lg ring-2 ring-white/70 transition-shadow duration-300 ease-out',
             listening && 'ring-red-500',
           )}
         >

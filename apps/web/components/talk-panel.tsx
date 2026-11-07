@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   LoaderCircleIcon,
   MicIcon,
@@ -24,6 +24,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { WordCard } from '@/components/word-card';
 import { useBankSync } from '@/lib/use-bank-sync';
+import { cn } from '@/lib/utils';
 import { useConversation, type LearnerTurn } from '@/lib/use-conversation';
 import { useDictation } from '@/lib/use-dictation';
 import { usePartnerVoice } from '@/lib/use-partner-voice';
@@ -123,7 +124,10 @@ export function TalkPanel() {
                 aria-pressed={voice.muted}
                 onClick={voice.toggleMuted}
               >
-                {voice.muted ? <VolumeXIcon /> : <Volume2Icon />}
+                <IconSwap
+                  show={voice.muted ? 'muted' : 'sound'}
+                  icons={{ sound: <Volume2Icon />, muted: <VolumeXIcon /> }}
+                />
               </Button>
             )}
             <Button variant="ghost" size="sm" onClick={talk.end} data-testid="end">
@@ -257,13 +261,14 @@ export function TalkPanel() {
                 aria-label={recording ? 'Stop recording' : 'Answer out loud'}
                 onClick={() => (recording ? dictation.stop() : startRecording())}
               >
-                {transcribing ? (
-                  <LoaderCircleIcon className="animate-spin" />
-                ) : recording ? (
-                  <SquareIcon />
-                ) : (
-                  <MicIcon />
-                )}
+                <IconSwap
+                  show={transcribing ? 'transcribing' : recording ? 'recording' : 'idle'}
+                  icons={{
+                    idle: <MicIcon />,
+                    recording: <SquareIcon />,
+                    transcribing: <LoaderCircleIcon className="animate-spin" />,
+                  }}
+                />
               </Button>
               <Button
                 type="submit"
@@ -272,7 +277,7 @@ export function TalkPanel() {
                 data-testid="send"
                 disabled={talk.pending || recording || !talk.draft.trim()}
               >
-                <SendIcon /> Send
+                <SendIcon data-icon="inline-start" /> Send
               </Button>
             </div>
           </div>
@@ -297,6 +302,30 @@ export function TalkPanel() {
         </form>
       </div>
     </div>
+  );
+}
+
+/**
+ * A button icon that changes with state, cross-faded: every icon stays mounted
+ * in one grid cell so the old one fades out as the new one fades in, whichever
+ * way the state goes. Under reduced motion only the opacity fade runs.
+ */
+function IconSwap({ show, icons }: { show: string; icons: Record<string, ReactNode> }) {
+  return (
+    <span className="grid place-items-center">
+      {Object.entries(icons).map(([key, icon]) => (
+        <span
+          key={key}
+          aria-hidden={key !== show}
+          className={cn(
+            '[grid-area:1/1] transition-[opacity,filter,scale] duration-300 ease-[cubic-bezier(0.2,0,0,1)] motion-reduce:scale-100 motion-reduce:blur-[0px]',
+            key === show ? 'scale-100 opacity-100 blur-[0px]' : 'scale-[0.25] opacity-0 blur-[4px]',
+          )}
+        >
+          {icon}
+        </span>
+      ))}
+    </span>
   );
 }
 
