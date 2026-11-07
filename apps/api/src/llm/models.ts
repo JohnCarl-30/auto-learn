@@ -16,6 +16,7 @@ import {
   PROPOSE_MODEL,
   SPEECH_MODEL,
   TRANSCRIBE_MODEL,
+  voiceStudioUrl,
 } from './config';
 
 /**
@@ -53,3 +54,9 @@ export const transcribeModel = () =>
     : openai.transcription(OPENAI_TRANSCRIBE_MODEL);
 
 export const speechModel = () => elevenLabs.speech(SPEECH_MODEL);
+
+/** The partner's voice. VoiceStudio speaks OpenAI's audio API, so the installed provider reaches it. */
+export const partnerSpeechModel = () =>
+  createOpenAI({ baseURL: voiceStudioUrl(), apiKey: 'voicestudio' }).speech(
+    'tts-1',
+  );

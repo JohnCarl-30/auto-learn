@@ -1,6 +1,10 @@
 import { act, renderHook } from '@testing-library/react';
 import { pickVoice, usePartnerVoice } from './use-partner-voice';
 
+// The API's engine is asked first; here it has none unless a test gives it one.
+const mockSpeakReply = jest.fn();
+jest.mock('./api', () => ({ speakReply: (text: string) => mockSpeakReply(text) }));
+
 /** A speechSynthesis that records what it was asked to say. */
 function fakeSynth(voices: Partial<SpeechSynthesisVoice>[] = []) {
   const spoken: SpeechSynthesisUtterance[] = [];
@@ -23,6 +27,10 @@ function fakeSynth(voices: Partial<SpeechSynthesisVoice>[] = []) {
   return { synth, spoken };
 }
 
+beforeEach(() => {
+  mockSpeakReply.mockReset().mockRejectedValue(new Error('no local voice'));
+});
+
 afterEach(() => {
   window.localStorage.clear();
   delete (window as unknown as { speechSynthesis?: unknown }).speechSynthesis;
@@ -44,11 +52,11 @@ describe('pickVoice', () => {
 });
 
 describe('usePartnerVoice', () => {
-  it('reads a reply aloud, a little slower than normal, cutting off the last one', () => {
+  it('reads a reply aloud, a little slower than normal, cutting off the last one', async () => {
     const { synth, spoken } = fakeSynth([{ name: 'Samantha', lang: 'en-US' }]);
     const { result } = renderHook(() => usePartnerVoice());
 
-    act(() => result.current.say('How has your week been?'));
+    await act(() => result.current.say('How has your week been?'));
 
     expect(synth.cancel).toHaveBeenCalled();
     expect(spoken[0].text).toBe('How has your week been?');
@@ -56,7 +64,7 @@ describe('usePartnerVoice', () => {
     expect(spoken[0].voice?.name).toBe('Samantha');
   });
 
-  it('stays quiet when muted, unless asked to replay a line', () => {
+  it('stays quiet when muted, unless asked to replay a line', async () => {
     const { spoken } = fakeSynth();
     const { result } = renderHook(() => usePartnerVoice());
 
@@ -64,8 +72,25 @@ describe('usePartnerVoice', () => {
     act(() => result.current.say('First.'));
     expect(spoken).toHaveLength(0);
 
-    act(() => result.current.say('Again, please.', { force: true }));
+    await act(() => result.current.say('Again, please.', { force: true }));
     expect(spoken.map((u) => u.text)).toEqual(['Again, please.']);
+  });
+
+  it("plays the engine's clip when the API has a voice, and keeps the browser's quiet", async () => {
+    mockSpeakReply.mockResolvedValue({ audio: 'bGlzdGVu', mediaType: 'audio/mpeg' });
+    const play = jest.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue();
+    const { spoken } = fakeSynth();
+    const { result } = renderHook(() => usePartnerVoice());
+
+    await act(() => result.current.say('Nice to meet you.'));
+
+    expect(mockSpeakReply).toHaveBeenCalledWith('Nice to meet you.');
+    expect((play.mock.instances[0] as unknown as HTMLAudioElement).src).toBe(
+      'data:audio/mpeg;base64,bGlzdGVu',
+    );
+    expect(spoken).toHaveLength(0);
+    expect(result.current.speaking).toBe(true);
+    play.mockRestore();
   });
 
   it('remembers being muted across visits', () => {

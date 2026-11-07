@@ -2,7 +2,10 @@
 // them. `@ai-sdk/openai` is here because llm/models.ts imports it too — the
 // text calls and the voice calls share that file.
 jest.mock('ai', () => ({ generateSpeech: jest.fn() }));
-jest.mock('@ai-sdk/openai', () => ({ openai: jest.fn() }));
+jest.mock('@ai-sdk/openai', () => ({
+  openai: jest.fn(),
+  createOpenAI: jest.fn(() => ({ speech: jest.fn() })),
+}));
 jest.mock('@ai-sdk/elevenlabs', () => ({
   elevenLabs: { speech: jest.fn(), transcription: jest.fn() },
 }));
@@ -30,6 +33,7 @@ const errorOf = async (fn: () => Promise<unknown>): Promise<ApiError> => {
 
 beforeEach(() => {
   process.env.ELEVENLABS_VOICE_ID = 'voice-one';
+  delete process.env.VOICE_STUDIO_URL;
   speak.mockReset();
   speak.mockResolvedValue(audio('bGlzdGVu'));
 });
@@ -154,5 +158,29 @@ describe('what a pronunciation costs', () => {
     expect(snapshot.pronunciations).toBe(1);
     // Nothing was synthesised, so nothing is claimed to have been.
     expect(snapshot.charactersSpoken).toBe(0);
+  });
+
+  describe('speakReply', () => {
+    it('refuses a whole reply unless a local engine is configured', async () => {
+      const error = await errorOf(() =>
+        new SpeechService(new TelemetryService()).speakReply('Hello there.'),
+      );
+
+      expect(error.code).toBe('upstream_failed');
+      expect(speak).not.toHaveBeenCalled();
+    });
+
+    it('says a whole reply on the local engine', async () => {
+      process.env.VOICE_STUDIO_URL = 'http://localhost:3900/v1';
+
+      const result = await new SpeechService(new TelemetryService()).speakReply(
+        'Hello there.',
+      );
+
+      expect(result).toEqual({ audio: 'bGlzdGVu', mediaType: 'audio/mpeg' });
+      expect(speak).toHaveBeenCalledWith(
+        expect.objectContaining({ text: 'Hello there.', voice: 'default' }),
+      );
+    });
   });
 });

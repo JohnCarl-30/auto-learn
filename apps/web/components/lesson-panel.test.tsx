@@ -7,6 +7,8 @@ jest.mock('@/lib/use-lesson', () => ({ useLesson: jest.fn() }));
 jest.mock('@/lib/api', () => ({
   ApiFailure: class ApiFailure extends Error {},
   fetchCardStream: jest.fn(),
+  // No local engine here, so the partner's voice falls back to the browser's.
+  speakReply: jest.fn(() => Promise.reject(new Error('no local voice'))),
   reportEvent: jest.fn(),
   speak: jest.fn(),
 }));
@@ -15,7 +17,7 @@ jest.mock('@/lib/audio', () => ({ playAudio: jest.fn(), synthesisedSrc: jest.fn(
 const mockDictation = { status: 'idle', problem: null, start: jest.fn(), stop: jest.fn() };
 jest.mock('@/lib/use-dictation', () => ({ useDictation: () => mockDictation }));
 
-import { act, cleanup, render, screen, within } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { UNITS, type LessonFeedbackResponse, type LessonProgress } from '@auto-learn/shared';
 import { speak } from '@/lib/api';
@@ -163,7 +165,9 @@ describe('LessonPanel', () => {
       render(<LessonPanel />);
 
       await user.click(screen.getByRole('button', { name: 'Hear mitigate' }));
-      expect(speakAloud).toHaveBeenCalledWith(expect.objectContaining({ text: 'mitigate' }));
+      await waitFor(() =>
+        expect(speakAloud).toHaveBeenCalledWith(expect.objectContaining({ text: 'mitigate' })),
+      );
       expect(speak).not.toHaveBeenCalled();
     });
   });

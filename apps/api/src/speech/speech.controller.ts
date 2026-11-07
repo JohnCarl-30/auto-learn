@@ -1,7 +1,21 @@
-import { Controller, Get, Param, Res, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Param,
+  Post,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import type { Response } from 'express';
-import { SpeakWord, type SpeakResponse } from '@auto-learn/shared';
+import {
+  SpeakReply,
+  SpeakWord,
+  type SpeakReplyResponse,
+  type SpeakResponse,
+} from '@auto-learn/shared';
 import { SignedInGuard } from '../auth/signed-in.guard';
 import { RATE_LIMITS } from '../common/rate-limit';
 import { ZodBody } from '../common/zod.pipe';
@@ -36,5 +50,18 @@ export class SpeechController {
     const spoken = await this.service.speak(word);
     response.setHeader('Cache-Control', 'public, max-age=86400');
     return spoken;
+  }
+
+  /**
+   * A whole reply, for the partner's voice. A POST with no caching: unlike a
+   * word, a reply is its own and said once. Only a local engine answers it.
+   */
+  @Throttle({ default: RATE_LIMITS.speak })
+  @Post()
+  @HttpCode(200)
+  speakReply(
+    @Body(new ZodBody(SpeakReply)) body: SpeakReply,
+  ): Promise<SpeakReplyResponse> {
+    return this.service.speakReply(body.text);
   }
 }
