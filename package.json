@@ -11,6 +11,10 @@
     "eval": "pnpm --filter @auto-learn/shared build && pnpm --filter @auto-learn/evals eval",
     "typecheck": "pnpm -r typecheck"
   },
+  "devDependencies": {
+    "// next": "Vercel builds from the repo root (docs/deploy.md) and detects Next.js from this file; without `next` here it fails with NEXT_NO_VERSION before the build command runs. Same version as apps/web.",
+    "next": "16.3.1"
+  },
   "engines": {
     "// node": "AbortSignal.any, which the streaming route composes its timeout and its client-disconnect signal with, landed in 20.3. The old >=20 admitted three releases where /propose/stream throws at runtime.",
     "node": ">=20.3"
