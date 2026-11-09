@@ -17,9 +17,9 @@ export function SiteNav() {
   const pathname = usePathname();
 
   return (
-    <header className="mb-12 flex items-center justify-between gap-4 border-b pb-4">
-      <div className="flex items-center gap-5 sm:gap-8">
-        <Link href="/" className="font-display text-xl tracking-tight">
+    <header className="mb-12 flex items-center justify-between gap-3 border-b pb-4 whitespace-nowrap sm:gap-4">
+      <div className="flex items-center gap-4 sm:gap-8">
+        <Link href="/" className="font-display text-lg tracking-tight sm:text-xl">
           auto-learn
         </Link>
         <nav aria-label="Sections" className="flex gap-4 text-sm sm:gap-5">
@@ -42,7 +42,7 @@ export function SiteNav() {
           })}
         </nav>
       </div>
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3 sm:gap-4">
         <AccountMenu />
         <ThemeToggle />
       </div>

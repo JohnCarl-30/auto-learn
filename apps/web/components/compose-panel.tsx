@@ -13,6 +13,7 @@ import {
 import { Notice, toneFor } from '@/components/notice';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { cn } from '@/lib/utils';
 import { useDictation } from '@/lib/use-dictation';
 
 const OPTIONS = TransformOption.options;
@@ -151,53 +152,58 @@ export function ComposePanel({
 
   return (
     <div className="space-y-4">
-      <Textarea
-        value={text}
-        onChange={(event) => onTextChange(event.target.value)}
-        placeholder="Paste one to three sentences you're unsure about."
-        rows={5}
-        className="resize-none text-base leading-relaxed"
-        data-testid="compose"
-        aria-label="Sentences to review"
-      />
+      {/* One box: the footer sits inside the field's border, so it reads as part of the input. */}
+      <div className="rounded-lg border border-input bg-background transition-colors focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50">
+        <Textarea
+          value={text}
+          onChange={(event) => onTextChange(event.target.value)}
+          placeholder="Paste one to three sentences you're unsure about."
+          rows={5}
+          className="resize-none border-0 bg-transparent px-5 pt-4 font-display text-lg leading-relaxed shadow-none focus-visible:ring-0 dark:bg-transparent"
+          data-testid="compose"
+          aria-label="Sentences to review"
+        />
 
-      <div className="flex min-h-5 items-center justify-between gap-3 text-sm">
-        <span
-          data-testid="sentence-count"
-          className={overCap ? 'text-amber-600' : 'text-muted-foreground'}
-        >
-          {recording
-            ? 'Listening…'
-            : transcribing
-              ? 'Writing that down…'
-              : empty
-                ? 'One to three sentences.'
-                : `${count} ${count === 1 ? 'sentence' : 'sentences'}`}
-        </span>
-
-        <div className="flex items-center gap-3">
-          {overCap && (
-            <span className="text-amber-600">
-              That&apos;s more than I take at once.
-            </span>
-          )}
-          <Button
-            type="button"
-            data-testid="dictate"
-            variant={recording ? 'secondary' : 'ghost'}
-            size="sm"
-            disabled={disabled || transcribing}
-            aria-label={recording ? 'Stop recording' : 'Dictate instead'}
-            onClick={() => (recording ? dictation.stop() : void dictation.start())}
+        <div className="flex min-h-12 items-center justify-between gap-3 border-t px-5 py-2 text-xs">
+          <span
+            data-testid="sentence-count"
+            className={overCap ? 'text-amber-600' : 'text-muted-foreground'}
           >
-            {transcribing ? (
-              <LoaderCircleIcon className="animate-spin" />
-            ) : recording ? (
-              <SquareIcon />
-            ) : (
-              <MicIcon />
+            {recording
+              ? 'Listening…'
+              : transcribing
+                ? 'Writing that down…'
+                : empty
+                  ? 'One to three sentences.'
+                  : `${count} ${count === 1 ? 'sentence' : 'sentences'}`}
+          </span>
+
+          <div className="flex items-center gap-3">
+            {overCap && (
+              <span className="text-amber-600">
+                That&apos;s more than I take at once.
+              </span>
             )}
-          </Button>
+            <Button
+              type="button"
+              data-testid="dictate"
+              variant={recording ? 'secondary' : 'outline'}
+              size="sm"
+              disabled={disabled || transcribing}
+              aria-label={recording ? 'Stop recording' : 'Dictate instead'}
+              onClick={() => (recording ? dictation.stop() : void dictation.start())}
+              className="rounded-full"
+            >
+              {transcribing ? (
+                <LoaderCircleIcon className="animate-spin" />
+              ) : recording ? (
+                <SquareIcon />
+              ) : (
+                <MicIcon />
+              )}
+              {recording ? 'Stop' : 'Dictate instead'}
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -216,14 +222,47 @@ export function ComposePanel({
       )}
 
       {/*
+        The button stays enabled over the cap on purpose. Blocking here would
+        mean the server never sees the attempt, and the overflow count is the
+        signal that decides whether whole-essay mode is worth building.
+      */}
+      <div className="grid gap-3 sm:grid-cols-2">
+        {OPTIONS.map((option) => (
+          <Button
+            key={option}
+            data-testid={`option-${option}`}
+            variant="outline"
+            disabled={disabled || empty}
+            onClick={() => run(option)}
+            // The last transform you ran is the one Cmd-Enter repeats, so it wears the accent.
+            className={cn(
+              'h-auto flex-col items-start gap-1 rounded-lg px-4 py-3.5 text-left whitespace-normal',
+              option === lastOption &&
+                'border-cobalt bg-cobalt text-white hover:bg-cobalt/90 hover:text-white dark:border-cobalt dark:bg-cobalt dark:hover:bg-cobalt/90',
+            )}
+          >
+            <span>{TRANSFORM_LABELS[option]}</span>
+            <span
+              className={cn(
+                'text-xs font-normal',
+                option === lastOption ? 'text-white/80' : 'text-muted-foreground',
+              )}
+            >
+              {TRANSFORM_HINTS[option]}
+            </span>
+          </Button>
+        ))}
+      </div>
+
+      {/*
         Tapping an example fills the box and stops there. Submitting for you
         would skip the choice of transform, which is the one thing a first-time
         visitor has to understand — and would spend a model call on a decision
         they did not make.
       */}
       {empty && (
-        <div className="space-y-2" data-testid="examples">
-          <p className="text-sm text-muted-foreground">
+        <div className="space-y-2 pt-4" data-testid="examples">
+          <p className="text-xs text-muted-foreground">
             Nothing to hand? Start from one of these.
           </p>
           <ul className="space-y-1.5">
@@ -233,7 +272,7 @@ export function ComposePanel({
                   type="button"
                   data-testid="example"
                   onClick={() => onTextChange(example)}
-                  className="w-full rounded-md border border-dashed px-3 py-2 text-left text-sm text-muted-foreground transition-colors hover:border-solid hover:bg-muted hover:text-foreground"
+                  className="w-full rounded-md border border-dashed px-3 py-2.5 text-left font-display text-[15px] transition-colors hover:border-solid hover:bg-muted"
                 >
                   {example}
                 </button>
@@ -242,29 +281,6 @@ export function ComposePanel({
           </ul>
         </div>
       )}
-
-      {/*
-        The button stays enabled over the cap on purpose. Blocking here would
-        mean the server never sees the attempt, and the overflow count is the
-        signal that decides whether whole-essay mode is worth building.
-      */}
-      <div className="grid gap-2 sm:grid-cols-2">
-        {OPTIONS.map((option) => (
-          <Button
-            key={option}
-            data-testid={`option-${option}`}
-            variant="outline"
-            disabled={disabled || empty}
-            onClick={() => run(option)}
-            className="h-auto flex-col items-start gap-0.5 py-2 text-left whitespace-normal"
-          >
-            <span>{TRANSFORM_LABELS[option]}</span>
-            <span className="text-xs font-normal text-muted-foreground">
-              {TRANSFORM_HINTS[option]}
-            </span>
-          </Button>
-        ))}
-      </div>
 
       {lastOption && !empty && (
         <p className="text-xs text-muted-foreground" data-testid="repeat-hint">

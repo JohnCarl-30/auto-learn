@@ -2,7 +2,6 @@
 
 import { useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { CLAIM_PROMPT_THRESHOLD, type BankEntry } from '@auto-learn/shared';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
@@ -85,7 +84,7 @@ export function BankPanel({
     <>
       <Button
         variant="ghost"
-        size="sm"
+        size="xs"
         data-testid="bank-import"
         onClick={() => fileInput.current?.click()}
       >
@@ -113,8 +112,8 @@ export function BankPanel({
 
   if (count === 0) {
     return (
-      <section className="mt-16" data-testid="bank">
-        <Separator className="mb-6" />
+      <section className="mt-16 lg:mt-0" data-testid="bank">
+        <Separator className="mb-6 lg:hidden" />
         <div className="flex items-center justify-between gap-2">
           <p className="text-sm text-muted-foreground">
             Words you accept or look up will collect here.
@@ -126,17 +125,17 @@ export function BankPanel({
   }
 
   return (
-    <section className="mt-16" data-testid="bank">
-      <Separator className="mb-6" />
+    <section className="mt-16 lg:mt-0" data-testid="bank">
+      <Separator className="mb-6 lg:hidden" />
 
-      <div className="flex items-center justify-between gap-2">
-        <h2 className="text-sm font-medium">
+      <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+        <h2 className="font-display text-xl whitespace-nowrap">
           Word bank{' '}
-          <span data-testid="bank-count" className="text-muted-foreground">
-            · {count}
+          <span data-testid="bank-count" className="font-sans text-xs text-muted-foreground">
+            {count}
           </span>
         </h2>
-        <div className="flex items-center gap-1">
+        <div className="-mx-2 flex items-center">
           {/*
             Practice is offered over what is on screen, so a search narrows the
             drill as well as the list — the cheapest way to work on one corner
@@ -145,8 +144,9 @@ export function BankPanel({
           {expanded && !drilling && visible.length >= DRILL_MIN && (
             <Button
               variant="ghost"
-              size="sm"
+              size="xs"
               data-testid="bank-practice"
+              className="text-cobalt"
               onClick={() => setDrilling(true)}
             >
               Practice
@@ -160,7 +160,7 @@ export function BankPanel({
           {onExport && (
             <Button
               variant="ghost"
-              size="sm"
+              size="xs"
               data-testid="bank-export"
               onClick={onExport}
             >
@@ -170,7 +170,7 @@ export function BankPanel({
           {importControl}
           <Button
             variant="ghost"
-            size="sm"
+            size="xs"
             data-testid="bank-toggle"
             onClick={toggle}
           >
@@ -237,36 +237,38 @@ export function BankPanel({
           ) : (
             <ul className="mt-4 space-y-4" data-testid="bank-list">
               {visible.map((entry) => (
-                <li key={entry.id} className="space-y-1">
-                  <div className="flex flex-wrap items-baseline gap-2">
-                    <span className="font-medium">{entry.word}</span>
-                    <span className="text-xs text-muted-foreground">
+                <li key={entry.id} className="group space-y-1 border-b pb-4 last:border-b-0">
+                  <div className="flex flex-wrap items-baseline gap-x-2">
+                    <span className="font-display text-base">{entry.word}</span>
+                    <span className="font-display text-xs text-muted-foreground italic">
                       {entry.partOfSpeech}
                     </span>
-                    <Badge variant="secondary" className="text-xs">
-                      {entry.addedVia}
-                    </Badge>
-                    {entry.timesReused > 0 && (
-                      <Badge className="text-xs" data-testid="reused-badge">
-                        used {entry.timesReused}×
-                      </Badge>
-                    )}
-                    {onRemove && (
-                      <button
-                        type="button"
-                        data-testid="remove-word"
-                        aria-label={`Remove ${entry.word}`}
-                        onClick={() => onRemove(entry.id)}
-                        className="ml-auto text-xs text-muted-foreground hover:text-destructive"
-                      >
-                        Remove
-                      </button>
-                    )}
+                    <span className="ml-auto font-mono text-[10px] tracking-[0.08em] uppercase">
+                      {entry.timesReused > 0 ? (
+                        <span data-testid="reused-badge" className="text-cobalt">
+                          used {entry.timesReused}×
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">{entry.addedVia}</span>
+                      )}
+                    </span>
                   </div>
-                  <p className="text-sm text-muted-foreground">{entry.definition}</p>
-                  <p className="text-xs text-muted-foreground/70 italic">
+                  <p className="text-[13px]">{entry.definition}</p>
+                  <p className="font-display text-xs text-muted-foreground italic">
                     from: {entry.sourceSentence}
                   </p>
+                  {onRemove && (
+                    <button
+                      type="button"
+                      data-testid="remove-word"
+                      aria-label={`Remove ${entry.word}`}
+                      onClick={() => onRemove(entry.id)}
+                      // Revealed on hover on desktop, where the design keeps the list quiet; always shown on touch.
+                      className="text-xs text-muted-foreground hover:text-destructive lg:opacity-0 lg:group-focus-within:opacity-100 lg:group-hover:opacity-100"
+                    >
+                      Remove
+                    </button>
+                  )}
                 </li>
               ))}
             </ul>
