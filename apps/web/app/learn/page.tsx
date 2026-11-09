@@ -1,7 +1,7 @@
 import Link from 'next/link';
-import { AccountMenu } from '@/components/account-menu';
 import { LessonPanel } from '@/components/lesson-panel';
-import { ThemeToggle } from '@/components/theme-toggle';
+import { SiteNav } from '@/components/site-nav';
+import { PageHeader } from '@/components/page-header';
 import { currentUser } from '@/lib/dal';
 
 export const metadata = {
@@ -19,30 +19,11 @@ export default async function LearnPage() {
 
   return (
     <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-6 sm:px-6 sm:py-16">
-      <header className="mb-10">
-        <div className="flex items-start justify-between gap-4">
-          <h1 className="text-2xl font-semibold tracking-tight">
-            <Link href="/" className="hover:underline">
-              auto-learn
-            </Link>{' '}
-            <span className="text-muted-foreground">· Learn</span>
-          </h1>
-          <div className="flex items-center gap-4">
-            <Link href="/" className="text-sm text-muted-foreground hover:text-foreground">
-              Write
-            </Link>
-            <Link href="/talk" className="text-sm text-muted-foreground hover:text-foreground">
-              Talk
-            </Link>
-            {/* The installed app opens here, so this is where signing in has to be. */}
-            <AccountMenu />
-            <ThemeToggle />
-          </div>
-        </div>
-        <p className="mt-1 text-muted-foreground">
-          Five minutes a day: your words, a new one, and an answer out loud.
-        </p>
-      </header>
+      <SiteNav />
+      <PageHeader
+        eyebrow="Learn"
+        title="Five minutes a day: your words, a new one, and an answer out loud."
+      />
       {user ? (
         <LessonPanel />
       ) : (
