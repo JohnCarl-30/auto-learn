@@ -1,7 +1,6 @@
-import Link from 'next/link';
-import { AccountMenu } from '@/components/account-menu';
 import { TalkPanel } from '@/components/talk-panel';
-import { ThemeToggle } from '@/components/theme-toggle';
+import { SiteNav } from '@/components/site-nav';
+import { PageHeader } from '@/components/page-header';
 
 export const metadata = {
   title: 'Talk · auto-learn',
@@ -11,29 +10,11 @@ export const metadata = {
 export default function TalkPage() {
   return (
     <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-6 sm:px-6 sm:py-16 lg:max-w-6xl">
-      <header className="mb-10">
-        <div className="flex items-start justify-between gap-4">
-          <h1 className="text-2xl font-semibold tracking-tight">
-            <Link href="/" className="hover:underline">
-              auto-learn
-            </Link>{' '}
-            <span className="text-muted-foreground">· Talk</span>
-          </h1>
-          <div className="flex items-center gap-4">
-            <Link href="/learn" className="text-sm text-muted-foreground hover:text-foreground">
-              Learn
-            </Link>
-            <Link href="/" className="text-sm text-muted-foreground hover:text-foreground">
-              Write
-            </Link>
-            <AccountMenu />
-            <ThemeToggle />
-          </div>
-        </div>
-        <p className="mt-1 text-muted-foreground">
-          Say it out loud, and learn the word that would have said it better.
-        </p>
-      </header>
+      <SiteNav />
+      <PageHeader
+        eyebrow="Talk"
+        title="Say it out loud, and learn the word that would have said it better."
+      />
       <TalkPanel />
     </main>
   );

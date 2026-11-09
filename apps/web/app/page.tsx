@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import type { BankEntry } from '@auto-learn/shared';
 import { ComposePanel } from '@/components/compose-panel';
 import { ReviewPanel } from '@/components/review-panel';
@@ -8,8 +7,8 @@ import { WordCard } from '@/components/word-card';
 import { BankPanel } from '@/components/bank-panel';
 import { FinishedText } from '@/components/finished-text';
 import { ProposingPanel } from '@/components/proposing-panel';
-import { ThemeToggle } from '@/components/theme-toggle';
-import { AccountMenu } from '@/components/account-menu';
+import { SiteNav } from '@/components/site-nav';
+import { PageHeader } from '@/components/page-header';
 import { ApiNotice } from '@/components/notice';
 import { useReview } from '@/lib/use-review';
 import { useBank } from '@/lib/use-bank';
@@ -42,32 +41,8 @@ export default function Page() {
 
   return (
     <main className="mx-auto w-full max-w-2xl flex-1 px-6 py-16">
-      <header className="mb-10">
-        <div className="flex items-start justify-between gap-4">
-          <h1 className="text-2xl font-semibold tracking-tight">auto-learn</h1>
-          <div className="flex items-center gap-4">
-            <Link
-              href="/learn"
-              data-testid="learn-link"
-              className="text-sm text-muted-foreground hover:text-foreground"
-            >
-              Learn
-            </Link>
-            <Link
-              href="/talk"
-              data-testid="talk-link"
-              className="text-sm text-muted-foreground hover:text-foreground"
-            >
-              Talk
-            </Link>
-            <AccountMenu />
-            <ThemeToggle />
-          </div>
-        </div>
-        <p className="mt-1 text-muted-foreground">
-          Fix your sentence, and learn the word that fixed it.
-        </p>
-      </header>
+      <SiteNav />
+      <PageHeader eyebrow="Write" title="Fix your sentence, and learn the word that fixed it." />
 
       {(state.status === 'idle' || state.status === 'error') && (
         <div className="space-y-6">
