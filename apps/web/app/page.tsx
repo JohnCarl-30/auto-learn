@@ -40,62 +40,69 @@ export default function Page() {
   const bank = useBank(bankVersion + synced);
 
   return (
-    <main className="mx-auto w-full max-w-2xl flex-1 px-6 py-16">
+    <main className="mx-auto w-full max-w-2xl flex-1 px-6 py-16 lg:max-w-6xl">
       <SiteNav />
       <PageHeader eyebrow="Write" title="Fix your sentence, and learn the word that fixed it." />
 
-      {(state.status === 'idle' || state.status === 'error') && (
-        <div className="space-y-6">
-          <ComposePanel
-            text={draft}
-            onTextChange={setDraft}
-            disabled={false}
-            onSubmit={submit}
-          />
-          {state.status === 'error' && <ApiNotice error={state.error} />}
-        </div>
-      )}
-
-      {state.status === 'proposing' && (
-        <ProposingPanel preview={state.preview} />
-      )}
-
-      {reused.length > 0 && <ReuseNotice entries={reused} />}
-
-      {state.status === 'reviewing' && (
-        <ReviewPanel
-          response={state.response}
-          focused={state.focused}
-          onFocus={focus}
-          onOpenGate={(suggestionId) => openGate(state.focused, suggestionId)}
-          onLookup={(word) => lookup(state.focused, word)}
-          onStartOver={reset}
-          cardSlot={
-            card ? (
-              <WordCard
-                state={card}
-                saved={saved}
-                onAccept={accept}
-                onReject={reject}
-                onSave={() => void saveLookup()}
-                onDismiss={dismiss}
+      {/* Desktop: the work on the left, the bank beside it. Phone: the bank follows below. */}
+      <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-16">
+        <div>
+          {(state.status === 'idle' || state.status === 'error') && (
+            <div className="space-y-6">
+              <ComposePanel
+                text={draft}
+                onTextChange={setDraft}
+                disabled={false}
+                onSubmit={submit}
               />
-            ) : null
-          }
-        />
-      )}
+              {state.status === 'error' && <ApiNotice error={state.error} />}
+            </div>
+          )}
 
-      {state.status === 'reviewing' && (
-        <FinishedText response={state.response} />
-      )}
+          {state.status === 'proposing' && (
+            <ProposingPanel preview={state.preview} />
+          )}
 
-      <BankPanel
-        entries={bank.entries}
-        count={bank.count}
-        onRemove={(id) => void bank.remove(id)}
-        onExport={() => void bank.download()}
-        onImport={(file) => void bank.restore(file)}
-      />
+          {reused.length > 0 && <ReuseNotice entries={reused} />}
+
+          {state.status === 'reviewing' && (
+            <ReviewPanel
+              response={state.response}
+              focused={state.focused}
+              onFocus={focus}
+              onOpenGate={(suggestionId) => openGate(state.focused, suggestionId)}
+              onLookup={(word) => lookup(state.focused, word)}
+              onStartOver={reset}
+              cardSlot={
+                card ? (
+                  <WordCard
+                    state={card}
+                    saved={saved}
+                    onAccept={accept}
+                    onReject={reject}
+                    onSave={() => void saveLookup()}
+                    onDismiss={dismiss}
+                  />
+                ) : null
+              }
+            />
+          )}
+
+          {state.status === 'reviewing' && (
+            <FinishedText response={state.response} />
+          )}
+        </div>
+
+        <aside className="lg:border-l lg:pl-10">
+          <BankPanel
+            entries={bank.entries}
+            count={bank.count}
+            onRemove={(id) => void bank.remove(id)}
+            onExport={() => void bank.download()}
+            onImport={(file) => void bank.restore(file)}
+          />
+        </aside>
+      </div>
     </main>
   );
 }
