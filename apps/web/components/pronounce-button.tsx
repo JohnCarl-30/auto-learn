@@ -6,6 +6,7 @@ import type { Pronunciation } from '@auto-learn/shared';
 import { Button } from '@/components/ui/button';
 import { speak } from '@/lib/api';
 import { playAudio, synthesisedSrc } from '@/lib/audio';
+import { cn } from '@/lib/utils';
 
 /**
  * Says the word.
@@ -19,9 +20,11 @@ import { playAudio, synthesisedSrc } from '@/lib/audio';
 export function PronounceButton({
   word,
   pronunciation,
+  className,
 }: {
   word: string;
   pronunciation: Pronunciation;
+  className?: string;
 }) {
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -66,8 +69,8 @@ export function PronounceButton({
       <Button
         type="button"
         data-testid="pronounce"
-        variant="ghost"
-        size="sm"
+        size="icon-sm"
+        className={cn('rounded-full', className)}
         disabled={busy}
         aria-label={`Hear ${word}`}
         onClick={() => void play()}

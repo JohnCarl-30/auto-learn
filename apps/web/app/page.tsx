@@ -13,6 +13,8 @@ import { ApiNotice } from '@/components/notice';
 import { useReview } from '@/lib/use-review';
 import { useBank } from '@/lib/use-bank';
 import { useBankSync } from '@/lib/use-bank-sync';
+import { useIsDesktop } from '@/lib/use-is-desktop';
+import { cn } from '@/lib/utils';
 
 export default function Page() {
   const {
@@ -26,6 +28,7 @@ export default function Page() {
     reject,
     dismiss,
     reset,
+    open,
     bankVersion,
     reused,
     saved,
@@ -39,15 +42,42 @@ export default function Page() {
   const synced = useBankSync();
   const bank = useBank(bankVersion + synced);
 
+  // One card, mounted once: beside the review on a desktop, where it takes the
+  // bank's column, and under its sentence on a phone.
+  const desktop = useIsDesktop();
+  const cardView = card ? (
+    <WordCard
+      state={card}
+      saved={saved}
+      onAccept={accept}
+      onReject={reject}
+      onSave={() => void saveLookup()}
+      onDismiss={dismiss}
+    />
+  ) : null;
+  const railCard = desktop && state.status === 'reviewing' ? cardView : null;
+  const composing = state.status === 'idle' || state.status === 'error';
+
   return (
     <main className="mx-auto w-full max-w-2xl flex-1 px-6 py-16 lg:max-w-6xl">
       <SiteNav />
-      <PageHeader eyebrow="Write" title="Fix your sentence, and learn the word that fixed it." />
+      <PageHeader
+        eyebrow="Write"
+        title="Fix your sentence, and learn the word that fixed it."
+        display={composing}
+      />
 
       {/* Desktop: the work on the left, the bank beside it. Phone: the bank follows below. */}
-      <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-16">
+      <div
+        className={cn(
+          'lg:grid lg:gap-16',
+          railCard
+            ? 'lg:grid-cols-[minmax(0,1fr)_392px]'
+            : 'lg:grid-cols-[minmax(0,1fr)_320px]',
+        )}
+      >
         <div>
-          {(state.status === 'idle' || state.status === 'error') && (
+          {composing && (
             <div className="space-y-6">
               <ComposePanel
                 text={draft}
@@ -63,7 +93,11 @@ export default function Page() {
             <ProposingPanel preview={state.preview} />
           )}
 
-          {reused.length > 0 && <ReuseNotice entries={reused} />}
+          {state.status !== 'reviewing' && reused.length > 0 && (
+            <div className="mb-6">
+              <ReuseNotice entries={reused} />
+            </div>
+          )}
 
           {state.status === 'reviewing' && (
             <ReviewPanel
@@ -73,18 +107,9 @@ export default function Page() {
               onOpenGate={(suggestionId) => openGate(state.focused, suggestionId)}
               onLookup={(word) => lookup(state.focused, word)}
               onStartOver={reset}
-              cardSlot={
-                card ? (
-                  <WordCard
-                    state={card}
-                    saved={saved}
-                    onAccept={accept}
-                    onReject={reject}
-                    onSave={() => void saveLookup()}
-                    onDismiss={dismiss}
-                  />
-                ) : null
-              }
+              cardSlot={railCard ? null : cardView}
+              activeGateId={railCard ? open?.suggestionId : null}
+              notice={reused.length > 0 ? <ReuseNotice entries={reused} /> : null}
             />
           )}
 
@@ -93,6 +118,9 @@ export default function Page() {
           )}
         </div>
 
+        {railCard ? (
+          <aside className="lg:sticky lg:top-6 lg:self-start">{railCard}</aside>
+        ) : (
         <aside className="lg:border-l lg:pl-10">
           <BankPanel
             entries={bank.entries}
@@ -102,6 +130,7 @@ export default function Page() {
             onImport={(file) => void bank.restore(file)}
           />
         </aside>
+        )}
       </div>
     </main>
   );
@@ -119,10 +148,10 @@ function ReuseNotice({ entries }: { entries: BankEntry[] }) {
   return (
     <div
       data-testid="reuse-notice"
-      className="mb-6 rounded-md border border-emerald-500/40 bg-emerald-500/10 px-4 py-3 text-sm"
+      className="border-l-4 border-marker bg-marker/35 px-4 py-3 text-[13px]"
     >
       You used{' '}
-      <span className="font-medium">
+      <span className="font-semibold">
         {words.length === 1
           ? words[0]
           : `${words.slice(0, -1).join(', ')} and ${words[words.length - 1]}`}

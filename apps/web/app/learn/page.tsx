@@ -18,21 +18,24 @@ export default async function LearnPage() {
   const user = await currentUser();
 
   return (
-    <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-6 sm:px-6 sm:py-16">
+    <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-6 sm:px-6 sm:py-16 lg:max-w-6xl">
       <SiteNav />
-      <PageHeader
-        eyebrow="Learn"
-        title="Five minutes a day: your words, a new one, and an answer out loud."
-      />
+      {/* A lesson names its own unit in the header, so it draws the header itself. */}
       {user ? (
         <LessonPanel />
       ) : (
-        <p data-testid="learn-signed-out">
+        <>
+          <PageHeader
+            eyebrow="Learn"
+            title="Five minutes a day: your words, a new one, and an answer out loud."
+          />
+          <p data-testid="learn-signed-out">
           Lessons keep your streak and reviews in your account.{' '}
           <Link href="/signin" className="font-medium underline">
             Sign in to start
-          </Link>
-        </p>
+            </Link>
+          </p>
+        </>
       )}
     </main>
   );

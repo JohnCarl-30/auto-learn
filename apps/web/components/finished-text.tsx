@@ -4,6 +4,10 @@ import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { diffWords, type ProposeResponse } from '@auto-learn/shared';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+
+/** The finished sentence sits on a quiet panel, set like the sentence above it. */
+const BOX = 'rounded-md bg-muted px-6 py-5 font-display text-lg leading-[30px]';
 
 /**
  * The way out of the product.
@@ -45,10 +49,10 @@ export function FinishedText({ response }: { response: ProposeResponse }) {
   return (
     <section className="mt-10 space-y-3" data-testid="finished">
       <div className="flex items-center justify-between gap-2">
-        <h2 className="text-sm font-medium text-muted-foreground">
+        <h2 className="font-mono text-[11px] font-normal uppercase tracking-[0.08em] text-muted-foreground">
           Your sentence
         </h2>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-4">
           {/*
             Offered only when there is something to show. A toggle that reveals
             an unchanged sentence teaches nothing and reads as broken.
@@ -56,7 +60,8 @@ export function FinishedText({ response }: { response: ProposeResponse }) {
           {changed && (
             <Button
               size="sm"
-              variant="ghost"
+              variant="link"
+              className="px-0 text-foreground"
               data-testid="toggle-changes"
               aria-pressed={showChanges}
               onClick={() => setShowChanges((shown) => !shown)}
@@ -66,7 +71,8 @@ export function FinishedText({ response }: { response: ProposeResponse }) {
           )}
           <Button
             size="sm"
-            variant="outline"
+            variant="link"
+            className="px-0 text-cobalt"
             data-testid="copy"
             onClick={() => void copy()}
           >
@@ -84,7 +90,7 @@ export function FinishedText({ response }: { response: ProposeResponse }) {
           */}
           <p
             data-testid="diff-text"
-            className="rounded-md border bg-muted/30 px-4 py-3 text-base leading-relaxed"
+            className={BOX}
           >
             {parts.map((part, index) => {
               if (part.kind === 'removed') {
@@ -92,7 +98,7 @@ export function FinishedText({ response }: { response: ProposeResponse }) {
                   <del
                     key={index}
                     data-testid="diff-removed"
-                    className="rounded-sm bg-destructive/10 text-muted-foreground decoration-destructive/60"
+                    className="text-destructive"
                   >
                     {part.value}
                   </del>
@@ -104,7 +110,7 @@ export function FinishedText({ response }: { response: ProposeResponse }) {
                   <ins
                     key={index}
                     data-testid="diff-added"
-                    className="rounded-sm bg-emerald-500/15 no-underline decoration-emerald-600/60"
+                    className="font-semibold text-cobalt no-underline"
                   >
                     {part.value}
                   </ins>
@@ -116,10 +122,10 @@ export function FinishedText({ response }: { response: ProposeResponse }) {
           </p>
 
           <p className="text-xs text-muted-foreground">
-            <del className="text-muted-foreground">struck out</del> is what you
+            <del className="text-destructive">Struck out</del> is what you
             wrote;{' '}
             <ins className="no-underline">
-              <span className="rounded-sm bg-emerald-500/15">highlighted</span>
+              <span className="font-semibold text-cobalt">highlighted</span>
             </ins>{' '}
             is what it became.
           </p>
@@ -127,7 +133,7 @@ export function FinishedText({ response }: { response: ProposeResponse }) {
       ) : (
         <p
           data-testid="finished-text"
-          className="rounded-md border bg-muted/30 px-4 py-3 text-base leading-relaxed select-all"
+          className={cn(BOX, 'select-all')}
         >
           {text}
         </p>
