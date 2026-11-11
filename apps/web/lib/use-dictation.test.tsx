@@ -306,11 +306,12 @@ describe('useDictation', () => {
         started: true,
         lang: 'en-US',
         interimResults: false,
-        continuous: false,
+        continuous: true,
         maxAlternatives: 1,
       });
 
       act(() => recognisers[0].say('I went yesterday'));
+      act(() => result.current.stop());
       act(() => recognisers[0].onend?.());
 
       expect(heard).toHaveBeenCalledWith('I went yesterday');
@@ -472,8 +473,49 @@ describe('useDictation', () => {
       expect(recorders).toHaveLength(0);
     });
 
+    it('keeps listening through a pause, and hands over all of it on Stop', async () => {
+      const heard = jest.fn();
+      const { result } = renderHook(() => useDictation(heard));
+      await act(() => result.current.start());
+      const mic = recognisers[0];
+
+      // The browser closes the run by itself; nobody pressed Stop.
+      act(() => mic.say('I want to ask'));
+      mic.started = false;
+      act(() => mic.onend?.());
+      expect(mic.started).toBe(true);
+      expect(heard).not.toHaveBeenCalled();
+      expect(result.current.status).toBe('recording');
+
+      // Silence is a pause too, not an error to report.
+      mic.started = false;
+      act(() => mic.onerror?.({ error: 'no-speech' }));
+      act(() => mic.onend?.());
+      expect(mic.started).toBe(true);
+      expect(result.current.problem).toBeNull();
+
+      act(() => mic.say('for more time'));
+      act(() => result.current.stop());
+      act(() => mic.onend?.());
+      expect(heard).toHaveBeenCalledTimes(1);
+      expect(heard).toHaveBeenCalledWith('I want to ask for more time');
+      expect(result.current.status).toBe('idle');
+    });
+
+    it('takes one phrase and stops by itself when asked for just one', async () => {
+      const heard = jest.fn();
+      const { result } = renderHook(() => useDictation(heard, { once: true }));
+      await act(() => result.current.start());
+      expect(recognisers[0].continuous).toBe(false);
+
+      act(() => recognisers[0].say('substantial'));
+      act(() => recognisers[0].onend?.());
+      expect(heard).toHaveBeenCalledWith('substantial');
+      expect(result.current.status).toBe('idle');
+    });
+
     it('says so when nothing was heard', async () => {
-      const { result } = renderHook(() => useDictation(jest.fn()));
+      const { result } = renderHook(() => useDictation(jest.fn(), { once: true }));
 
       await act(() => result.current.start());
       act(() => recognisers[0].onerror?.({ error: 'no-speech' }));

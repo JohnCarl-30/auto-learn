@@ -62,15 +62,20 @@ function pickMimeType(): string | undefined {
 /**
  * `maxSeconds` is how long the recorder runs before it is stopped for the
  * person. Lesson answers pass a longer one; everything else keeps the minute.
- * Only the recorder has this timer: the browser recogniser takes one phrase per
- * press (`continuous` is false), so the limit does not reach it. That is why
- * `engine: 'recorder'` exists: a lesson answer needs the whole answer, so the
- * caller can rule the recogniser out even where the browser has one.
+ * Only the recorder has this timer, because only the recorder is paid for by
+ * the second. `engine: 'recorder'` rules the recogniser out even where the
+ * browser has one, for a lesson answer that has to be timed.
+ *
+ * The browser recogniser listens until Stop is pressed: a pause to think is
+ * not the end of an answer, and a mic that switches itself off mid-sentence
+ * loses the rest of it. `once` is for the one caller that wants a single
+ * phrase and no second press, saying one word back.
  */
 export function useDictation(
   onTranscript: (transcript: string) => void,
-  options?: { maxSeconds?: number; engine?: 'recorder' },
+  options?: { maxSeconds?: number; engine?: 'recorder'; once?: boolean },
 ) {
+  const continuous = !options?.once;
   // A number rather than the options object, so a caller passing a fresh
   // literal each render does not rebuild `start` on every render.
   const maxSeconds = options?.maxSeconds ?? MAX_RECORDING_SECONDS;
@@ -91,6 +96,8 @@ export function useDictation(
   // a warning at best and a leak at worst.
   const alive = useRef(true);
   const stopAt = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Whether Stop was pressed: the one thing that ends a continuous session.
+  const stopping = useRef(false);
   /**
    * Held in a ref so that `start` does not have to be rebuilt every time the
    * panel re-renders with a new closure — a recorder that restarted whenever
@@ -208,12 +215,22 @@ export function useDictation(
   const listen = useCallback(
     (Recognition: new () => BrowserRecognition) => {
       const active = new Recognition();
-      // One phrase per press, final result only: push-to-talk, the same shape
-      // as the recorder path, so the panels cannot tell the two apart.
+      // Final results only, handed over in one piece when listening ends: the
+      // same shape as the recorder path, so the panels cannot tell the two apart.
       active.lang = 'en-US';
       active.interimResults = false;
-      active.continuous = false;
+      active.continuous = continuous;
       active.maxAlternatives = 1;
+      stopping.current = false;
+
+      // A continuous session can be several runs: the browser ends one by
+      // itself after a stretch of silence, and it is started again until Stop.
+      const kept: string[] = [];
+      let said = '';
+      // A run the browser closed for silence alone, which is not a failure.
+      let quiet = false;
+      // Any other error: the session is over, whatever was pressed.
+      let failed = false;
 
       // Browsers fire `end` after `error`, and by then the recorder may already
       // be taking over; without this the late `end` would flip the status back
@@ -232,11 +249,19 @@ export function useDictation(
           .trim();
         if (!transcript) return;
         answered = true;
-        heard.current(transcript);
+        // `results` is everything heard this run, so each event replaces the last.
+        if (continuous) said = transcript;
+        else heard.current(transcript);
       };
 
       active.onerror = (event) => {
         if (!alive.current) return;
+        // Silence is a pause, not an ending, while nobody has pressed Stop.
+        if (continuous && event.error === 'no-speech' && !stopping.current) {
+          quiet = true;
+          return;
+        }
+        failed = true;
         // Every error but `aborted` is told to the person below, so the `end`
         // that follows must not add a second, vaguer message on top.
         if (event.error !== 'aborted') answered = true;
@@ -281,6 +306,23 @@ export function useDictation(
       };
 
       active.onend = () => {
+        if (alive.current && !handedOver && continuous) {
+          const heardThisRun = said !== '';
+          if (heardThisRun) kept.push(said);
+          said = '';
+          // Only a run that heard something or timed out on silence is started
+          // again; one that ended with neither would only end again at once.
+          if (!stopping.current && !failed && (heardThisRun || quiet)) {
+            quiet = false;
+            try {
+              active.start();
+              return;
+            } catch {
+              // Cannot go on: hand over what there is, below.
+            }
+          }
+          if (kept.length > 0) heard.current(kept.join(' '));
+        }
         if (recognition.current === active) recognition.current = null;
         if (!alive.current || handedOver) return;
         setStatus('idle');
@@ -303,7 +345,7 @@ export function useDictation(
       }
       setStatus('recording');
     },
-    [startRecorder],
+    [startRecorder, continuous],
   );
 
   const start = useCallback(async () => {
@@ -320,6 +362,7 @@ export function useDictation(
   }, [engine, listen, startRecorder]);
 
   const stop = useCallback(() => {
+    stopping.current = true;
     recognition.current?.stop();
     if (recorder.current?.state === 'recording') recorder.current.stop();
   }, []);
