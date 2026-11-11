@@ -43,7 +43,7 @@ describe('LessonFeedback', () => {
   it('quotes the first sentence back', () => {
     render(<LessonFeedback unit={unit(1)} attempt={attempt()} retryTarget={false} />);
     expect(screen.getByTestId('first-sentence')).toHaveTextContent(
-      'Your first sentence: ‘My best project is a vocabulary app.’',
+      '“My best project is a vocabulary app.”',
     );
     expect(screen.getByText('That states your point straight away.')).toBeInTheDocument();
   });
@@ -60,12 +60,12 @@ describe('LessonFeedback', () => {
       <LessonFeedback unit={unit(2)} attempt={attempt({ feedback: missing })} retryTarget={false} />,
     );
     expect(screen.getAllByText('Not heard')).toHaveLength(2);
-    expect(screen.getByText('‘Coding early helps.’')).toBeInTheDocument();
+    expect(screen.getByText('“Coding early helps.”')).toBeInTheDocument();
   });
 
   it('shows how long against the target', () => {
     render(<LessonFeedback unit={unit(2)} attempt={attempt()} retryTarget={false} />);
-    expect(screen.getByTestId('duration')).toHaveTextContent('You spoke for 0:42 (target 0:45)');
+    expect(screen.getByTestId('duration')).toHaveTextContent('0:42/ target 0:45You spoke for');
   });
 
   it('hides the duration when the answer was typed', () => {
@@ -77,14 +77,14 @@ describe('LessonFeedback', () => {
 
   it('shows no breakdown when no fillers were heard', () => {
     render(<LessonFeedback unit={unit(1)} attempt={attempt()} retryTarget={false} />);
-    expect(screen.getByTestId('fillers')).toHaveTextContent(/^Fillers heard: 0$/);
+    expect(screen.getByTestId('fillers')).toHaveTextContent(/^0Fillers heard$/);
   });
 
   it('breaks the fillers down, most heard first', () => {
     const fillers = { total: 3, byWord: { like: 1, um: 2 } };
     render(<LessonFeedback unit={unit(1)} attempt={attempt({ fillers })} retryTarget={false} />);
     expect(screen.getByTestId('fillers')).toHaveTextContent(
-      'Fillers heard: 3 (um ×2, like ×1)',
+      '3um ×2, like ×1Fillers heard',
     );
   });
 
@@ -101,7 +101,7 @@ describe('LessonFeedback', () => {
 
   it('judges the unit 3 retry against its twenty-second target', () => {
     render(<LessonFeedback unit={unit(3)} attempt={attempt({ seconds: 18 })} retryTarget />);
-    expect(screen.getByTestId('duration')).toHaveTextContent('You spoke for 0:18 (target 0:20)');
+    expect(screen.getByTestId('duration')).toHaveTextContent('0:18/ target 0:20You spoke for');
     expect(screen.queryByRole('button', { name: /say it/ })).toBeNull();
   });
 

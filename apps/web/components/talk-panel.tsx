@@ -2,9 +2,9 @@
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
+  ArrowRightIcon,
   LoaderCircleIcon,
   MicIcon,
-  SendIcon,
   SquareIcon,
   Volume2Icon,
   VolumeXIcon,
@@ -28,6 +28,9 @@ import { cn } from '@/lib/utils';
 import { useConversation, type LearnerTurn } from '@/lib/use-conversation';
 import { useDictation } from '@/lib/use-dictation';
 import { usePartnerVoice } from '@/lib/use-partner-voice';
+
+/** The small mono caps over each turn, as over every labelled block. */
+const LABEL = 'font-mono text-[11px] uppercase tracking-[0.08em] text-muted-foreground';
 
 /** Why a turn has no feedback, said as what to do next. */
 const SKIPPED_NOTES: Record<FeedbackSkipped, string> = {
@@ -97,28 +100,34 @@ export function TalkPanel() {
   return (
     // One column on a phone; on a desktop the call sits on the left and the
     // conversation runs beside it.
-    <div className="lg:grid lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:items-start lg:gap-10">
+    <div className="lg:grid lg:grid-cols-[minmax(0,560px)_minmax(0,1fr)] lg:items-start lg:gap-12">
       <CallStage
         listening={recording}
         speaking={voice.speaking}
         thinking={talk.pending}
       />
-      <div className="space-y-6" data-testid="talk">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-1">
-            <span className="text-sm text-muted-foreground" data-testid="scenario">
+      <div data-testid="talk">
+        <div className="flex items-center justify-between gap-3 border-b pb-3.5">
+          <div className="flex items-baseline gap-3">
+            <h2 className="font-display text-xl font-semibold" data-testid="scenario">
               {SCENARIO_LABELS[talk.scenario]}
-            </span>
+            </h2>
             {/* Same way back to the picker as End; the name says what it is for. */}
-            <Button variant="ghost" size="sm" onClick={talk.end} data-testid="change">
+            <button
+              type="button"
+              onClick={talk.end}
+              data-testid="change"
+              className="rounded-sm text-[13px] font-medium text-cobalt outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring/60"
+            >
               Change
-            </Button>
+            </button>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-2">
             {voice.supported && (
               <Button
-                variant="ghost"
-                size="sm"
+                variant="outline"
+                size="icon-lg"
+                className="rounded-full"
                 data-testid="mute"
                 aria-label={voice.muted ? 'Read replies aloud' : 'Stop reading replies aloud'}
                 aria-pressed={voice.muted}
@@ -130,7 +139,12 @@ export function TalkPanel() {
                 />
               </Button>
             )}
-            <Button variant="ghost" size="sm" onClick={talk.end} data-testid="end">
+            <Button
+              size="lg"
+              onClick={talk.end}
+              data-testid="end"
+              className="rounded-full bg-[#a33a2e] px-4 text-[13px] font-semibold text-white hover:bg-[#a33a2e]/90"
+            >
               End
             </Button>
           </div>
@@ -140,13 +154,15 @@ export function TalkPanel() {
           // Polite: "You used it." arrives after the reply, and a screen reader
           // should hear it without being cut off mid-sentence.
           <p
-            className="text-sm text-muted-foreground"
+            className="border-b py-3.5 text-sm text-muted-foreground"
             data-testid="practice-word"
             aria-live="polite"
           >
             {talk.practiceWord.used ? (
               <>
-                <span className="font-medium text-foreground">{talk.practiceWord.word}</span>
+                <span className="font-display text-[17px] font-semibold text-cobalt">
+                  {talk.practiceWord.word}
+                </span>
                 {' — '}
                 <span>You used it.</span>
                 {talk.practiceWord.justBanked && (
@@ -158,8 +174,12 @@ export function TalkPanel() {
               </>
             ) : (
               <>
-                {talk.scenario === 'word-drill' ? 'Your word:' : 'Try using:'}{' '}
-                <span className="font-medium text-foreground">{talk.practiceWord.word}</span>
+                <span className="font-mono text-[11px] uppercase tracking-[0.08em]">
+                  {talk.scenario === 'word-drill' ? 'Your word:' : 'Try using:'}
+                </span>{' '}
+                <span className="font-display text-[17px] font-semibold text-cobalt">
+                  {talk.practiceWord.word}
+                </span>
                 {' — '}
                 {talk.practiceWord.definition}
               </>
@@ -167,19 +187,23 @@ export function TalkPanel() {
           </p>
         )}
 
-        <ol className="space-y-5" aria-label="Conversation">
-          {talk.turns.map((turn) =>
+        <ol className="space-y-5 py-5" aria-label="Conversation">
+          {talk.turns.map((turn, index) =>
             turn.role === 'partner' ? (
-              <li key={turn.id} data-testid="partner-turn" className="space-y-1">
-                <p className="text-xs font-medium text-muted-foreground">Partner</p>
-                <div className="flex items-start gap-2">
-                  <p className="flex-1 rounded-lg bg-muted px-3.5 py-2.5 leading-relaxed">
+              <li key={turn.id} data-testid="partner-turn" className="space-y-1.5">
+                <p className={LABEL}>
+                  Partner
+                  {voice.speaking && index === talk.turns.length - 1 && ' · speaking'}
+                </p>
+                <div className="flex items-start gap-2.5">
+                  <p className="max-w-[380px] rounded-xl rounded-tl-sm bg-muted px-4 py-3 text-[15px] leading-[23px]">
                     {turn.text}
                   </p>
                   {voice.supported && (
                     <Button
-                      variant="ghost"
-                      size="sm"
+                      variant="outline"
+                      size="icon-sm"
+                      className="mt-1.5 rounded-full text-muted-foreground [&_svg]:size-3"
                       aria-label="Hear that again"
                       onClick={() => voice.say(turn.text, { force: true })}
                     >
@@ -189,8 +213,12 @@ export function TalkPanel() {
                 </div>
               </li>
             ) : (
-              <li key={turn.id} data-testid="learner-turn" className="space-y-2">
-                <p className="text-xs font-medium text-muted-foreground">You</p>
+              <li
+                key={turn.id}
+                data-testid="learner-turn"
+                className="space-y-2 border-l-2 border-foreground pl-4"
+              >
+                <p className={LABEL}>You</p>
                 <LearnerTurnView turn={turn} talk={talk} />
               </li>
             ),
@@ -216,12 +244,13 @@ export function TalkPanel() {
           background stops the transcript showing through as it scrolls under.
         */}
         <form
-          className="sticky bottom-0 space-y-2 border-t bg-background pt-3 pb-[max(env(safe-area-inset-bottom),0.5rem)]"
+          className="sticky bottom-0 space-y-2 bg-background pt-3 pb-[max(env(safe-area-inset-bottom),0.5rem)]"
           onSubmit={(event) => {
             event.preventDefault();
             void talk.send();
           }}
         >
+          <div className="rounded-xl border border-foreground transition-shadow focus-within:ring-3 focus-within:ring-ring/50">
           <Textarea
             value={talk.draft}
             onChange={(event) => talk.setDraft(event.target.value)}
@@ -233,13 +262,13 @@ export function TalkPanel() {
               }
             }}
             placeholder="Press the mic and answer, or type."
-            rows={3}
-            className="resize-none text-base leading-relaxed"
+            rows={2}
+            className="min-h-0 resize-none border-0 bg-transparent px-4 pt-3.5 text-base leading-relaxed shadow-none focus-visible:ring-0 sm:text-[15px] dark:bg-transparent"
             aria-label="Your answer"
             data-testid="answer"
           />
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-sm text-muted-foreground">
+          <div className="flex items-center justify-between gap-3 pr-2 pb-2 pl-4">
+            <span className="text-[13px] text-muted-foreground">
               {recording
                 ? 'Listening…'
                 : transcribing
@@ -254,9 +283,8 @@ export function TalkPanel() {
               <Button
                 type="button"
                 data-testid="talk-mic"
-                variant={recording ? 'secondary' : 'outline'}
                 size="lg"
-                className="h-11 min-w-11"
+                className="size-11 rounded-full bg-cobalt text-white hover:bg-cobalt/90 [&_svg]:size-[18px]"
                 disabled={talk.pending || transcribing}
                 aria-label={recording ? 'Stop recording' : 'Answer out loud'}
                 onClick={() => (recording ? dictation.stop() : startRecording())}
@@ -272,14 +300,16 @@ export function TalkPanel() {
               </Button>
               <Button
                 type="submit"
+                variant="outline"
                 size="lg"
-                className="h-11 min-w-11"
+                className="h-11 rounded-full px-4 font-semibold"
                 data-testid="send"
                 disabled={talk.pending || recording || !talk.draft.trim()}
               >
-                <SendIcon data-icon="inline-start" /> Send
+                Send <ArrowRightIcon data-icon="inline-end" />
               </Button>
             </div>
+          </div>
           </div>
           {/*
             A problem with a code came from the server (the recorder path), so
@@ -369,7 +399,7 @@ function LearnerTurnView({
   if (!turn.review) {
     return (
       <div className="space-y-1">
-        <p className="text-lg leading-loose">{turn.said}</p>
+        <p className="font-display text-xl leading-[30px]">{turn.said}</p>
         {turn.skipped && (
           <p className="text-sm text-muted-foreground" data-testid="feedback-skipped">
             {SKIPPED_NOTES[turn.skipped]}
@@ -392,6 +422,7 @@ function LearnerTurnView({
         return (
           <div key={sentence.index} className="space-y-2">
             <SentenceView
+              className="text-xl leading-[30px]"
               sentence={sentence}
               interactive
               onOpenGate={(id) => talk.openGate(turn.id, index, id)}

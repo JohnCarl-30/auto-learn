@@ -182,6 +182,22 @@ describe('LessonPanel', () => {
     expect(screen.getByText('3-day streak')).toBeInTheDocument();
   });
 
+  it('fills a bar for each streak day, leaving today open until its lesson is done', () => {
+    const filled = () =>
+      screen.getAllByTestId('streak-day').map((day) => day.dataset.done === 'true');
+
+    // Three days ending today.
+    lesson.mockReturnValue(lessonAt({ step: 'speak' }));
+    const { unmount } = render(<LessonPanel />);
+    expect(filled()).toEqual([false, false, false, false, true, true, true]);
+    unmount();
+
+    // Three days ending yesterday: today is the one still to do.
+    lesson.mockReturnValue(lessonAt({ step: 'speak', progress: { ...progress, doneToday: 0 } }));
+    render(<LessonPanel />);
+    expect(filled()).toEqual([false, false, false, true, true, true, false]);
+  });
+
   it('dims the locked units on the path and marks them disabled', () => {
     lesson.mockReturnValue(lessonAt({ step: 'done', attempts: [spoken(null)] }));
     render(<LessonPanel />);

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { VideoIcon, VideoOffIcon } from 'lucide-react';
+import { LockIcon, VideoIcon, VideoOffIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -51,12 +51,12 @@ export function CallStage({
   return (
     // Desktop only, and pinned while the conversation scrolls beside it: the
     // call stays in view the way a video call's window does.
-    <div className="hidden space-y-2 lg:sticky lg:top-6 lg:block" data-testid="call-stage">
+    <div className="hidden lg:sticky lg:top-6 lg:block" data-testid="call-stage">
       <figure
         className={cn(
           // The hairline outline keeps the frame's edge where a bright clip meets a light page.
-          'relative aspect-[4/3] overflow-hidden rounded-2xl bg-muted shadow-sm outline-1 -outline-offset-1 outline-black/10 ring-2 ring-transparent transition-shadow duration-300 ease-out dark:outline-white/10',
-          speaking && 'ring-primary',
+          'relative aspect-[4/3] overflow-hidden rounded-xl bg-neutral-900 outline-1 -outline-offset-1 outline-black/10 ring-2 ring-transparent ring-offset-[3px] ring-offset-background transition-shadow duration-300 ease-out dark:outline-white/10',
+          speaking && 'ring-cobalt',
         )}
       >
         <PartnerVideo speaking={speaking} />
@@ -65,13 +65,13 @@ export function CallStage({
 
         {status && (
           <span
-            className="absolute top-3 left-3 flex items-center gap-1.5 rounded-full bg-black/55 px-2.5 py-1 text-xs font-medium text-white backdrop-blur-sm"
+            className="absolute top-4 left-4 flex items-center gap-2 rounded-full bg-white/90 px-3 py-1.5 text-[13px] font-medium text-neutral-900"
             data-testid="call-status"
           >
             <span
               className={cn(
                 'size-2 rounded-full',
-                listening ? 'bg-red-500' : 'bg-emerald-400',
+                listening ? 'bg-red-500' : 'bg-cobalt',
                 'motion-safe:animate-pulse',
               )}
             />
@@ -79,15 +79,14 @@ export function CallStage({
           </span>
         )}
 
-        <figcaption className="absolute bottom-3 left-3 text-sm font-medium text-white drop-shadow">
+        <figcaption className="absolute bottom-4 left-4 text-[13px] font-medium text-white drop-shadow">
           {speaking ? 'Partner · speaking' : thinking ? 'Partner · thinking' : 'Partner'}
         </figcaption>
 
         {/* You, picture-in-picture, as every video call shows you to yourself. */}
         <div
           className={cn(
-            // Concentric with the frame: its radius minus the 0.75rem inset, so the corners run parallel.
-            'absolute right-3 bottom-3 aspect-video w-[32%] overflow-hidden rounded-[calc(var(--radius-2xl)-0.75rem)] bg-neutral-800 shadow-lg ring-2 ring-white/70 transition-shadow duration-300 ease-out',
+            'absolute right-4 bottom-4 aspect-[4/3] w-1/4 overflow-hidden rounded-md bg-neutral-600 ring-2 ring-white/85 transition-shadow duration-300 ease-out',
             listening && 'ring-red-500',
           )}
         >
@@ -126,13 +125,14 @@ export function CallStage({
               Camera on
             </button>
           )}
-          <span className="pointer-events-none absolute bottom-1.5 left-2 text-xs font-medium text-white drop-shadow">
+          <span className="pointer-events-none absolute bottom-1.5 left-2 text-[11px] font-medium text-white drop-shadow">
             {listening ? 'You · speaking' : 'You'}
           </span>
         </div>
       </figure>
 
-      <p className="text-sm text-muted-foreground" role="status">
+      <p className="flex items-center gap-2 pt-2 text-[13px] text-muted-foreground" role="status">
+        <LockIcon aria-hidden className="size-3.5 shrink-0" />
         {problem ??
           (stream
             ? 'Only you can see your camera. Nothing is recorded.'

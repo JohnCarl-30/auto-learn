@@ -19,7 +19,7 @@ export function SiteNav() {
   return (
     <header className="mb-12 flex items-center justify-between gap-3 border-b pb-4 whitespace-nowrap sm:gap-4">
       <div className="flex items-center gap-4 sm:gap-8">
-        <Link href="/" className="font-display text-lg tracking-tight sm:text-xl">
+        <Link href="/" className="font-display text-lg font-semibold tracking-tight sm:text-xl">
           auto-learn
         </Link>
         <nav aria-label="Sections" className="flex gap-4 text-sm sm:gap-5">
@@ -33,7 +33,7 @@ export function SiteNav() {
                 aria-current={active ? 'page' : undefined}
                 className={cn(
                   'underline-offset-[10px] hover:text-foreground',
-                  active ? 'text-foreground underline decoration-2' : 'text-muted-foreground',
+                  active ? 'font-medium text-foreground underline decoration-cobalt decoration-2' : 'text-muted-foreground',
                 )}
               >
                 {label}

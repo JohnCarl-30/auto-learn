@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils';
 /**
  * Two marks, and what separates them is what opening one gives you.
  *
- * Amber-filled means there is a *word* behind this — a definition, synonyms, a
+ * Cobalt-filled means there is a *word* behind this — a definition, synonyms, a
  * nuance, something that lands in your bank. Dashed means there is a *rule* or
  * a *construction* behind it: one line, nothing to learn as vocabulary.
  *
@@ -21,14 +21,15 @@ import { cn } from '@/lib/utils';
  * teaches you a shape, not a word. Making all four look alike, as the first
  * two did, meant you could not tell what you were about to open.
  */
+const WORD_GATE =
+  'rounded-t-sm border-b-2 border-cobalt bg-cobalt-wash px-1 text-cobalt hover:bg-cobalt/20 dark:text-foreground';
+const RULE_GATE =
+  'rounded-sm text-cobalt underline decoration-cobalt decoration-dashed decoration-1 underline-offset-[6px] hover:bg-cobalt-wash dark:text-foreground';
 const GATE_STYLES: Record<GatedSuggestionType, string> = {
-  'word-choice':
-    'bg-amber-500/15 decoration-amber-600/70 hover:bg-amber-500/30',
-  register: 'bg-amber-500/15 decoration-amber-600/70 hover:bg-amber-500/30',
-  grammar:
-    'decoration-sky-600/70 decoration-dashed hover:bg-sky-500/10 dark:decoration-sky-400/70',
-  wordiness:
-    'decoration-sky-600/70 decoration-dashed hover:bg-sky-500/10 dark:decoration-sky-400/70',
+  'word-choice': WORD_GATE,
+  register: WORD_GATE,
+  grammar: RULE_GATE,
+  wordiness: RULE_GATE,
 };
 
 /** Every target in the sentence is reachable by keyboard, and says where it is. */
@@ -40,8 +41,11 @@ export function SentenceView({
   interactive,
   onOpenGate,
   onLookup,
+  className,
 }: {
   sentence: ReviewedSentence;
+  /** The size, which is the caller's: a review reads larger than a chat turn. */
+  className?: string;
   /** Only the focused sentence responds to clicks. */
   interactive: boolean;
   onOpenGate: (suggestionId: string) => void;
@@ -54,14 +58,14 @@ export function SentenceView({
   );
 
   return (
-    <p className="text-lg leading-loose">
+    <p className={cn('font-display text-2xl leading-9', className)}>
       {segments.map((segment) => {
         if (segment.kind === 'silent') {
           return (
             <span
               key={`s-${segment.start}`}
               title={segment.fix.note}
-              className="underline decoration-muted-foreground/50 decoration-dotted underline-offset-4"
+              className="underline decoration-muted-foreground/60 decoration-dotted decoration-1 underline-offset-[6px]"
             >
               {segment.fix.replacement}
             </span>
@@ -82,7 +86,6 @@ export function SentenceView({
                 key={`g-${segment.start}`}
                 data-testid="gate"
                 data-gate-type={segment.suggestion.type}
-                className="rounded-sm px-0.5 underline decoration-2 decoration-muted-foreground/40 underline-offset-4"
               >
                 {segment.suggestion.original}
               </span>
@@ -97,7 +100,7 @@ export function SentenceView({
               data-gate-type={segment.suggestion.type}
               onClick={() => onOpenGate(segment.suggestion.id)}
               className={cn(
-                'cursor-pointer rounded-sm px-0.5 underline decoration-2 underline-offset-4',
+                'cursor-pointer',
                 GATE_STYLES[segment.suggestion.type],
                 FOCUS_RING,
               )}

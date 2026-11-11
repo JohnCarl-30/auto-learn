@@ -6,17 +6,19 @@ import type {
   ProposeResponse,
   ReviewedSentence,
 } from '@auto-learn/shared';
-import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
+import { ArrowRightIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { SentenceView } from './sentence-view';
 
 /** Matches the marks in the sentence, so the list reads as a key to them. */
+/** The review's own size: one sentence at a time, read like a line of print. */
+const SENTENCE = 'text-2xl leading-9 sm:text-[28px] sm:leading-10 sm:tracking-[-0.01em]';
+
 const DOT_STYLES: Record<GatedSuggestionType, string> = {
-  'word-choice': 'bg-amber-500/70',
-  register: 'bg-amber-500/70',
-  grammar: 'bg-sky-600/70',
-  wordiness: 'bg-sky-600/70',
+  'word-choice': 'bg-cobalt',
+  register: 'bg-cobalt',
+  grammar: 'border border-dashed border-cobalt',
+  wordiness: 'border border-dashed border-cobalt',
 };
 
 export function ReviewPanel({
@@ -27,6 +29,8 @@ export function ReviewPanel({
   onLookup,
   onStartOver,
   cardSlot,
+  notice,
+  activeGateId,
 }: {
   response: ProposeResponse;
   focused: number;
@@ -36,6 +40,10 @@ export function ReviewPanel({
   onStartOver: () => void;
   /** The inline card, rendered directly beneath the focused sentence. */
   cardSlot: ReactNode;
+  /** Shown under the progress line, above the sentences. */
+  notice?: ReactNode;
+  /** The gate whose card is open somewhere else on the page, to mark its row. */
+  activeGateId?: string | null;
 }) {
   const { sentences } = response;
   const total = sentences.length;
@@ -45,30 +53,36 @@ export function ReviewPanel({
 
   return (
     <div className="space-y-6" data-testid="review">
-      <div className="flex items-center justify-between">
-        <span className="text-sm text-muted-foreground" data-testid="progress">
-          Sentence {focused + 1} of {total}
-          {gatedCount > 0 &&
-            ` · ${gatedCount} ${gatedCount === 1 ? 'suggestion' : 'suggestions'}`}
-        </span>
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between gap-3 text-[13px]">
+        <div className="flex items-baseline gap-4">
+          <span className="text-muted-foreground" data-testid="progress">
+            <span className="font-medium text-foreground">
+              Sentence {focused + 1} of {total}
+            </span>
+            {gatedCount > 0 &&
+              ` · ${gatedCount} ${gatedCount === 1 ? 'suggestion' : 'suggestions'}`}
+          </span>
           {total > 1 && (
             <span
-              className="hidden text-xs text-muted-foreground sm:inline"
+              className="hidden font-mono text-[11px] text-muted-foreground sm:inline"
               data-testid="arrow-hint"
             >
               ← → to move
             </span>
           )}
-          <Button variant="ghost" size="sm" onClick={onStartOver}>
-            Start over
-          </Button>
         </div>
+        <button
+          type="button"
+          onClick={onStartOver}
+          className="rounded-sm text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/60"
+        >
+          Start over
+        </button>
       </div>
 
-      <Separator />
+      {notice}
 
-      <div className="space-y-5">
+      <div className="space-y-6">
         {sentences.map((sentence, index) => {
           const isFocused = index === focused;
 
@@ -76,6 +90,7 @@ export function ReviewPanel({
             <div key={sentence.index} className="space-y-4">
               {isFocused ? (
                 <SentenceView
+                  className={SENTENCE}
                   sentence={sentence}
                   interactive
                   onOpenGate={onOpenGate}
@@ -102,11 +117,12 @@ export function ReviewPanel({
                     onFocus(index);
                   }}
                   className={cn(
-                    'cursor-pointer rounded-md opacity-70 transition-opacity hover:opacity-100',
-                    'outline-none focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring/60',
+                    'cursor-pointer rounded-md text-neutral-400 transition-colors hover:text-foreground',
+                    'outline-none focus-visible:text-foreground focus-visible:ring-2 focus-visible:ring-ring/60',
                   )}
                 >
                   <SentenceView
+                    className={SENTENCE}
                     sentence={sentence}
                     interactive={false}
                     onOpenGate={onOpenGate}
@@ -116,7 +132,12 @@ export function ReviewPanel({
               )}
 
               {isFocused && !cardSlot && (
-                <TeaserList sentence={sentence} onOpenGate={onOpenGate} />
+                <TeaserList
+                  sentence={sentence}
+                  onOpenGate={onOpenGate}
+                  activeGateId={activeGateId}
+                  arrows
+                />
               )}
 
               {isFocused && cardSlot}
@@ -193,35 +214,42 @@ function isTyping(target: EventTarget | null): boolean {
 export function TeaserList({
   sentence,
   onOpenGate,
+  activeGateId,
+  arrows = false,
 }: {
   sentence: ReviewedSentence;
   onOpenGate: (suggestionId: string) => void;
+  /** The gate whose card is open, where the card is not in this list's place. */
+  activeGateId?: string | null;
+  /** The writing page's rows: inset, with an arrow to say they open something. */
+  arrows?: boolean;
 }) {
   if (sentence.gated.length === 0) return null;
 
   return (
-    <ul className="space-y-1.5" data-testid="teasers">
+    <ul data-testid="teasers">
       {sentence.gated.map((suggestion) => (
-        <li key={suggestion.id}>
+        <li key={suggestion.id} className="border-t">
           <button
             type="button"
             data-testid="teaser"
+            aria-current={suggestion.id === activeGateId ? 'true' : undefined}
             onClick={() => onOpenGate(suggestion.id)}
-            className="group flex w-full items-baseline gap-2 rounded-sm text-left text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
+            className={cn(
+              'group flex w-full items-center gap-2.5 py-2.5 text-left text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-ring/60 aria-[current]:bg-cobalt-wash',
+              arrows && 'px-3 py-3 hover:bg-cobalt-wash',
+            )}
           >
-            <span
-              aria-hidden
-              className={cn(
-                'mt-1.5 size-1.5 shrink-0 rounded-full',
-                DOT_STYLES[suggestion.type],
-              )}
-            />
-            <span className="text-muted-foreground group-hover:text-foreground">
-              <span className="font-medium text-foreground">
+            <span aria-hidden className="grid size-3.5 shrink-0 place-items-center">
+              <span className={cn('size-[7px] rounded-full', DOT_STYLES[suggestion.type])} />
+            </span>
+            <span className="flex-1 text-muted-foreground group-hover:text-foreground">
+              <span className="font-semibold text-foreground">
                 {suggestion.original}
               </span>{' '}
               — {suggestion.teaser}
             </span>
+            {arrows && <ArrowRightIcon aria-hidden className="size-3.5 shrink-0 text-cobalt" />}
           </button>
         </li>
       ))}

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { MicIcon } from 'lucide-react';
 import { judgeSaidBack, type SaidBack } from '@auto-learn/shared';
 import { Button } from '@/components/ui/button';
 import { reportEvent } from '@/lib/api';
@@ -22,7 +23,7 @@ import { cn } from '@/lib/utils';
  * attributed to the learner. What it does instead is tell you what was heard,
  * and let you decide.
  */
-export function SayItBack({ word }: { word: string }) {
+export function SayItBack({ word, withMic = false }: { word: string; withMic?: boolean }) {
   const [result, setResult] = useState<SaidBack | null>(null);
 
   const dictation = useDictation((transcript) => {
@@ -31,19 +32,20 @@ export function SayItBack({ word }: { word: string }) {
     reportEvent(
       verdict.verdict === 'matched' ? 'said_back_matched' : 'said_back_missed',
     );
-  });
+    // One word, so one phrase: no Stop to press after saying it.
+  }, { once: true });
 
   const recording = dictation.status === 'recording';
   const busy = dictation.status === 'transcribing';
 
   return (
-    <div className="space-y-1.5 pt-1" data-testid="say-it-back">
+    <div className="space-y-1.5 font-sans" data-testid="say-it-back">
       <Button
         size="sm"
         // Ghost until it is recording: an outline button beside the word reads
         // as something the card wants you to do, and this is an offer.
         variant={recording ? 'default' : 'ghost'}
-        className="text-muted-foreground h-auto px-0 py-0 hover:bg-transparent hover:underline data-[recording=true]:px-2"
+        className="h-auto gap-1.5 px-0 py-0 font-medium text-cobalt underline underline-offset-[3px] hover:bg-transparent hover:text-cobalt data-[recording=true]:px-2 data-[recording=true]:py-1 data-[recording=true]:text-primary-foreground data-[recording=true]:no-underline"
         data-recording={recording}
         data-testid="say-it-back-toggle"
         disabled={busy}
@@ -58,6 +60,7 @@ export function SayItBack({ word }: { word: string }) {
           void dictation.start();
         }}
       >
+        {withMic && !recording && <MicIcon aria-hidden />}
         {recording ? 'Stop' : busy ? 'Listening…' : 'Say it back'}
       </Button>
 
