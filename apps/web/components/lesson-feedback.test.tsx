@@ -11,7 +11,7 @@ jest.mock('@/lib/api', () => ({
 jest.mock('@/lib/bank', () => ({ bankWord: jest.fn() }));
 jest.mock('@/lib/use-dictation', () => ({ useDictation: jest.fn() }));
 
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { UNITS, type LessonFeedbackResponse } from '@auto-learn/shared';
 import type { SpokenResult } from '@/lib/use-lesson';
@@ -26,6 +26,7 @@ const feedback = (over: Partial<LessonFeedbackResponse> = {}): LessonFeedbackRes
   wordUse: null,
   reviewedText: null,
   review: null,
+  fillerNotes: [],
   ...over,
 });
 
@@ -86,6 +87,31 @@ describe('LessonFeedback', () => {
     expect(screen.getByTestId('fillers')).toHaveTextContent(
       '3um ×2, like ×1Fillers heard',
     );
+  });
+
+  it('shows each filler in the words it was said in, the phrase without it, and the tip', () => {
+    const noted = feedback({
+      fillerNotes: [
+        {
+          quote: 'It basically changed how I plan',
+          without: 'It changed how I plan',
+          tip: 'You said it right before your point. Go straight to the point.',
+        },
+      ],
+    });
+    render(
+      <LessonFeedback unit={unit(1)} attempt={attempt({ feedback: noted })} retryTarget={false} />,
+    );
+    const notes = within(screen.getByTestId('filler-notes')).getAllByRole('listitem');
+    expect(notes).toHaveLength(1);
+    expect(notes[0]).toHaveTextContent('“It basically changed how I plan”');
+    expect(notes[0]).toHaveTextContent('Without it: “It changed how I plan”');
+    expect(notes[0]).toHaveTextContent('Go straight to the point.');
+  });
+
+  it('shows no filler notes when the review found none', () => {
+    render(<LessonFeedback unit={unit(1)} attempt={attempt()} retryTarget={false} />);
+    expect(screen.queryByTestId('filler-notes')).toBeNull();
   });
 
   it('offers the unit 3 retry at twenty seconds after the first attempt', async () => {

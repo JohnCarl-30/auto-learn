@@ -51,6 +51,7 @@ const spoken = (wordUse: LessonFeedbackResponse['wordUse']): SpokenResult => ({
     wordUse,
     reviewedText: null,
     review: null,
+    fillerNotes: [],
   },
 });
 
@@ -196,6 +197,37 @@ describe('LessonPanel', () => {
     lesson.mockReturnValue(lessonAt({ step: 'speak', progress: { ...progress, doneToday: 0 } }));
     render(<LessonPanel />);
     expect(filled()).toEqual([false, false, false, true, true, true, false]);
+  });
+
+  it('shows how you speak and names the weakest habit as the focus', () => {
+    const skill = (value: number, score: number) => ({ value, score, before: null });
+    lesson.mockReturnValue(
+      lessonAt({
+        step: 'speak',
+        habits: {
+          answers: 3,
+          skills: {
+            pace: skill(148, 1),
+            fillers: skill(6.5, 0.2),
+            range: skill(0.82, 0.7),
+            structure: skill(0.75, 0.75),
+          },
+        },
+      }),
+    );
+    render(<LessonPanel />);
+    const habits = screen.getByTestId('speaking-habits');
+    expect(habits).toHaveTextContent('148 words a minute');
+    expect(habits).toHaveTextContent('6.5 per 100 words');
+    expect(screen.getByTestId('speaking-focus')).toHaveTextContent(
+      'Focus: Pause instead of filling the gap.',
+    );
+  });
+
+  it('shows no speaking block before any answer has been measured', () => {
+    lesson.mockReturnValue(lessonAt({ step: 'speak', habits: null }));
+    render(<LessonPanel />);
+    expect(screen.queryByTestId('speaking-habits')).toBeNull();
   });
 
   it('dims the locked units on the path and marks them disabled', () => {

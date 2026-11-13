@@ -8,6 +8,7 @@ import {
   type ApiError,
   type LessonFeedbackRequest,
   type LessonFeedbackResponse,
+  type FillerNote,
   type LessonPart,
   type LessonUnit,
   type LessonWordRequest,
@@ -135,6 +136,7 @@ export class LessonService {
       // sentence a gate belongs to, so one without the other is useless.
       reviewedText: review ? reviewedText : null,
       review,
+      fillerNotes: this.onlyRemovals(verdict.fillerNotes, request.answer),
     };
   }
 
@@ -231,6 +233,32 @@ export class LessonService {
       }
       return null;
     }
+  }
+
+  /**
+   * Filler notes are kept only if they quote the learner and take words away.
+   *
+   * A note is the one place the verdict is allowed to restate a sentence, and
+   * only to drop a filler from it. So `without` must be made of words from the
+   * quote and be shorter than it: anything else is the model handing out the
+   * better wording the gate exists to withhold. Three at most, as asked.
+   */
+  private onlyRemovals(notes: FillerNote[], answer: string): FillerNote[] {
+    const said = squash(answer);
+    const words = (text: string) => squash(text).split(' ').filter(Boolean);
+
+    return notes
+      .filter(({ quote, without }) => {
+        const from = words(quote);
+        const to = words(without);
+        return (
+          to.length > 0 &&
+          to.length < from.length &&
+          said.includes(squash(quote)) &&
+          to.every((word) => from.includes(word))
+        );
+      })
+      .slice(0, 3);
   }
 
   /**

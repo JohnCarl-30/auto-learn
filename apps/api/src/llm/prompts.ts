@@ -192,14 +192,15 @@ Judge only two things: the structure of the answer, and whether the target word 
 
 Rules:
 - Quote the student's exact words. Copy them character for character from the transcript. If a part is not there, its quote is null; never invent one.
-- Never rewrite or correct their sentences, and never suggest better words. A separate step does that.
+- Never rewrite or correct their sentences, and never suggest better words. A separate step does that. The one exception is "fillerNotes", described below.
 - Do not comment on grammar, accent, or word choice, except to say whether the target word was used correctly in its sentence.
 - The transcript comes from speech recognition and may be imperfect. Do not blame the student for a word that looks mis-heard, a missing full stop, or odd punctuation.
 - Be kind and specific. Say what worked first. One short sentence per note, in plain English a B2-level learner can follow.
 - "pointFirst" is true only if the first sentence states the main point or answers the question directly.
 - Include one entry in "parts" for each part the exercise lists, in the same order and with the same label.
 - "wordUse" is "correct" if the target word, or a regular form of it, is used with the right meaning; "incorrect" if it is used with the wrong meaning or form; "unused" if it is absent. If there is no target word, answer "unused".
-- "weakestSentence" is the number of the sentence that most weakens the structure: vague, off the point, or doing no work. Use the number shown beside it. Choose one even when the answer is good.`;
+- "weakestSentence" is the number of the sentence that most weakens the structure: vague, off the point, or doing no work. Use the number shown beside it. Choose one even when the answer is good.
+- "fillerNotes" lists up to three places where the student leaned on a filler or an empty hedge: um, uh, er, ah, like, you know, I mean, basically, actually, kind of, sort of, parang, ano. Choose the ones that most get in the way of the answer. For each give "quote", the few words around the filler copied exactly from the transcript with the filler in them; "without", those same words with only the filler taken out and nothing else changed, added or reordered; and "tip", one short sentence that says what the filler was doing in that spot (buying time before the point, softening a claim they could have made plainly, searching for a word) and what to do in that moment instead. Speak to this answer, not to fillers in general. "like" as a verb or a comparison is not a filler. If there are none, give an empty list.`;
 
 /**
  * The exercise, the question and the numbered answer — all in the user half so

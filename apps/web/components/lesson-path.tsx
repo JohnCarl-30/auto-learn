@@ -2,6 +2,7 @@
 
 import { CheckIcon, LockIcon } from 'lucide-react';
 import { LESSONS_TO_UNLOCK, UNITS, type LessonProgress, type UnitId } from '@auto-learn/shared';
+import { SKILLS, focus, type Habits, type Skill } from '@/lib/habits';
 import { cn } from '@/lib/utils';
 
 const LABEL = 'font-mono text-xs uppercase tracking-[0.08em] text-muted-foreground';
@@ -9,16 +10,20 @@ const LABEL = 'font-mono text-xs uppercase tracking-[0.08em] text-muted-foregrou
 /** Beside the lesson: the streak, then the seven units. */
 export function LessonRail({
   progress,
+  habits,
   current,
   onPick,
 }: {
   progress: LessonProgress;
+  /** Absent until one spoken answer has been measured in this browser. */
+  habits?: Habits | null;
   current?: UnitId;
   onPick: (unit: UnitId) => void;
 }) {
   return (
     <div className="space-y-6">
       <StreakCard progress={progress} />
+      {habits && <SpeakingHabits habits={habits} />}
       <LessonPath progress={progress} current={current} onPick={onPick} />
     </div>
   );
@@ -59,6 +64,84 @@ function StreakCard({ progress }: { progress: LessonProgress }) {
         })}
       </div>
     </div>
+  );
+}
+
+const SKILL_LABELS: Record<Skill, string> = {
+  pace: 'Pace',
+  fillers: 'Fillers',
+  range: 'Word variety',
+  structure: 'Structure',
+};
+
+/** What to try next time, said as the one thing to do. */
+function advice(skill: Skill, value: number): string {
+  switch (skill) {
+    case 'pace':
+      return value < 130
+        ? 'Pick up the pace a little.'
+        : 'Slow down, and leave room between points.';
+    case 'fillers':
+      return 'Pause instead of filling the gap.';
+    case 'range':
+      return 'Reach for a different word the second time.';
+    case 'structure':
+      return 'Lead with your point, then back it.';
+  }
+}
+
+function figure(skill: Skill, value: number): string {
+  switch (skill) {
+    case 'pace':
+      return `${Math.round(value)} words a minute`;
+    case 'fillers':
+      return `${value.toFixed(1)} per 100 words`;
+    default:
+      return `${Math.round(value * 100)}%`;
+  }
+}
+
+/**
+ * The running picture of how you speak, and the one thing to work on. A trend
+ * is only shown once it has moved enough to be more than one answer's noise.
+ */
+function SpeakingHabits({ habits }: { habits: Habits }) {
+  const weakest = focus(habits);
+
+  return (
+    <section aria-label="Your speaking" data-testid="speaking-habits">
+      <p className={cn(LABEL, 'pb-2.5')} aria-hidden>
+        Your speaking
+      </p>
+      <ul>
+        {SKILLS.map((skill) => {
+          const { value, score, before } = habits.skills[skill];
+          const moved = before === null ? 0 : score - before;
+          const here = skill === weakest;
+
+          return (
+            <li
+              key={skill}
+              className={cn('border-t px-3 py-3 text-[13px]', here && 'bg-cobalt-wash')}
+            >
+              <div className="flex items-baseline justify-between gap-3">
+                <span className={cn('text-[15px] font-semibold', here && 'text-cobalt')}>
+                  {SKILL_LABELS[skill]}
+                </span>
+                <span className="font-mono text-xs text-muted-foreground">
+                  {figure(skill, value)}
+                  {Math.abs(moved) > 0.02 && (
+                    <span className="sr-only">{moved > 0 ? ', improving' : ', slipping'}</span>
+                  )}
+                  {Math.abs(moved) > 0.02 && <span aria-hidden>{moved > 0 ? ' ↑' : ' ↓'}</span>}
+                </span>
+              </div>
+              {here && <p data-testid="speaking-focus">Focus: {advice(skill, value)}</p>}
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }
 
