@@ -252,6 +252,7 @@ describe('HTTP surface', () => {
             structureNote: 'Short and clear.',
             wordUse: 'unused',
             weakestSentence: 1,
+            fillerNotes: [],
           },
           usage: undefined,
         })

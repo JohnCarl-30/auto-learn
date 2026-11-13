@@ -68,6 +68,7 @@ const feedback = (over: Partial<LessonFeedbackResponse> = {}): LessonFeedbackRes
   wordUse: null,
   reviewedText: null,
   review: null,
+  fillerNotes: [],
   ...over,
 });
 

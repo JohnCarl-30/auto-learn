@@ -44,7 +44,7 @@ function LessonBody({
   onStart: (unit?: UnitId) => void;
 }) {
   const lesson = useLesson(unitId);
-  const { step, unit, progress } = lesson;
+  const { step, unit, progress, habits } = lesson;
 
   return (
     <>
@@ -60,7 +60,12 @@ function LessonBody({
         </div>
         {progress && (
           <aside className="mt-12 lg:mt-0">
-            <LessonRail progress={progress} current={unit?.id} onPick={onStart} />
+            <LessonRail
+              progress={progress}
+              habits={habits}
+              current={unit?.id}
+              onPick={onStart}
+            />
           </aside>
         )}
       </div>

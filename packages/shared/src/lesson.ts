@@ -163,6 +163,18 @@ export const LessonPart = z.object({
 export type LessonPart = z.infer<typeof LessonPart>;
 
 /**
+ * One place the learner leaned on a filler, in their own words: the phrase as
+ * said, the same phrase with only the filler taken out, and what to do in that
+ * moment. `without` never adds a word; the server drops a note that does.
+ */
+export const FillerNote = z.object({
+  quote: z.string(),
+  without: z.string(),
+  tip: z.string(),
+});
+export type FillerNote = z.infer<typeof FillerNote>;
+
+/**
  * What the model itself returns for an answer, before the server adds the
  * things it computes. Kept separate from the response for the same reason as
  * `ModelEdit`: the model reports judgement, never data the server can derive.
@@ -176,6 +188,7 @@ export const ModelLessonVerdict = z.object({
   structureNote: z.string(),
   wordUse: WordUse,
   weakestSentence: z.number().int(),
+  fillerNotes: z.array(FillerNote),
 });
 export type ModelLessonVerdict = z.infer<typeof ModelLessonVerdict>;
 
@@ -197,6 +210,8 @@ export const LessonFeedbackResponse = z.object({
   wordUse: WordUse.nullable(),
   reviewedText: z.string().nullable(),
   review: ProposeResponse.nullable(),
+  // Defaulted so a page newer than the API it calls still reads its answer.
+  fillerNotes: z.array(FillerNote).default([]),
 });
 export type LessonFeedbackResponse = z.infer<typeof LessonFeedbackResponse>;
 

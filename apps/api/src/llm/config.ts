@@ -56,11 +56,11 @@ export const PROPOSE_MAX_OUTPUT_TOKENS = 2000;
 export const CONVERSE_MAX_OUTPUT_TOKENS = 300;
 export const CARD_MAX_OUTPUT_TOKENS = 1200;
 /**
- * A lesson verdict is five short fields and a quote or two per part, so this
- * is room to spare for a three-part unit and no room for an essay on someone's
- * answer.
+ * A lesson verdict is five short fields, a quote or two per part and up to
+ * three filler notes, so this is room to spare for a three-part unit and no
+ * room for an essay on someone's answer.
  */
-export const LESSON_FEEDBACK_MAX_OUTPUT_TOKENS = 600;
+export const LESSON_FEEDBACK_MAX_OUTPUT_TOKENS = 900;
 
 /**
  * Failure policy for both calls.
@@ -118,7 +118,7 @@ export const sessionWordProviderOptions = {
 export const lessonFeedbackProviderOptions = {
   openai: {
     reasoningEffort: 'none',
-    promptCacheKey: 'auto-learn:lesson-feedback:v1',
+    promptCacheKey: 'auto-learn:lesson-feedback:v2',
   },
 } as const;
 

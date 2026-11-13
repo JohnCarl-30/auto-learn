@@ -16,6 +16,7 @@ import {
 } from '@auto-learn/shared';
 import { ApiFailure, fetchCard, lessonFeedback, lessonWord } from '@/lib/api';
 import { bankWord, knownWords, listBank } from '@/lib/bank';
+import { loadHabits, recordAnswer, type Habits } from '@/lib/habits';
 import {
   LessonRequestFailed,
   answerReview as recordReview,
@@ -71,6 +72,7 @@ export function useLesson(unitId?: UnitId) {
   const [reviewIndex, setReviewIndex] = useState(0);
   const [attempts, setAttempts] = useState<SpokenResult[]>([]);
   const [bankedWord, setBankedWord] = useState(false);
+  const [habits, setHabits] = useState<Habits | null>(null);
   const [error, setError] = useState<string | null>(null);
   // A double tap must not send a second feedback request (it costs a model
   // call) or, worse, a second completion (it is another lesson's XP).
@@ -118,6 +120,7 @@ export function useLesson(unitId?: UnitId) {
         word,
       });
       setProgress(start);
+      setHabits(loadHabits());
       setStep(reviews.length > 0 ? 'review' : word ? 'word' : 'speak');
     })();
 
@@ -202,10 +205,9 @@ export function useLesson(unitId?: UnitId) {
           word: setup.word?.word ?? null,
           known: await known(),
         });
-        setAttempts((current) => [
-          ...current,
-          { answer, seconds, fillers: countFillers(answer), feedback },
-        ]);
+        const attempt = { answer, seconds, fillers: countFillers(answer), feedback };
+        setAttempts((current) => [...current, attempt]);
+        setHabits(recordAnswer(attempt));
         setError(null);
         setStep('feedback');
         if (setup.word && feedback.wordUse === 'correct') {
@@ -287,6 +289,7 @@ export function useLesson(unitId?: UnitId) {
     retry,
     finish,
     bankedWord,
+    habits,
     error,
   };
 }

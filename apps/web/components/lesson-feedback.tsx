@@ -118,6 +118,23 @@ export function LessonFeedback({
         )}
       </div>
 
+      {feedback.fillerNotes.length > 0 && (
+        <div className="space-y-3">
+          <p className={LABEL}>Your fillers, and what to do</p>
+          <ul className="border-b" data-testid="filler-notes">
+            {feedback.fillerNotes.map((note, index) => (
+              <li key={index} className="space-y-1 border-t py-3 text-[13px]">
+                <p className="font-display text-[15px] italic">“{note.quote}”</p>
+                <p>
+                  <span className="text-muted-foreground">Without it: </span>“{note.without}”
+                </p>
+                <p className="text-muted-foreground">{note.tip}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {feedback.review && (
         <div className="space-y-3">
           <p className={LABEL}>One sentence, tighter</p>

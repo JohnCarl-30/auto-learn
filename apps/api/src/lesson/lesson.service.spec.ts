@@ -44,6 +44,7 @@ const verdict = (
   structureNote: 'Clear and short.',
   wordUse: 'unused',
   weakestSentence: 1,
+  fillerNotes: [],
   ...overrides,
 });
 
@@ -153,6 +154,41 @@ describe('LessonService.feedback', () => {
     );
 
     expect(result.reviewedText).toBe('I build bots.');
+  });
+
+  it('keeps a filler note only when it quotes the answer and only takes words away', async () => {
+    const tip = 'You were buying time. Pause instead.';
+    verdictOf.mockResolvedValue({
+      object: verdict({
+        fillerNotes: [
+          // Said, and only the filler removed: kept.
+          {
+            quote: 'They basically help shops',
+            without: 'They help shops',
+            tip,
+          },
+          // Never said.
+          { quote: 'I um build apps', without: 'I build apps', tip },
+          // Said, but the rewrite hands out a new word.
+          {
+            quote: 'They basically help shops',
+            without: 'They assist shops',
+            tip,
+          },
+          // Said, but nothing was taken out.
+          { quote: 'I build bots', without: 'I build bots', tip },
+        ],
+      }),
+      usage: undefined,
+    });
+
+    const result = await service().feedback(
+      request({ answer: 'I build bots. They basically help shops.' }),
+    );
+
+    expect(result.fillerNotes).toEqual([
+      { quote: 'They basically help shops', without: 'They help shops', tip },
+    ]);
   });
 
   it('out-of-range weakest index skips the rewrite', async () => {
