@@ -2,8 +2,9 @@ name: Evals
 
 # Never on push or pull_request. Every case is a real model call, so a
 # per-PR eval bills a provider on every commit and — worse — makes a noisy
-# score into a merge blocker. Scheduled and manual only, which is also the
-# argument `ci.yml` already makes for keeping Playwright out.
+# score into a merge blocker. Manual only for now (the schedule is below,
+# commented out), which is also the argument `ci.yml` already makes for keeping
+# Playwright out.
 on:
   workflow_dispatch:
     inputs:
@@ -15,10 +16,22 @@ on:
       repeat:
         description: 'Runs per case. Above 1 measures flakiness, and costs that multiple.'
         default: '1'
-  schedule:
-    # Mondays, 06:00 UTC. The model behind these calls changes without asking,
-    # so the point of a schedule is to notice that before a user does.
-    - cron: '0 6 * * 1'
+  # The weekly schedule is off, because it can never pass here.
+  #
+  # It ran every Monday and failed every time, under thirty seconds in, on
+  # "OPENAI_API_KEY is not set": the repository has no such secret, and the one
+  # key the project has is approved for the app only — never for evals, never
+  # as a CI secret. A job whose precondition is ruled out by policy is not a
+  # signal, just a red mark a week that nobody can act on.
+  #
+  # Run the evals locally (`pnpm eval`), or by hand from the Actions tab once a
+  # separate, eval-only key is stored as the `OPENAI_API_KEY` secret. Restore
+  # the cron line in the same change that adds that secret — the point of a
+  # schedule is noticing that the model behind these calls changed before a
+  # user does.
+  # schedule:
+  #   # Mondays, 06:00 UTC.
+  #   - cron: '0 6 * * 1'
 
 jobs:
   eval:
