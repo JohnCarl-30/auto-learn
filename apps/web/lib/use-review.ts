@@ -260,11 +260,14 @@ export function useReview() {
     setOpen(null);
     setCard(null);
     setReused([]);
-    // Start over is a deliberate request for a blank page; a failed request
-    // is not. Only the first clears the draft.
-    setDraft('');
+    // The sentence goes back in the box as it now reads, accepted fixes and
+    // all: Start over is most often "try another mode on this", and clearing
+    // it made that a retype.
+    if (state.status === 'reviewing') {
+      setDraft(state.response.sentences.map((s) => s.text).join(' '));
+    }
     setState({ status: 'idle' });
-  }, []);
+  }, [state]);
 
   return {
     state,

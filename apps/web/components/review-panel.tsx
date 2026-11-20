@@ -146,12 +146,35 @@ export function ReviewPanel({
         })}
       </div>
 
-      {sentences.every((s) => s.gated.length === 0) && (
-        <p className="text-sm text-muted-foreground">
-          Nothing worth stopping for here — this reads well already.
-        </p>
-      )}
+      <Outcome sentences={sentences} />
     </div>
+  );
+}
+
+/**
+ * The line under the review. "Reads well already" is only true when nothing
+ * was changed and nothing was lost: a fix the reader accepted, or one the
+ * server had to drop, would make it a false all-clear.
+ */
+export function Outcome({ sentences }: { sentences: ReviewedSentence[] }) {
+  const dropped = sentences.reduce((sum, s) => sum + (s.dropped ?? 0), 0);
+  if (dropped > 0) {
+    return (
+      <p className="text-sm text-muted-foreground" data-testid="outcome">
+        We spotted {dropped === 1 ? 'one more thing' : `${dropped} more things`} we
+        couldn&apos;t pin down. Start over to try again, or pick another mode.
+      </p>
+    );
+  }
+
+  if (sentences.some((s) => s.gated.length > 0)) return null;
+
+  return (
+    <p className="text-sm text-muted-foreground" data-testid="outcome">
+      {sentences.some((s) => s.text !== s.original)
+        ? 'All fixed — copy your sentence below.'
+        : 'Nothing worth stopping for here — this reads well already.'}
+    </p>
   );
 }
 

@@ -149,7 +149,7 @@ describe('ProposeService span resolution', () => {
   it('counts what it dropped, so the silence is measurable', () => {
     const before = telemetry.snapshot().editsDropped;
 
-    resolve('The results were substantial.', [
+    const sentence = resolve('The results were substantial.', [
       {
         type: 'word-choice',
         original: 'gigantic',
@@ -165,6 +165,8 @@ describe('ProposeService span resolution', () => {
     ]);
 
     expect(telemetry.snapshot().editsDropped).toBe(before + 2);
+    // And the reader is told, rather than shown a false all-clear.
+    expect(sentence.dropped).toBe(2);
   });
 
   it('counts nothing when every edit lands', () => {
