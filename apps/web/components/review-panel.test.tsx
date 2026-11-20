@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ProposeResponse, ReviewedSentence } from '@auto-learn/shared';
-import { ReviewPanel } from './review-panel';
+import { Outcome, ReviewPanel } from './review-panel';
 
 const sentence = (index: number, text: string): ReviewedSentence => ({
   index,
@@ -141,5 +141,37 @@ describe('ReviewPanel arrow keys', () => {
     await user.keyboard('{Meta>}{ArrowRight}{/Meta}');
 
     expect(onFocus).not.toHaveBeenCalled();
+  });
+});
+
+describe('Outcome', () => {
+  const clean = (overrides: Partial<ReviewedSentence> = {}): ReviewedSentence => ({
+    index: 0,
+    original: 'The results were large.',
+    text: 'The results were large.',
+    silentFixes: [],
+    gated: [],
+    ...overrides,
+  });
+
+  it('says it reads well only when nothing changed and nothing was lost', () => {
+    render(<Outcome sentences={[clean()]} />);
+    expect(screen.getByTestId('outcome')).toHaveTextContent(/reads well already/);
+  });
+
+  it('says all fixed once the text has changed', () => {
+    render(<Outcome sentences={[clean({ text: 'The results were substantial.' })]} />);
+    expect(screen.getByTestId('outcome')).toHaveTextContent(/All fixed/);
+  });
+
+  it('owns up to fixes it dropped instead of giving an all-clear', () => {
+    render(<Outcome sentences={[clean({ dropped: 1 })]} />);
+    expect(screen.getByTestId('outcome')).toHaveTextContent(/one more thing we\s+couldn.t pin down/);
+    expect(screen.queryByText(/reads well already/)).toBeNull();
+  });
+
+  it('stays quiet while suggestions are still open', () => {
+    render(<Outcome sentences={[sentence(0, 'Some words here.')]} />);
+    expect(screen.queryByTestId('outcome')).toBeNull();
   });
 });
