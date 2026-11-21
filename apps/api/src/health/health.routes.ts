@@ -1,5 +1,4 @@
-import { Controller, Get } from '@nestjs/common';
-import { SkipThrottle } from '@nestjs/throttler';
+import { Hono } from 'hono';
 
 /**
  * Liveness, for the host's health check.
@@ -13,11 +12,6 @@ import { SkipThrottle } from '@nestjs/throttler';
  * Deliberately says nothing about the model or the key. This answers "is the
  * process up", which is the only question a restart can fix.
  */
-@Controller('health')
-export class HealthController {
-  @SkipThrottle()
-  @Get()
-  check(): { status: 'ok' } {
-    return { status: 'ok' };
-  }
-}
+export const healthRoutes = new Hono().get('/', (c) =>
+  c.json({ status: 'ok' as const }),
+);

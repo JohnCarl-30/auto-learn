@@ -1,4 +1,4 @@
-import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
+import { HttpException, HttpStatus, Logger } from '../common/http';
 import { generateObject, streamObject, type DeepPartial } from 'ai';
 import { createHash } from 'node:crypto';
 import { LRUCache } from 'lru-cache';
@@ -70,7 +70,6 @@ export type Prepared =
 /** The half-written card `partialObjectStream` hands back. */
 type PartialCard = DeepPartial<ModelCard>;
 
-@Injectable()
 export class CardService {
   private readonly logger = new Logger(CardService.name);
 

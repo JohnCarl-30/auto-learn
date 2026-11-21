@@ -1,4 +1,4 @@
-import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
+import { HttpException, HttpStatus, Logger } from '../common/http';
 import { generateObject, streamObject, type DeepPartial } from 'ai';
 import { randomUUID } from 'node:crypto';
 import {
@@ -42,7 +42,6 @@ type PartialEdit = NonNullable<
   NonNullable<NonNullable<PartialProposal['sentences']>[number]>['edits']
 >[number];
 
-@Injectable()
 export class ProposeService {
   private readonly logger = new Logger(ProposeService.name);
 

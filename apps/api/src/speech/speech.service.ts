@@ -1,4 +1,4 @@
-import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
+import { HttpException, HttpStatus, Logger } from '../common/http';
 import { generateSpeech } from 'ai';
 import { LRUCache } from 'lru-cache';
 import type {
@@ -18,7 +18,6 @@ import {
   voiceStudioUrl,
 } from '../llm/models';
 
-@Injectable()
 export class SpeechService {
   private readonly logger = new Logger(SpeechService.name);
 

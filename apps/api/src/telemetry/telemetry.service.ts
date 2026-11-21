@@ -1,4 +1,3 @@
-import { Injectable } from '@nestjs/common';
 import type { TelemetrySnapshot } from '@auto-learn/shared';
 import { priceCall, type RawUsage } from '../llm/pricing';
 
@@ -8,7 +7,6 @@ import { priceCall, type RawUsage } from '../llm/pricing';
  * opening the cards, and does anyone arrive with an essay". Persist them when
  * the answer starts mattering to someone other than us.
  */
-@Injectable()
 export class TelemetryService {
   private readonly since = new Date().toISOString();
   private readonly counts = {

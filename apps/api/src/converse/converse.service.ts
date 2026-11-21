@@ -1,4 +1,4 @@
-import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
+import { HttpException, HttpStatus, Logger } from '../common/http';
 import { generateText } from 'ai';
 import {
   MAX_SENTENCES,
@@ -45,7 +45,6 @@ import { TelemetryService } from '../telemetry/telemetry.service';
  */
 export const SPOKEN_TRANSFORM: TransformOption = 'natural';
 
-@Injectable()
 export class ConverseService {
   private readonly logger = new Logger(ConverseService.name);
 

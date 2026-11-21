@@ -1,6 +1,7 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
-import { ThrottlerGuard, minutes } from '@nestjs/throttler';
+import { createMiddleware } from 'hono/factory';
 import type { ApiError } from '@auto-learn/shared';
+
+const minutes = (n: number) => n * 60_000;
 
 /**
  * Request-volume limits, per IP.
@@ -53,21 +54,64 @@ export const RATE_LIMITS = {
   lessonWord: { ttl: minutes(1), limit: 5 },
 } as const;
 
-/**
- * The throttler's own 429 body does not match `ApiError`, and the browser parses
- * every failure with that schema — an unmapped shape arrives as the generic
- * "The server sent back something unexpected." Say what actually happened, in
- * the same shape as every other refusal.
- */
-@Injectable()
-export class ApiThrottlerGuard extends ThrottlerGuard {
-  protected throwThrottlingException(): Promise<void> {
-    const error: ApiError = {
-      code: 'rate_limited',
-      message:
-        'Too many requests in a short time. Wait a moment, then try again.',
-    };
+export type RateLimitName = keyof typeof RATE_LIMITS;
 
-    throw new HttpException(error, HttpStatus.TOO_MANY_REQUESTS);
-  }
+/**
+ * The client's address, as one trusted proxy hop reports it: the last entry of
+ * X-Forwarded-For is what the host's load balancer appended. Trusting the
+ * whole chain would let a client name its own address in that header and step
+ * around the limit entirely.
+ */
+function clientIp(forwardedFor: string | undefined): string {
+  return forwardedFor?.split(',').pop()?.trim() || 'local';
+}
+
+const windows = new Map<string, { count: number; resetAt: number }>();
+
+/** Empties every counter, for tests that send more than one window's worth. */
+export function resetRateLimits(): void {
+  windows.clear();
+}
+
+/**
+ * One counter per limit name and address. Routes that are the same spend —
+ * /propose and /propose/stream — share a name, so a second route is not a
+ * second door to the same budget.
+ *
+ * shortcut: counters live in this process, so on serverless each instance
+ * counts on its own; move them to Redis (REDIS_URL is already there) when a
+ * limit has to hold across instances.
+ */
+export function rateLimit(name: RateLimitName) {
+  const { ttl, limit } = RATE_LIMITS[name];
+
+  return createMiddleware(async (c, next) => {
+    const key = `${name}:${clientIp(c.req.header('x-forwarded-for'))}`;
+    const now = Date.now();
+    let window = windows.get(key);
+
+    if (!window || window.resetAt <= now) {
+      if (windows.size > 10_000) {
+        for (const [k, w] of windows) if (w.resetAt <= now) windows.delete(k);
+      }
+      window = { count: 0, resetAt: now + ttl };
+      windows.set(key, window);
+    }
+
+    if (++window.count > limit) {
+      c.header('Retry-After', String(Math.ceil((window.resetAt - now) / 1000)));
+      // The browser parses every failure with `ApiError`; any other shape
+      // arrives as "The server sent back something unexpected."
+      return c.json(
+        {
+          code: 'rate_limited',
+          message:
+            'Too many requests in a short time. Wait a moment, then try again.',
+        } satisfies ApiError,
+        429,
+      );
+    }
+
+    await next();
+  });
 }

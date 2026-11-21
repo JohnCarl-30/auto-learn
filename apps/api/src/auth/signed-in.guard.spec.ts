@@ -1,4 +1,4 @@
-import { ExecutionContext, HttpException } from '@nestjs/common';
+import { HttpException } from '../common/http';
 import { sign } from 'jsonwebtoken';
 import { API_TOKEN_AUDIENCE, API_TOKEN_ISSUER } from '@auto-learn/shared';
 import type { RequestWithCaller } from './caller.guard';
@@ -24,25 +24,21 @@ function token(expiresIn?: number): string {
 }
 
 function contextWith(authorization?: string): {
-  context: ExecutionContext;
+  context: RequestWithCaller;
   request: RequestWithCaller;
 } {
-  const request = {
+  const request: RequestWithCaller = {
     header: (name: string) =>
       name.toLowerCase() === 'authorization' ? authorization : undefined,
-  } as unknown as RequestWithCaller;
+  };
 
-  const context = {
-    switchToHttp: () => ({ getRequest: () => request }),
-  } as unknown as ExecutionContext;
-
-  return { context, request };
+  return { context: request, request };
 }
 
 /** Runs the guard and hands back what it threw, failing the test if it did not. */
 function refusal(
   guard: SignedInGuard,
-  context: ExecutionContext,
+  context: RequestWithCaller,
 ): HttpException {
   try {
     guard.canActivate(context);

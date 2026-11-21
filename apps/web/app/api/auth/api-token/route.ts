@@ -9,7 +9,7 @@ import {
 import { currentUser } from '@/lib/dal';
 
 /**
- * Mints a short-lived token the NestJS API will accept.
+ * Mints a short-lived token the API will accept.
  *
  * The web app holds the session; the API is a different origin that holds no
  * user table and no Auth.js secret. Rather than teach it to decrypt a session

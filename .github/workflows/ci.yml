@@ -47,7 +47,7 @@ jobs:
       - name: Lint
         run: pnpm -r --if-present lint
 
-      # Next and Nest compile differently from a bare tsc, so this catches
+      # Next and the API's tsc build compile differently from a bare tsc, so this catches
       # breakage typecheck alone can miss.
       - name: Build
         run: pnpm build

@@ -1,4 +1,4 @@
-import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
+import { HttpException, HttpStatus, Logger } from '../common/http';
 import { transcribe } from 'ai';
 import type { ApiError, DictateResponse } from '@auto-learn/shared';
 import {
@@ -11,7 +11,6 @@ import { TelemetryService } from '../telemetry/telemetry.service';
 /** Per attempt; see the call below for why it is this long. */
 const DICTATE_TIMEOUT_MS = 45_000;
 
-@Injectable()
 export class DictateService {
   private readonly logger = new Logger(DictateService.name);
 

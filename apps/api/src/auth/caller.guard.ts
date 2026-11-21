@@ -1,11 +1,4 @@
-import {
-  CanActivate,
-  ExecutionContext,
-  Injectable,
-  Logger,
-  UnauthorizedException,
-} from '@nestjs/common';
-import type { Request } from 'express';
+import { Logger, UnauthorizedException } from '../common/http';
 import { verify } from 'jsonwebtoken';
 import {
   API_TOKEN_AUDIENCE,
@@ -13,8 +6,13 @@ import {
   type Caller,
 } from '@auto-learn/shared';
 
-/** What a guarded handler can read off the request once this has run. */
-export interface RequestWithCaller extends Request {
+/**
+ * What the guard reads, and what it writes back once it has run. Hono's
+ * `c.req` already has `header()`; the middleware in `auth.middleware.ts` copies
+ * `caller` into the context.
+ */
+export interface RequestWithCaller {
+  header(name: string): string | undefined;
   caller?: Caller;
 }
 
@@ -39,12 +37,10 @@ export interface RequestWithCaller extends Request {
  * a second small library is a cheaper answer than raising the floor for everyone
  * over one import.
  */
-@Injectable()
-export class CallerGuard implements CanActivate {
+export class CallerGuard {
   private readonly logger = new Logger(CallerGuard.name);
 
-  canActivate(context: ExecutionContext): boolean {
-    const request = context.switchToHttp().getRequest<RequestWithCaller>();
+  canActivate(request: RequestWithCaller): boolean {
     const token = bearer(request.header('authorization'));
 
     if (!token) throw new UnauthorizedException('Sign in to do that.');

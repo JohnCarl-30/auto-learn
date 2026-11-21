@@ -1,9 +1,13 @@
 # api
 
-The server half. NestJS, deliberately not serverless: it holds a session
-between `/propose` writing a proposal and `/card` opening one of its gates, it
-streams both of those routes for seconds at a time, and it reads a 36MB WordNet
-database off local disk.
+The server half, on Hono. It holds a session between `/propose` writing a
+proposal and `/card` opening one of its gates (in Redis when `REDIS_URL` is
+set, so it runs serverless), streams both of those routes for seconds at a
+time, and reads a 36MB WordNet database off local disk.
+
+`src/create-app.ts` wires every service and route by hand. `src/index.ts`
+default-exports the app, which is the entry Vercel looks for; `src/main.ts`
+serves it as a plain Node process for local development and Render.
 
 Start it from the repository root with `pnpm dev`, which builds
 `packages/shared` first. `OPENAI_API_KEY` is the only variable it needs; it

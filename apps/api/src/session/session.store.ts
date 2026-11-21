@@ -1,4 +1,3 @@
-import { Injectable } from '@nestjs/common';
 import { LRUCache } from 'lru-cache';
 import { randomUUID } from 'node:crypto';
 import type {
@@ -48,7 +47,6 @@ export interface ProposalSession {
  * the in-memory implementation answers immediately and pays nothing for the
  * signature.
  */
-@Injectable()
 export abstract class SessionStore {
   abstract create(
     option: TransformOption,
@@ -107,7 +105,6 @@ export const SESSION_TTL_MS = 60 * 60 * 1000;
  * two instances: the card request lands in a process that never saw the
  * proposal, and the gate — the whole mechanic — returns session_not_found.
  */
-@Injectable()
 export class MemorySessionStore extends SessionStore {
   private readonly cache = new LRUCache<string, ProposalSession>({
     max: 5_000,

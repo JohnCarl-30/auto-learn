@@ -10,12 +10,12 @@ jest.mock('@ai-sdk/elevenlabs', () => ({
   elevenLabs: { speech: jest.fn(), transcription: jest.fn() },
 }));
 
-import { INestApplication } from '@nestjs/common';
-import { Test } from '@nestjs/testing';
+import type { Server } from 'node:http';
+import { createAdaptorServer } from '@hono/node-server';
 import request from 'supertest';
 import { ApiError } from '@auto-learn/shared';
-import { AppModule } from './app.module';
-import { RATE_LIMITS } from './common/rate-limit';
+import { createApp } from './create-app';
+import { RATE_LIMITS, resetRateLimits } from './common/rate-limit';
 
 /**
  * The limits exist to stop an unauthenticated caller spending the model budget,
@@ -23,36 +23,32 @@ import { RATE_LIMITS } from './common/rate-limit';
  * in the shape the browser can read, and that it lands on the caller who earned
  * it rather than on the rest of the app.
  *
- * The bodies below are deliberately invalid: the guard runs before the Zod pipe,
+ * The bodies below are deliberately invalid: the limit runs before validation,
  * so a 400 still spends the allowance and no model call is ever attempted.
  */
 describe('rate limiting', () => {
-  let app: INestApplication;
+  let listening: Server;
 
   beforeAll(async () => {
-    const moduleRef = await Test.createTestingModule({
-      imports: [AppModule],
-    }).compile();
-
-    app = moduleRef.createNestApplication();
-    await app.init();
+    resetRateLimits();
+    listening = createAdaptorServer({ fetch: createApp().fetch }) as Server;
 
     // Listening before the first request, not per request.
     //
     // supertest binds an ephemeral port itself when handed a server that is
     // not listening, and this file fires over a hundred requests back to back.
     // At that rate one occasionally lands on a socket from a bind that is
-    // still closing, and comes back empty with a 403 or a 404 and none of
-    // Nest's headers — an answer from nothing at all, which then reads as this
-    // suite's assertion failing. Roughly one run in eight.
-    await app.listen(0);
+    // still closing, and comes back empty with a 403 or a 404 — an answer
+    // from nothing at all, which then reads as this suite's assertion
+    // failing. Roughly one run in eight.
+    await new Promise<void>((resolve) => listening.listen(0, resolve));
   });
 
   afterAll(async () => {
-    await app.close();
+    await new Promise((resolve) => listening.close(resolve));
   });
 
-  const server = () => app.getHttpServer() as Parameters<typeof request>[0];
+  const server = () => listening;
 
   const propose = () => request(server()).post('/propose').send({});
 
@@ -68,7 +64,7 @@ describe('rate limiting', () => {
    * It was not, however, the flake. That was the ephemeral bind above, found
    * by capturing the failing response instead of reasoning about it: the
    * status was a 403 one time and a 404 the next, with an empty body and none
-   * of Nest's headers, which no guard in this application produces. The
+   * of the app's headers, which nothing in this application produces. The
    * discarded theory — that the minute-long window rolled mid-test — was
    * measurably wrong: the burst takes 33ms idle and 129ms under eight CPU
    * spinners, against 60,000ms.

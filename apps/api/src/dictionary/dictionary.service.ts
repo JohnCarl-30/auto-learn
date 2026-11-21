@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Logger } from '../common/http';
 import { LRUCache } from 'lru-cache';
 import type { Pronunciation } from '@auto-learn/shared';
 import { pickPronunciation, type PhoneticSource } from './phonetics';
@@ -36,7 +36,6 @@ const NOTHING_HEARD: Pronunciation = { ipa: null, audioUrl: null };
  * synthesis. The network sits where its failure is cosmetic, which is the
  * lesson the sense lookup taught the expensive way.
  */
-@Injectable()
 export class DictionaryService {
   private readonly logger = new Logger(DictionaryService.name);
 
