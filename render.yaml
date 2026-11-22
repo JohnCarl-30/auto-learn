@@ -40,8 +40,6 @@ services:
     envVars:
       - key: ANTHROPIC_API_KEY
         sync: false # Set in the dashboard. Never in this file.
-      - key: OPENAI_API_KEY
-        sync: false # Optional: dictation without ElevenLabs transcribes with it.
       - key: WEB_ORIGIN
         sync: false # The Vercel URL, once the web app has one.
       # Voice. Without these, dictation and spoken pronunciation refuse;

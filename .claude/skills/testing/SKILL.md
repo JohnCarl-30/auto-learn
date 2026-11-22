@@ -40,7 +40,7 @@ import rather than at your test.
 That single fact drives the whole split:
 
 - A test that must touch the real SDK is a **`*.test.ts`** under vitest. `apps/api/src/llm/models.test.ts`
-  is the worked example — it asserts `provider` contains `openai`, which only passes if the
+  is the worked example — it asserts `provider` contains `elevenlabs`, which only passes if the
   package genuinely loaded.
 - A **`*.spec.ts`** mocks them, above the imports, because `jest.mock` hoists:
 

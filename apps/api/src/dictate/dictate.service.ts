@@ -27,6 +27,18 @@ export class DictateService {
    * belongs, in the buttons underneath.
    */
   async dictate(audio: Uint8Array): Promise<DictateResponse> {
+    // The installed iPhone app cannot use the browser's speech recognition and
+    // depends on this route, so a missing key is said plainly, not as a
+    // recording that could not be made out.
+    if (!process.env.ELEVENLABS_API_KEY) {
+      this.logger.error('ELEVENLABS_API_KEY is not set; cannot transcribe.');
+      this.telemetry.dictationFailed();
+      throw this.fail(
+        'upstream_failed',
+        "I can't listen to recordings right now. Type it instead.",
+      );
+    }
+
     let text: string;
 
     try {
@@ -48,9 +60,7 @@ export class DictateService {
       text = result.text;
       // Seconds, because that is the unit ElevenLabs bills this route in.
       // Undefined when the provider does not report it, which the counter
-      // ignores rather than guessing at — and OpenAI's transcription models
-      // return no duration, so on that path `secondsTranscribed` stays 0 and
-      // only the dictation count moves.
+      // ignores rather than guessing at.
       this.telemetry.transcribed(result.durationInSeconds ?? 0);
     } catch (error) {
       this.logger.warn('transcription failed', error);

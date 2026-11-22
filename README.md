@@ -39,7 +39,7 @@ pnpm dev
 The web app is on http://localhost:3000, the API on http://localhost:3001.
 
 `ANTHROPIC_API_KEY` is the only one you need. Without `ELEVENLABS_API_KEY`,
-dictation falls back to transcribing with OpenAI (`OPENAI_API_KEY`); without it and
+dictation and spoken lesson answers refuse (typing still works); without it and
 `ELEVENLABS_VOICE_ID`, spoken pronunciation of words the dictionary has no
 recording for refuses, and everything else works — the API says which are
 missing at boot. Word senses come from

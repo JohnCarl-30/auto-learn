@@ -9,14 +9,11 @@ jest.mock('ai', () => ({
   generateSpeech: jest.fn(),
   transcribe: jest.fn(),
 }));
-// A developer's .env may point the text models at Ollama; ConfigModule never
-// overrides a variable already set, so this keeps these tests on the OpenAI path.
+// A developer's shell may point the text models at Ollama; this keeps these
+// tests on the Claude path.
 process.env.OLLAMA_MODEL = '';
-// `.transcription` too: with no ElevenLabs key set, `transcribeModel()` falls
-// through to OpenAI, and the mock has to be callable and carry that method.
-jest.mock('@ai-sdk/openai', () => ({
-  openai: Object.assign(jest.fn(), { transcription: jest.fn() }),
-}));
+// Loaded by llm/models.ts for the partner voice (VoiceStudio) only.
+jest.mock('@ai-sdk/openai', () => ({ createOpenAI: jest.fn() }));
 jest.mock('@ai-sdk/elevenlabs', () => ({
   elevenLabs: { speech: jest.fn(), transcription: jest.fn() },
 }));
@@ -607,7 +604,9 @@ describe('HTTP surface', () => {
     beforeEach(() => {
       listen.mockReset();
       listen.mockResolvedValue({ text: 'The evidence was substantial.' });
+      process.env.ELEVENLABS_API_KEY = 'test-key';
     });
+    afterEach(() => delete process.env.ELEVENLABS_API_KEY);
 
     const recording = (bytes: number, contentType = 'audio/webm') =>
       request(server()).post('/dictate').attach('audio', Buffer.alloc(bytes), {

@@ -1,5 +1,5 @@
 import { elevenLabs } from '@ai-sdk/elevenlabs';
-import { createOpenAI, openai } from '@ai-sdk/openai';
+import { createOpenAI } from '@ai-sdk/openai';
 
 /**
  * Provider wiring for the audio calls, and the text model ids. Everything a caller might want to *read*
@@ -12,7 +12,6 @@ export * from './config';
 import {
   CARD_MODEL,
   CONVERSE_MODEL,
-  OPENAI_TRANSCRIBE_MODEL,
   PROPOSE_MODEL,
   SPEECH_MODEL,
   TRANSCRIBE_MODEL,
@@ -33,18 +32,8 @@ export const proposeModel = () => textModel(PROPOSE_MODEL);
 export const cardModel = () => textModel(CARD_MODEL);
 export const converseModel = () => textModel(CONVERSE_MODEL);
 
-/**
- * ElevenLabs when its key is set, OpenAI otherwise — so the free deploy
- * dictates on the one key it already has, and a deploy that configures
- * ElevenLabs keeps the model it was tuned for.
- *
- * Read at call time, not import time: the environment is loaded after the
- * module graph, and tests flip the key between calls.
- */
-export const transcribeModel = () =>
-  process.env.ELEVENLABS_API_KEY
-    ? elevenLabs.transcription(TRANSCRIBE_MODEL)
-    : openai.transcription(OPENAI_TRANSCRIBE_MODEL);
+/** ElevenLabs only: Anthropic has no speech-to-text, and OpenAI is not used. */
+export const transcribeModel = () => elevenLabs.transcription(TRANSCRIBE_MODEL);
 
 export const speechModel = () => elevenLabs.speech(SPEECH_MODEL);
 

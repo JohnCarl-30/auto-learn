@@ -25,8 +25,9 @@ function checkApiKeys(logger: Logger): void {
   if (!process.env.ELEVENLABS_API_KEY || !process.env.ELEVENLABS_VOICE_ID) {
     logger.warn('ELEVENLABS_API_KEY or ELEVENLABS_VOICE_ID is not set.');
     logger.warn('  Synthesised pronunciation returns 502.');
-    logger.warn('  Dictation does not need it: with no ElevenLabs key it');
-    logger.warn('  transcribes with OpenAI instead, if OPENAI_API_KEY is set.');
+    logger.warn(
+      '  Without the key, dictation (which the iPhone app relies on) returns 502.',
+    );
     logger.warn('  Words the dictionary has a recording for still play,');
     logger.warn('  and every card still shows its written pronunciation.');
   }

@@ -126,7 +126,7 @@ export const cardProviderOptions: ClaudeOptions = {
 
 // --- Voice ------------------------------------------------------------------
 // A different provider, and deliberately so: Claude is where the reasoning
-// happens, ElevenLabs (or OpenAI's transcription) is where the speaking happens. Both go through the same
+// happens, ElevenLabs is where the speaking and the listening happen. Both go through the same
 // AI SDK functions, so the vendor is these constants rather than an
 // architecture — swapping back is this file and its wiring, and nothing else.
 
@@ -135,15 +135,6 @@ export const cardProviderOptions: ClaudeOptions = {
  * their own speech turns into text, so it takes the fast tier.
  */
 export const TRANSCRIBE_MODEL = 'scribe_v2';
-
-/**
- * What transcribes when ElevenLabs is not configured, which is the free-tier
- * deploy: the installed iPhone app cannot use the browser's speech recognition,
- * so it records and posts to /dictate, and that has to work on the OpenAI key
- * alone. The mini model because the audio is one short sentence and someone is
- * watching a spinner — the same reasoning as the fast tier above.
- */
-export const OPENAI_TRANSCRIBE_MODEL = 'gpt-4o-mini-transcribe';
 
 /**
  * Speech does not: it fires on a click, for a single word, and the result is
@@ -190,11 +181,6 @@ export const transcribeProviderOptions = {
     diarize: false,
     timestampsGranularity: 'none',
   },
-  // Each provider reads only its own key, so both sets ride along and
-  // `transcribeModel()` decides which applies. The same hazard as above, on the
-  // path the deployed site actually uses: unpinned, accented English can come
-  // back translated rather than transcribed.
-  openai: { language: 'en' },
 } as const;
 
 export const SPEECH_OUTPUT_FORMAT = 'mp3_22050_32';
