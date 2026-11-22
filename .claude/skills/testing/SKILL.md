@@ -73,7 +73,7 @@ If you changed a shared type, `pnpm typecheck` is the run that matters.
 Tests needing real model output are gated, not deleted:
 
 ```ts
-test.skip(!process.env.OPENAI_API_KEY, 'needs OPENAI_API_KEY to get real proposals');
+test.skip(!process.env.ANTHROPIC_API_KEY, 'needs ANTHROPIC_API_KEY to get real proposals');
 ```
 
 Everything deterministic — the sentence cap, validation, grammar notes — runs without a key,

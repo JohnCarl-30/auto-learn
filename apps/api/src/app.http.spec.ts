@@ -1,9 +1,11 @@
 // `ai`, `@ai-sdk/openai` and `@ai-sdk/elevenlabs` are ESM-only; jest's CJS
 // runtime cannot load them.
-jest.mock('ai', () => ({
+jest.mock('./llm/claude', () => ({
   generateObject: jest.fn(),
   generateText: jest.fn(),
   streamObject: jest.fn(),
+}));
+jest.mock('ai', () => ({
   generateSpeech: jest.fn(),
   transcribe: jest.fn(),
 }));
@@ -23,13 +25,8 @@ import type { Server } from 'node:http';
 import { createAdaptorServer } from '@hono/node-server';
 import request from 'supertest';
 import { sign } from 'jsonwebtoken';
-import {
-  generateObject,
-  generateSpeech,
-  generateText,
-  streamObject,
-  transcribe,
-} from 'ai';
+import { generateObject, generateText, streamObject } from './llm/claude';
+import { generateSpeech, transcribe } from 'ai';
 import {
   API_TOKEN_AUDIENCE,
   API_TOKEN_ISSUER,

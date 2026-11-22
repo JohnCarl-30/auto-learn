@@ -1,13 +1,15 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { createOpenAI, openai } from '@ai-sdk/openai';
-import { generateText } from 'ai';
 import { SCENARIO_OPENERS } from '@auto-learn/shared';
 import {
   CONVERSE_MAX_OUTPUT_TOKENS,
   CONVERSE_MODEL,
+  CONVERSE_TIMEOUT_MS,
+  MODEL_MAX_RETRIES_VOICE,
   converseProviderOptions,
 } from '../../apps/api/src/llm/config';
+import { generateText } from '../../apps/api/src/llm/claude';
+import { converseModel } from '../../apps/api/src/llm/models';
 import {
   CONVERSE_SYSTEM_PROMPT,
   converseUserPrompt,
@@ -76,16 +78,6 @@ function parseArgs(argv: string[]) {
   };
 }
 
-/** The same routing as `apps/api/src/llm/models.ts`: Ollama when OLLAMA_MODEL is set, OpenAI otherwise. */
-function replyModel() {
-  const local = process.env.OLLAMA_MODEL;
-  if (!local) return openai(CONVERSE_MODEL);
-  return createOpenAI({
-    baseURL: process.env.OLLAMA_BASE_URL || 'http://localhost:11434/v1',
-    apiKey: 'ollama',
-  }).chat(local);
-}
-
 async function timed<T>(work: () => Promise<T>): Promise<[number, T]> {
   const started = performance.now();
   const value = await work();
@@ -107,11 +99,13 @@ async function post<T>(api: string, path: string, body: unknown): Promise<T> {
 async function trial(api: string, utterance: string): Promise<Trial> {
   const [reply, direct] = await timed(() =>
     generateText({
-      model: replyModel(),
+      model: converseModel(),
       system: CONVERSE_SYSTEM_PROMPT,
       prompt: converseUserPrompt({ scenario: SCENARIO, history: HISTORY, utterance }),
       providerOptions: converseProviderOptions,
       maxOutputTokens: CONVERSE_MAX_OUTPUT_TOKENS,
+      maxRetries: MODEL_MAX_RETRIES_VOICE,
+      abortSignal: AbortSignal.timeout(CONVERSE_TIMEOUT_MS),
     }),
   );
   // A fast empty answer is not a fast answer: the API would throw it away.
@@ -142,8 +136,8 @@ async function main(): Promise<number> {
   }
 
   loadApiEnv();
-  if (!process.env.OLLAMA_MODEL && !process.env.OPENAI_API_KEY) {
-    process.stderr.write('Neither OLLAMA_MODEL nor OPENAI_API_KEY is set, so there is no model to time.\n');
+  if (!process.env.OLLAMA_MODEL && !process.env.ANTHROPIC_API_KEY) {
+    process.stderr.write('Neither OLLAMA_MODEL nor ANTHROPIC_API_KEY is set, so there is no model to time.\n');
     return 2;
   }
 

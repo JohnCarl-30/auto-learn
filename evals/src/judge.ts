@@ -1,7 +1,6 @@
-import { openai } from '@ai-sdk/openai';
-import { generateObject } from 'ai';
 import type { z } from 'zod';
-import { CARD_MODEL } from '../../apps/api/src/llm/config';
+import { generateObject } from '../../apps/api/src/llm/claude';
+import { MODEL_MAX_RETRIES } from '../../apps/api/src/llm/config';
 import { priceCall } from './cost';
 import type { Spend } from './types';
 
@@ -15,8 +14,11 @@ import type { Spend } from './types';
  * and the cheapest way to test for it is to re-run under another judge and see
  * whether the verdicts move.
  */
-export const JUDGE_MODEL = process.env.EVAL_JUDGE_MODEL ?? CARD_MODEL;
-const JUDGE_EFFORT = process.env.EVAL_JUDGE_EFFORT ?? 'medium';
+export const JUDGE_MODEL = process.env.EVAL_JUDGE_MODEL ?? 'claude-opus-5-5';
+const JUDGE_EFFORT = (process.env.EVAL_JUDGE_EFFORT ?? 'medium') as
+  | 'low'
+  | 'medium'
+  | 'high';
 
 /**
  * Prepended to every rubric.
@@ -39,18 +41,15 @@ export async function judge<Schema extends z.ZodType>(input: {
   schema: Schema;
 }): Promise<{ verdict: z.infer<Schema>; spend: Spend }> {
   const result = await generateObject({
-    model: openai(JUDGE_MODEL),
+    model: JUDGE_MODEL,
     schema: input.schema,
     system: `${JUDGE_PREAMBLE}\n\n${input.rubric}`,
     prompt: input.prompt,
-    providerOptions: {
-      openai: {
-        reasoningEffort: JUDGE_EFFORT,
-        // Same reason production caches: the rubric is constant per suite.
-        promptCacheKey: 'auto-learn:judge:v1',
-      },
-    },
-    maxOutputTokens: 1500,
+    providerOptions: { effort: JUDGE_EFFORT, thinking: true },
+    // Thinking counts against this, so room for it as well as the verdict.
+    maxOutputTokens: 8000,
+    maxRetries: MODEL_MAX_RETRIES,
+    abortSignal: AbortSignal.timeout(120_000),
   });
 
   // Re-parsed rather than cast. The SDK has already validated it, so this

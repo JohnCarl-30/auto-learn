@@ -20,43 +20,39 @@ import {
 
 /**
  * A `*.test.ts` file, so vitest owns it — this is the reason the API runs two
- * runners. These assertions load the real `@ai-sdk/openai`, which is ESM-only
+ * runners. The audio assertions load the real `@ai-sdk/openai`, which is ESM-only
  * and cannot be imported by jest's CJS runtime at all; the `*.spec.ts` suites
  * have to mock it out. Anything that must verify behaviour against the actual
  * SDK belongs here.
  */
 describe('model wiring (against the real SDK)', () => {
-  it('resolves the propose model to the cheap fast tier', () => {
-    const model = proposeModel();
-    expect(model.modelId).toBe(PROPOSE_MODEL);
-    expect(model.modelId).toBe('gpt-5.6-luna');
+  const original = process.env.OLLAMA_MODEL;
+  afterEach(() => {
+    if (original === undefined) delete process.env.OLLAMA_MODEL;
+    else process.env.OLLAMA_MODEL = original;
   });
 
-  it('resolves the card model to the higher-quality tier', () => {
-    const model = cardModel();
-    expect(model.modelId).toBe(CARD_MODEL);
-    expect(model.modelId).toBe('gpt-5.6-terra');
+  it('sends every text call to Claude Haiku 5.5', () => {
+    delete process.env.OLLAMA_MODEL;
+    expect(proposeModel()).toBe(PROPOSE_MODEL);
+    expect(cardModel()).toBe(CARD_MODEL);
+    expect(converseModel()).toBe(CONVERSE_MODEL);
+    expect(PROPOSE_MODEL).toBe('claude-haiku-5-5');
+    expect(CARD_MODEL).toBe('claude-haiku-5-5');
   });
 
-  it('builds real provider model instances, not stubs', () => {
-    // If the SDK were mocked, `provider` would be undefined — this is the
-    // assertion that proves the ESM package actually loaded.
-    expect(proposeModel().provider).toContain('openai');
-    expect(proposeModel().specificationVersion).toBeDefined();
+  it('swaps in the local model when OLLAMA_MODEL is set', () => {
+    process.env.OLLAMA_MODEL = 'qwen3:1.7b';
+    expect(proposeModel()).toBe('qwen3:1.7b');
+    expect(cardModel()).toBe('qwen3:1.7b');
   });
 
-  it('turns reasoning off on the call the user waits for', () => {
-    expect(proposeProviderOptions.openai.reasoningEffort).toBe('none');
+  it('turns thinking off on the call the user waits for', () => {
+    expect(proposeProviderOptions.thinking).toBe(false);
   });
 
-  it('lets the card call reason, since quality outranks latency there', () => {
-    expect(cardProviderOptions.openai.reasoningEffort).toBe('low');
-  });
-
-  it('keeps the two prompt cache keys distinct', () => {
-    expect(proposeProviderOptions.openai.promptCacheKey).not.toBe(
-      cardProviderOptions.openai.promptCacheKey,
-    );
+  it('lets the card call think, since quality outranks latency there', () => {
+    expect(cardProviderOptions.thinking).toBe(true);
   });
 
   // The transcription provider is picked from the environment at call time, so
@@ -80,19 +76,6 @@ describe('model wiring (against the real SDK)', () => {
     expect(transcribeModel().modelId).toBe(OPENAI_TRANSCRIBE_MODEL);
     expect(transcribeModel().modelId).toBe('gpt-4o-mini-transcribe');
     expect(transcribeModel().provider).toContain('openai');
-  });
-
-  it('sends every text call to Ollama when OLLAMA_MODEL is set', () => {
-    process.env.OLLAMA_MODEL = 'qwen3:1.7b';
-    try {
-      for (const model of [proposeModel(), cardModel(), converseModel()]) {
-        expect(model.modelId).toBe('qwen3:1.7b');
-        expect(model.provider).toContain('chat');
-      }
-    } finally {
-      delete process.env.OLLAMA_MODEL;
-    }
-    expect(converseModel().modelId).toBe(CONVERSE_MODEL);
   });
 
   it('resolves the speech model against the real ElevenLabs provider', () => {

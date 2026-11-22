@@ -21,7 +21,7 @@ pnpm eval --update-baseline   # run again, then record it as the new normal
 pnpm eval --update-baseline --from-last   # record the run already on disk, calling nothing
 ```
 
-`OPENAI_API_KEY` comes from `apps/api/.env` if it is not already in the
+`ANTHROPIC_API_KEY` comes from `apps/api/.env` if it is not already in the
 environment — the same key, not a second copy to keep in sync.
 
 ## It scores production, not a copy of production

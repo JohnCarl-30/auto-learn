@@ -7,7 +7,7 @@ const minutes = (n: number) => n * 60_000;
  * Request-volume limits, per IP.
  *
  * /propose and /card each spend a model call and neither sits behind a login,
- * so a public URL is an open invitation to spend OPENAI_API_KEY. MAX_SENTENCES
+ * so a public URL is an open invitation to spend ANTHROPIC_API_KEY. MAX_SENTENCES
  * bounds what a single request can cost; until now nothing bounded how many of
  * them could arrive.
  *

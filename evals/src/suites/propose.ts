@@ -1,12 +1,13 @@
-import { openai } from '@ai-sdk/openai';
-import { generateObject } from 'ai';
 import { z } from 'zod';
 import { ModelProposal, splitSentences } from '@auto-learn/shared';
 import {
   PROPOSE_MAX_OUTPUT_TOKENS,
+  MODEL_MAX_RETRIES,
   PROPOSE_MODEL,
+  PROPOSE_TIMEOUT_MS,
   proposeProviderOptions,
 } from '../../../apps/api/src/llm/config';
+import { generateObject } from '../../../apps/api/src/llm/claude';
 import {
   proposeSystemPrompt,
   proposeUserPrompt,
@@ -121,12 +122,14 @@ export const proposeSuite: Suite<ProposeCase> = {
     const sentences = splitSentences(testCase.text);
 
     const { object, usage } = await generateObject({
-      model: openai(PROPOSE_MODEL),
+      model: PROPOSE_MODEL,
       schema: ModelProposal,
       system: proposeSystemPrompt(testCase.known),
       prompt: proposeUserPrompt(sentences, testCase.option, testCase.known),
       providerOptions: proposeProviderOptions,
       maxOutputTokens: PROPOSE_MAX_OUTPUT_TOKENS,
+      maxRetries: MODEL_MAX_RETRIES,
+      abortSignal: AbortSignal.timeout(PROPOSE_TIMEOUT_MS),
     });
 
     const subject: ProposeSubject = { testCase, sentences, proposal: object };

@@ -1,5 +1,5 @@
 import { HttpException, HttpStatus, Logger } from '../common/http';
-import { generateObject, streamObject, type DeepPartial } from 'ai';
+import { generateObject, streamObject, type DeepPartial } from '../llm/claude';
 import { createHash } from 'node:crypto';
 import { LRUCache } from 'lru-cache';
 import {

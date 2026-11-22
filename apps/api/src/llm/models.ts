@@ -2,7 +2,7 @@ import { elevenLabs } from '@ai-sdk/elevenlabs';
 import { createOpenAI, openai } from '@ai-sdk/openai';
 
 /**
- * Provider wiring, and nothing else. Everything a caller might want to *read*
+ * Provider wiring for the audio calls, and the text model ids. Everything a caller might want to *read*
  * — model ids, prices, provider options, the voice id — lives in `config.ts`
  * so the evals harness can import it without loading an ESM-only provider
  * package. This file re-exports it so call sites keep importing one module.
@@ -20,21 +20,14 @@ import {
 } from './config';
 
 /**
- * A local Ollama model in place of every OpenAI text model when OLLAMA_MODEL
- * is set: free and offline, for running the app without a key. Ollama speaks
- * OpenAI's chat API, so the provider already installed reaches it.
+ * The model id each text call sends. A local Ollama model in place of every
+ * Claude model when OLLAMA_MODEL is set: free and offline, for running the app
+ * without a key (`claude.ts` points the client at Ollama to match).
  *
  * Read at call time, as `transcribeModel` is, because the environment is
  * loaded after the module graph.
  */
-const textModel = (id: string) => {
-  const local = process.env.OLLAMA_MODEL;
-  if (!local) return openai(id);
-  return createOpenAI({
-    baseURL: process.env.OLLAMA_BASE_URL || 'http://localhost:11434/v1',
-    apiKey: 'ollama',
-  }).chat(local);
-};
+const textModel = (id: string) => process.env.OLLAMA_MODEL || id;
 
 export const proposeModel = () => textModel(PROPOSE_MODEL);
 export const cardModel = () => textModel(CARD_MODEL);

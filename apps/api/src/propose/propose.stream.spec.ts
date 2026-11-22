@@ -3,13 +3,17 @@
 // `streamObject`. ElevenLabs is mocked despite nothing here speaking, because
 // `llm/models` imports it for the voice routes and one unmocked ESM import
 // fails the whole file at parse time.
-jest.mock('ai', () => ({ generateObject: jest.fn(), streamObject: jest.fn() }));
+jest.mock('../llm/claude', () => ({
+  generateObject: jest.fn(),
+  streamObject: jest.fn(),
+}));
+jest.mock('ai', () => ({}));
 jest.mock('@ai-sdk/openai', () => ({ openai: jest.fn() }));
 jest.mock('@ai-sdk/elevenlabs', () => ({
   elevenLabs: { speech: jest.fn(), transcription: jest.fn() },
 }));
 
-import { streamObject } from 'ai';
+import { streamObject } from '../llm/claude';
 import type { ModelProposal, ProposeStreamEvent } from '@auto-learn/shared';
 import { MemorySessionStore } from '../session/session.store';
 import { TelemetryService } from '../telemetry/telemetry.service';

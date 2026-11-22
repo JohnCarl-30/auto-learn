@@ -1,5 +1,5 @@
 import { HttpException, HttpStatus, Logger } from '../common/http';
-import { generateObject, streamObject, type DeepPartial } from 'ai';
+import { generateObject, streamObject, type DeepPartial } from '../llm/claude';
 import { randomUUID } from 'node:crypto';
 import {
   GatedSuggestionType,

@@ -11,8 +11,12 @@ import { signInRequired } from './auth/signed-in.guard';
  * and those are worth being able to run.
  */
 function checkApiKeys(logger: Logger): void {
-  if (!process.env.OPENAI_API_KEY && !process.env.OLLAMA_MODEL) {
-    logger.warn('OPENAI_API_KEY is not set (nor OLLAMA_MODEL).');
+  if (
+    !process.env.ANTHROPIC_API_KEY &&
+    !process.env.ANTHROPIC_AUTH_TOKEN &&
+    !process.env.OLLAMA_MODEL
+  ) {
+    logger.warn('ANTHROPIC_API_KEY is not set (nor OLLAMA_MODEL).');
     logger.warn('  /propose and word cards will return 502 until it is.');
     logger.warn('  Copy apps/api/.env.example to apps/api/.env and add a key.');
     logger.warn('  Grammar notes, the sentence cap and validation still work.');
@@ -22,7 +26,7 @@ function checkApiKeys(logger: Logger): void {
     logger.warn('ELEVENLABS_API_KEY or ELEVENLABS_VOICE_ID is not set.');
     logger.warn('  Synthesised pronunciation returns 502.');
     logger.warn('  Dictation does not need it: with no ElevenLabs key it');
-    logger.warn('  transcribes with OpenAI instead.');
+    logger.warn('  transcribes with OpenAI instead, if OPENAI_API_KEY is set.');
     logger.warn('  Words the dictionary has a recording for still play,');
     logger.warn('  and every card still shows its written pronunciation.');
   }
