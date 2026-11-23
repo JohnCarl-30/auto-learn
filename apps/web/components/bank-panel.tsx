@@ -116,7 +116,7 @@ export function BankPanel({
         <Separator className="mb-6 lg:hidden" />
         <div className="flex items-center justify-between gap-2">
           <p className="text-sm text-muted-foreground">
-            Words you accept or look up will collect here.
+            Words from cards you accept or look up will collect here.
           </p>
           {importControl}
         </div>

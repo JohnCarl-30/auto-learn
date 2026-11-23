@@ -30,6 +30,8 @@ export interface StoredSentence {
   text: string;
   silentFixes: SilentFix[];
   gated: StoredGated[];
+  /** Proposed edits that never reached the reader. Absent on sessions stored before it existed. */
+  dropped?: number;
 }
 
 export interface ProposalSession {

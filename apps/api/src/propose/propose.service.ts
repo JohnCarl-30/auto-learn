@@ -252,6 +252,7 @@ export class ProposeService {
           end,
           teaser,
         })),
+        dropped: s.dropped,
       })),
     };
   }
@@ -349,11 +350,10 @@ export class ProposeService {
     // how much of the model's proposal never reached the reader, and that is
     // the same number however it went missing — an unlocatable span, or a
     // silent fix applied to the text that could not then be reported.
-    this.telemetry.editsDropped(
-      edits.length - silentFixes.length - gated.length,
-    );
+    const dropped = edits.length - silentFixes.length - gated.length;
+    this.telemetry.editsDropped(dropped);
 
-    return { index, original, text, silentFixes, gated };
+    return { index, original, text, silentFixes, gated, dropped };
   }
 
   private fail(

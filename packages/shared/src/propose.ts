@@ -68,6 +68,13 @@ export const ReviewedSentence = z.object({
   text: z.string(),
   silentFixes: z.array(SilentFix),
   gated: z.array(GatedSuggestion),
+  /**
+   * Edits the model proposed that never reached the reader, usually a span
+   * that could not be found verbatim. Without it, a sentence whose only fix
+   * was dropped is shown as "reads well already", which is false.
+   * Optional so a response from an older API still parses.
+   */
+  dropped: z.number().int().optional(),
 });
 export type ReviewedSentence = z.infer<typeof ReviewedSentence>;
 
