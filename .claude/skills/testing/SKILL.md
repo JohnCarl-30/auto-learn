@@ -10,7 +10,7 @@ in the wrong one and it either fails to load or silently stops being checked.
 
 | Pattern | Runner | Use it for |
 |---|---|---|
-| `apps/api/**/*.spec.ts` | jest | Nest unit tests, and HTTP tests via supertest. ESM packages mocked. |
+| `apps/api/**/*.spec.ts` | jest | API unit tests, and HTTP tests via supertest. ESM packages mocked. |
 | `apps/api/**/*.test.ts` | vitest | Anything importing a real ESM package. |
 | `packages/shared/**/*.test.ts` | vitest | Pure contract logic. |
 | `apps/web/**/*.test.tsx` | jest + React Testing Library | Components and hooks, in jsdom. |
@@ -22,8 +22,8 @@ Push it as far down as it will go. In order of preference:
 
 1. **Pure function** → `packages/shared`, vitest. Fastest, and the logic most worth pinning.
 2. **A component or hook** → `apps/web`, jest + RTL. No server, no browser.
-3. **HTTP behaviour** — status codes, the Zod body pipe, module wiring → `apps/api`, jest +
-   supertest against the real Nest app. Still no browser.
+3. **HTTP behaviour** — status codes, body validation, route wiring → `apps/api`, jest +
+   supertest against the real Hono app. Still no browser.
 4. **Playwright** — only when the assertion genuinely needs a browser *and* a live server:
    the real clipboard, or watching an actual response body on the wire.
 
@@ -68,7 +68,7 @@ If you changed a shared type, `pnpm typecheck` is the run that matters.
 
 `playwright.config.ts` starts the API and the web app itself, so the only prerequisite is a
 **built API** — the config runs `node ../api/dist/main.js`, which does not exist until
-`nest build` has run.
+`pnpm --filter api build` has run.
 
 Tests needing real model output are gated, not deleted:
 

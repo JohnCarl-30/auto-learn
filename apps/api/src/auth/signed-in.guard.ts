@@ -1,12 +1,10 @@
+import type { ApiError } from '@auto-learn/shared';
 import {
-  ExecutionContext,
   HttpException,
   HttpStatus,
-  Injectable,
   UnauthorizedException,
-} from '@nestjs/common';
-import type { ApiError } from '@auto-learn/shared';
-import { CallerGuard } from './caller.guard';
+} from '../common/http';
+import { CallerGuard, type RequestWithCaller } from './caller.guard';
 
 /**
  * Whether this deploy has switched the lock on. The one place the flag is
@@ -42,13 +40,12 @@ export function signInRequired(): boolean {
  * has a single thing to do about all of them (send the person to sign in), and
  * CallerGuard has already logged the real reason server-side.
  */
-@Injectable()
 export class SignedInGuard extends CallerGuard {
-  override canActivate(context: ExecutionContext): boolean {
+  override canActivate(request: RequestWithCaller): boolean {
     if (!signInRequired()) return true;
 
     try {
-      return super.canActivate(context);
+      return super.canActivate(request);
     } catch (error) {
       if (!(error instanceof UnauthorizedException)) throw error;
 

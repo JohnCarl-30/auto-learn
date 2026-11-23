@@ -1,4 +1,4 @@
-import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
+import { HttpException, HttpStatus, Logger } from '../common/http';
 import { generateObject } from 'ai';
 import {
   ModelLessonVerdict,
@@ -53,7 +53,6 @@ const squash = (text: string) =>
     .replace(/\s+/g, ' ')
     .trim();
 
-@Injectable()
 export class LessonService {
   private readonly logger = new Logger(LessonService.name);
 

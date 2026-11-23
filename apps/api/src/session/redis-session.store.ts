@@ -1,4 +1,3 @@
-import { Injectable } from '@nestjs/common';
 import type { TransformOption } from '@auto-learn/shared';
 import {
   SESSION_TTL_MS,
@@ -31,7 +30,6 @@ const key = (sessionId: string) => `auto-learn:session:${sessionId}`;
  * the deploy was pinned to a single one and every restart dropped whatever
  * people were in the middle of reviewing.
  */
-@Injectable()
 export class RedisSessionStore extends SessionStore {
   constructor(private readonly redis: RedisLike) {
     super();

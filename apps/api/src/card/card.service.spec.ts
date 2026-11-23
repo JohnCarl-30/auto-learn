@@ -6,7 +6,7 @@ jest.mock('@ai-sdk/elevenlabs', () => ({
   elevenLabs: { speech: jest.fn(), transcription: jest.fn() },
 }));
 
-import { HttpException } from '@nestjs/common';
+import { HttpException } from '../common/http';
 import { generateObject } from 'ai';
 import type { ApiError, CardResponse, ModelCard } from '@auto-learn/shared';
 import type { DictionaryService } from '../dictionary/dictionary.service';

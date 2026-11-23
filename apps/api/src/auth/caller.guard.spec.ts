@@ -1,4 +1,4 @@
-import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
+import { UnauthorizedException } from '../common/http';
 import { sign } from 'jsonwebtoken';
 import {
   API_TOKEN_AUDIENCE,
@@ -39,19 +39,15 @@ function token(
 }
 
 function contextWith(authorization?: string): {
-  context: ExecutionContext;
+  context: RequestWithCaller;
   request: RequestWithCaller;
 } {
-  const request = {
+  const request: RequestWithCaller = {
     header: (name: string) =>
       name.toLowerCase() === 'authorization' ? authorization : undefined,
-  } as unknown as RequestWithCaller;
+  };
 
-  const context = {
-    switchToHttp: () => ({ getRequest: () => request }),
-  } as unknown as ExecutionContext;
-
-  return { context, request };
+  return { context: request, request };
 }
 
 describe('CallerGuard', () => {

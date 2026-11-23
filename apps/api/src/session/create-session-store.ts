@@ -1,5 +1,5 @@
-import { Global, Logger, Module } from '@nestjs/common';
 import Redis from 'ioredis';
+import { Logger } from '../common/http';
 import { MemorySessionStore, SessionStore } from './session.store';
 import { RedisSessionStore } from './redis-session.store';
 
@@ -11,8 +11,8 @@ import { RedisSessionStore } from './redis-session.store';
  * connection. Set the variable and the same application scales past one
  * instance and stops losing reviews on restart.
  */
-function createSessionStore(): SessionStore {
-  const logger = new Logger(SessionModule.name);
+export function createSessionStore(): SessionStore {
+  const logger = new Logger('SessionStore');
   const url = process.env.REDIS_URL;
 
   if (!url) {
@@ -34,10 +34,3 @@ function createSessionStore(): SessionStore {
     }),
   );
 }
-
-@Global()
-@Module({
-  providers: [{ provide: SessionStore, useFactory: createSessionStore }],
-  exports: [SessionStore],
-})
-export class SessionModule {}

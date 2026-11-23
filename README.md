@@ -120,7 +120,7 @@ and a `lesson_completions` table, and is safe to run again.
 |                     |                                                                                                          |
 | ------------------- | -------------------------------------------------------------------------------------------------------- |
 | `apps/web`          | Next.js. The compose box, the review, the card, the bank, sign-in.                                       |
-| `apps/api`          | NestJS. The two model calls, the dictionary, sessions, telemetry.                                        |
+| `apps/api`          | Hono.   The two model calls, the dictionary, sessions, telemetry.                                        |
 | `apps/web/db`       | The four tables Auth.js needs, and the script that applies them.                                        |
 | `packages/shared`   | The wire contract and the pure logic both sides need. Zod schemas, span arithmetic, the word-level diff. |
 | `evals`             | Scores the model calls against a committed baseline.                                                     |

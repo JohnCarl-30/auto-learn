@@ -19,10 +19,8 @@ jest.mock('@ai-sdk/elevenlabs', () => ({
   elevenLabs: { speech: jest.fn(), transcription: jest.fn() },
 }));
 
-import { INestApplication } from '@nestjs/common';
-import { APP_GUARD } from '@nestjs/core';
-import { Test } from '@nestjs/testing';
-import { ThrottlerStorage, ThrottlerStorageService } from '@nestjs/throttler';
+import type { Server } from 'node:http';
+import { createAdaptorServer } from '@hono/node-server';
 import request from 'supertest';
 import { sign } from 'jsonwebtoken';
 import {
@@ -46,7 +44,8 @@ import type {
   SpeakResponse,
   TelemetrySnapshot,
 } from '@auto-learn/shared';
-import { AppModule } from './app.module';
+import { createApp } from './create-app';
+import { resetRateLimits } from './common/rate-limit';
 
 const speak = generateSpeech as unknown as jest.Mock;
 const listen = transcribe as unknown as jest.Mock;
@@ -68,33 +67,29 @@ const listen = transcribe as unknown as jest.Mock;
  * have their own spec.
  */
 describe('HTTP surface', () => {
-  let app: INestApplication;
+  let listening: Server;
 
   beforeAll(async () => {
-    const moduleRef = await Test.createTestingModule({
-      imports: [AppModule],
-    })
-      .overrideProvider(APP_GUARD)
-      .useValue({ canActivate: () => true })
-      .compile();
-
-    app = moduleRef.createNestApplication();
-    await app.init();
+    listening = createAdaptorServer({ fetch: createApp().fetch }) as Server;
 
     // Listening before the first request, not per request. supertest binds an
     // ephemeral port itself when handed a server that is not listening, and
     // this file fires enough requests back to back that one occasionally lands
     // on a socket from a bind that is still closing — coming back empty with a
-    // 403 or a 404 and none of Nest's headers. Diagnosed in `rate-limit.spec`,
-    // which had the same intermittent failure for the same reason.
-    await app.listen(0);
+    // 403 or a 404. Diagnosed in `rate-limit.spec`, which had the same
+    // intermittent failure for the same reason.
+    await new Promise<void>((resolve) => listening.listen(0, resolve));
   });
+
+  // Every test starts with full allowances, so none depends on how many of
+  // its neighbours ran first.
+  beforeEach(() => resetRateLimits());
 
   afterAll(async () => {
-    await app.close();
+    await new Promise((resolve) => listening.close(resolve));
   });
 
-  const server = () => app.getHttpServer() as Parameters<typeof request>[0];
+  const server = () => listening;
 
   describe('POST /propose', () => {
     it('refuses more than three sentences and reports the real count', async () => {
@@ -613,12 +608,6 @@ describe('HTTP surface', () => {
 
   describe('POST /dictate', () => {
     beforeEach(() => {
-      // This block alone sends more than /dictate's ten-a-minute allowance, and
-      // the `APP_GUARD` override above does not actually disable the throttler
-      // (Nest registers a global guard under a generated token, which
-      // `overrideProvider(APP_GUARD)` never matches). Emptying the counters
-      // keeps each test independent of how many of its neighbours ran first.
-      app.get<ThrottlerStorageService>(ThrottlerStorage).storage.clear();
       listen.mockReset();
       listen.mockResolvedValue({ text: 'The evidence was substantial.' });
     });
@@ -700,11 +689,8 @@ describe('HTTP surface', () => {
     });
 
     /**
-     * The reason the upload is multipart at all. body-parser refuses oversized
-     * JSON from inside middleware, before Nest's router exists, so its 413
-     * escapes every filter and reaches the browser in a shape ApiError cannot
-     * parse — which the reader sees as "the server sent back something
-     * unexpected" rather than "that was too long".
+     * A refusal in any shape but ApiError reaches the reader as "the server
+     * sent back something unexpected" rather than "that was too long".
      */
     it('says a long recording is too long, in the shape the browser reads', async () => {
       const response = await recording(MAX_RECORDING_BYTES + 1_024).expect(413);
