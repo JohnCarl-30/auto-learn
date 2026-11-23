@@ -21,7 +21,7 @@ pnpm eval --update-baseline   # run again, then record it as the new normal
 pnpm eval --update-baseline --from-last   # record the run already on disk, calling nothing
 ```
 
-`OPENAI_API_KEY` comes from `apps/api/.env` if it is not already in the
+`ANTHROPIC_API_KEY` comes from `apps/api/.env` if it is not already in the
 environment — the same key, not a second copy to keep in sync.
 
 ## It scores production, not a copy of production
@@ -35,10 +35,9 @@ place. A harness holding its own copy of the prompt goes green while the
 shipped prompt rots, which is worse than having no harness: it produces a
 number people trust.
 
-The one thing it does not import is the provider instance. `@ai-sdk/openai` is
-ESM-only and `apps/api` is CommonJS, so `llm/config.ts` holds the data and
-`llm/models.ts` holds the `openai()` calls — the same split that forces jest and
-vitest apart in `.claude/skills/testing`.
+The model calls themselves go through `apps/api/src/llm/claude.ts`, the same
+wrapper over the Anthropic SDK the API uses, so a run spends exactly what a
+production request does.
 
 ## What is scored
 
@@ -137,7 +136,7 @@ pnpm --filter @auto-learn/evals latency --budget=4000   # exit 1 when first soun
 ```
 
 It times the running stack over HTTP, the way the browser meets it, so the API,
-its model (Ollama or OpenAI, whichever `apps/api/.env` names) and the voice
+its model (Ollama or Claude, whichever `apps/api/.env` names) and the voice
 engine behind `/speak` all have to be up. Four numbers per turn:
 
 | Stage | What it is |

@@ -10,7 +10,7 @@ default-exports the app, which is the entry Vercel looks for; `src/main.ts`
 serves it as a plain Node process for local development and Render.
 
 Start it from the repository root with `pnpm dev`, which builds
-`packages/shared` first. `OPENAI_API_KEY` is the only variable it needs; it
+`packages/shared` first. `ANTHROPIC_API_KEY` is the only variable it needs; it
 says at boot which of the others are missing and what refuses without them.
 
 ## Modules

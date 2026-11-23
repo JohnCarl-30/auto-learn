@@ -128,10 +128,10 @@ async function main(): Promise<number> {
     return 0;
   }
 
-  if (!process.env.OPENAI_API_KEY) loadApiEnv();
-  if (!process.env.OPENAI_API_KEY) {
+  if (!process.env.ANTHROPIC_API_KEY) loadApiEnv();
+  if (!process.env.ANTHROPIC_API_KEY) {
     process.stderr.write(
-      'OPENAI_API_KEY is not set, and apps/api/.env did not supply one.\n' +
+      'ANTHROPIC_API_KEY is not set, and apps/api/.env did not supply one.\n' +
         'These evals call a real model on purpose — a mocked eval measures the mock.\n',
     );
     return 2;

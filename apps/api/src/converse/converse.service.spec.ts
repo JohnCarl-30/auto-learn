@@ -1,18 +1,19 @@
 // The model is mocked at the module boundary, as in the propose specs: `ai`
 // and the provider packages are ESM-only and jest's CJS runtime cannot load
 // them. `generateText` drives the reply, `generateObject` the review.
-jest.mock('ai', () => ({
+jest.mock('../llm/claude', () => ({
   generateObject: jest.fn(),
   generateText: jest.fn(),
   streamObject: jest.fn(),
 }));
+jest.mock('ai', () => ({}));
 jest.mock('@ai-sdk/openai', () => ({ openai: jest.fn() }));
 jest.mock('@ai-sdk/elevenlabs', () => ({
   elevenLabs: { speech: jest.fn(), transcription: jest.fn() },
 }));
 
 import { HttpException } from '../common/http';
-import { generateObject, generateText } from 'ai';
+import { generateObject, generateText } from '../llm/claude';
 import type {
   ApiError,
   ConverseRequest,

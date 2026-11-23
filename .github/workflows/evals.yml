@@ -25,7 +25,7 @@ on:
   # signal, just a red mark a week that nobody can act on.
   #
   # Run the evals locally (`pnpm eval`), or by hand from the Actions tab once a
-  # separate, eval-only key is stored as the `OPENAI_API_KEY` secret. Restore
+  # separate, eval-only key is stored as the `ANTHROPIC_API_KEY` secret. Restore
   # the cron line in the same change that adds that secret — the point of a
   # schedule is noticing that the model behind these calls changed before a
   # user does.
@@ -58,7 +58,7 @@ jobs:
 
       - name: Run evals
         env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           pnpm --filter @auto-learn/evals eval \
             ${{ github.event.inputs.suite == 'both' && ' ' || github.event.inputs.suite }} \

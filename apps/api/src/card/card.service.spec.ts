@@ -1,13 +1,16 @@
 // `ai`, `@ai-sdk/openai` and `@ai-sdk/elevenlabs` are ESM-only; jest's CJS
 // runtime cannot load them.
-jest.mock('ai', () => ({ generateObject: jest.fn() }));
+jest.mock('../llm/claude', () => ({
+  generateObject: jest.fn(),
+}));
+jest.mock('ai', () => ({}));
 jest.mock('@ai-sdk/openai', () => ({ openai: jest.fn() }));
 jest.mock('@ai-sdk/elevenlabs', () => ({
   elevenLabs: { speech: jest.fn(), transcription: jest.fn() },
 }));
 
 import { HttpException } from '../common/http';
-import { generateObject } from 'ai';
+import { generateObject } from '../llm/claude';
 import type { ApiError, CardResponse, ModelCard } from '@auto-learn/shared';
 import type { DictionaryService } from '../dictionary/dictionary.service';
 import {
@@ -283,14 +286,14 @@ describe('CardService grounding', () => {
     const snapshot = telemetry.snapshot();
     expect(snapshot.inputTokens).toBe(1_200);
     expect(snapshot.cachedInputTokens).toBe(1_000);
-    // 200 uncached at $2.50/M + 1,000 cached at $0.25/M + 300 out at $15/M,
-    // which is $0.00525 — reported as $0.0053, because the snapshot rounds for
+    // 200 uncached at $0.10/M + 1,000 cached at $0.01/M + 300 out at $0.50/M,
+    // which is $0.00018 — reported as $0.0002, because the snapshot rounds for
     // display while the counter behind it keeps full precision.
     //
     // Spelled out because the whole point of the split is that billing all
-    // 1,200 input tokens at the uncached rate would read as $0.0075.
-    expect((200 * 2.5 + 1_000 * 0.25 + 300 * 15) / 1_000_000).toBe(0.00525);
-    expect(snapshot.spendUsd).toBe(0.0053);
+    // 1,200 input tokens at the uncached rate would read as $0.0003.
+    expect((200 * 0.1 + 1_000 * 0.01 + 300 * 0.5) / 1_000_000).toBe(0.00018);
+    expect(snapshot.spendUsd).toBe(0.0002);
   });
 
   /**

@@ -1,5 +1,5 @@
 import { HttpException, HttpStatus, Logger } from '../common/http';
-import { generateObject } from 'ai';
+import { generateObject } from '../llm/claude';
 import {
   ModelLessonVerdict,
   UNITS,

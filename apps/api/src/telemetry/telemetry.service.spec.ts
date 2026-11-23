@@ -1,4 +1,7 @@
-jest.mock('ai', () => ({ generateObject: jest.fn() }));
+jest.mock('../llm/claude', () => ({
+  generateObject: jest.fn(),
+}));
+jest.mock('ai', () => ({}));
 jest.mock('@ai-sdk/openai', () => ({ openai: jest.fn() }));
 jest.mock('@ai-sdk/elevenlabs', () => ({
   elevenLabs: { speech: jest.fn(), transcription: jest.fn() },

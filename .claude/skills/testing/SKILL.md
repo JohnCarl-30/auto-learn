@@ -40,7 +40,7 @@ import rather than at your test.
 That single fact drives the whole split:
 
 - A test that must touch the real SDK is a **`*.test.ts`** under vitest. `apps/api/src/llm/models.test.ts`
-  is the worked example — it asserts `provider` contains `openai`, which only passes if the
+  is the worked example — it asserts `provider` contains `elevenlabs`, which only passes if the
   package genuinely loaded.
 - A **`*.spec.ts`** mocks them, above the imports, because `jest.mock` hoists:
 
@@ -73,7 +73,7 @@ If you changed a shared type, `pnpm typecheck` is the run that matters.
 Tests needing real model output are gated, not deleted:
 
 ```ts
-test.skip(!process.env.OPENAI_API_KEY, 'needs OPENAI_API_KEY to get real proposals');
+test.skip(!process.env.ANTHROPIC_API_KEY, 'needs ANTHROPIC_API_KEY to get real proposals');
 ```
 
 Everything deterministic — the sentence cap, validation, grammar notes — runs without a key,

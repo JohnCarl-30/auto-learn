@@ -1,13 +1,14 @@
-jest.mock('ai', () => ({
+jest.mock('../llm/claude', () => ({
   generateObject: jest.fn(),
   streamObject: jest.fn(),
 }));
+jest.mock('ai', () => ({}));
 jest.mock('@ai-sdk/openai', () => ({ openai: jest.fn() }));
 jest.mock('@ai-sdk/elevenlabs', () => ({
   elevenLabs: { speech: jest.fn(), transcription: jest.fn() },
 }));
 
-import { streamObject } from 'ai';
+import { streamObject } from '../llm/claude';
 import type { CardStreamEvent, DictionarySense } from '@auto-learn/shared';
 import { DictionaryService } from '../dictionary/dictionary.service';
 import {

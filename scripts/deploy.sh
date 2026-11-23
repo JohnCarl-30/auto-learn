@@ -241,19 +241,19 @@ fi
 confirm "Continue?" || { warn "stopped — nothing has been changed"; exit 0; }
 
 # ── 2 ─────────────────────────────────────────────────────────────────────
-stage "OpenAI — key and a spend cap" 5
-say "Both model calls run through this key. There is no login in front of"
+stage "Anthropic — key and a spend cap" 5
+say "Every model call runs through this key. There is no login in front of"
 say "them, so the cap matters as much as the key."
-open_url "https://platform.openai.com/api-keys"
-step "Create a secret key (or reuse one), then copy it."
-ask_secret OPENAI_API_KEY "Paste the OpenAI key:"
-write_env OPENAI_API_KEY "$OPENAI_API_KEY"
+open_url "https://console.anthropic.com/settings/keys"
+step "Create a key (or reuse one), then copy it."
+ask_secret ANTHROPIC_API_KEY "Paste the Anthropic key:"
+write_env ANTHROPIC_API_KEY "$ANTHROPIC_API_KEY"
 # The evals workflow reads this one from CI.
-set_secret OPENAI_API_KEY "$OPENAI_API_KEY"
+set_secret ANTHROPIC_API_KEY "$ANTHROPIC_API_KEY"
 printf '\n'
 say "Now the cap. The per-IP limits bound one caller, not a distributed one —"
 say "the rate limit stops a script, the cap stops everything else."
-open_url "https://platform.openai.com/settings/organization/limits"
+open_url "https://console.anthropic.com/settings/limits"
 step "Set a monthly budget you would not mind losing."
 pause "Set the cap?"
 
@@ -306,7 +306,7 @@ open_url "https://dashboard.render.com/"
 step "auto-learn-api → Environment."
 printf '\n'
 say "Set:"
-step "OPENAI_API_KEY        $(printf '%s' "${OPENAI_API_KEY:0:7}")…"
+step "ANTHROPIC_API_KEY     $(printf '%s' "${ANTHROPIC_API_KEY:0:7}")…"
 if [[ -n "${ELEVENLABS_API_KEY:-}" ]]; then
   step "ELEVENLABS_API_KEY    $(printf '%s' "${ELEVENLABS_API_KEY:0:7}")…"
   step "ELEVENLABS_VOICE_ID   ${ELEVENLABS_VOICE_ID}"
