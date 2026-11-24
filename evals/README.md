@@ -136,8 +136,7 @@ pnpm --filter @auto-learn/evals latency --budget=4000   # exit 1 when first soun
 ```
 
 It times the running stack over HTTP, the way the browser meets it, so the API,
-its model (Ollama or Claude, whichever `apps/api/.env` names) and the voice
-engine behind `/speak` all have to be up. Four numbers per turn:
+its model and the voice engine behind `/speak` all have to be up. Four numbers per turn:
 
 | Stage | What it is |
 | --- | --- |

@@ -136,12 +136,12 @@ async function main(): Promise<number> {
   }
 
   loadApiEnv();
-  if (!process.env.OLLAMA_MODEL && !process.env.ANTHROPIC_API_KEY) {
-    process.stderr.write('Neither OLLAMA_MODEL nor ANTHROPIC_API_KEY is set, so there is no model to time.\n');
+  if (!process.env.ANTHROPIC_API_KEY) {
+    process.stderr.write('ANTHROPIC_API_KEY is not set, so there is no model to time.\n');
     return 2;
   }
 
-  const model = process.env.OLLAMA_MODEL ?? CONVERSE_MODEL;
+  const model = CONVERSE_MODEL;
   process.stderr.write(`timing ${options.trials} turns against ${options.api} (model: ${model})\n`);
 
   const trials: Trial[] = [];

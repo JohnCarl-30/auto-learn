@@ -11,12 +11,8 @@ import { signInRequired } from './auth/signed-in.guard';
  * and those are worth being able to run.
  */
 function checkApiKeys(logger: Logger): void {
-  if (
-    !process.env.ANTHROPIC_API_KEY &&
-    !process.env.ANTHROPIC_AUTH_TOKEN &&
-    !process.env.OLLAMA_MODEL
-  ) {
-    logger.warn('ANTHROPIC_API_KEY is not set (nor OLLAMA_MODEL).');
+  if (!process.env.ANTHROPIC_API_KEY && !process.env.ANTHROPIC_AUTH_TOKEN) {
+    logger.warn('ANTHROPIC_API_KEY is not set.');
     logger.warn('  /propose and word cards will return 502 until it is.');
     logger.warn('  Copy apps/api/.env.example to apps/api/.env and add a key.');
     logger.warn('  Grammar notes, the sentence cap and validation still work.');

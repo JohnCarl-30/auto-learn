@@ -9,9 +9,6 @@ jest.mock('ai', () => ({
   generateSpeech: jest.fn(),
   transcribe: jest.fn(),
 }));
-// A developer's shell may point the text models at Ollama; this keeps these
-// tests on the Claude path.
-process.env.OLLAMA_MODEL = '';
 // Loaded by llm/models.ts for the partner voice (VoiceStudio) only.
 jest.mock('@ai-sdk/openai', () => ({ createOpenAI: jest.fn() }));
 jest.mock('@ai-sdk/elevenlabs', () => ({

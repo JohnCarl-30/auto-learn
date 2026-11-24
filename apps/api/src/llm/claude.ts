@@ -16,7 +16,7 @@ export type { DeepPartial };
  * the shape `priceCall` reads.
  */
 interface CallArgs {
-  /** A Claude model id, or the local model when OLLAMA_MODEL is set (see models.ts). */
+  /** A Claude model id. */
   model: string;
   system: string;
   prompt: string;
@@ -27,30 +27,13 @@ interface CallArgs {
 }
 
 /**
- * One client per process. Ollama speaks the Anthropic Messages API too, so
- * OLLAMA_MODEL points the same client at it for free, offline runs.
- *
- * Built on first use, not at import: the environment is loaded after the
- * module graph, and tests flip it between calls.
+ * One client per process. Built on first use, not at import: the environment
+ * (and with it the key) is loaded after the module graph.
  */
-let cached: { key: string; client: Anthropic } | undefined;
+let cached: Anthropic | undefined;
 function client(): Anthropic {
-  const local = process.env.OLLAMA_MODEL;
-  const key = local
-    ? `ollama:${process.env.OLLAMA_BASE_URL ?? ''}`
-    : 'anthropic';
-  if (cached?.key !== key) {
-    cached = {
-      key,
-      client: local
-        ? new Anthropic({
-            baseURL: process.env.OLLAMA_BASE_URL || 'http://localhost:11434',
-            apiKey: 'ollama',
-          })
-        : new Anthropic(),
-    };
-  }
-  return cached.client;
+  cached ??= new Anthropic();
+  return cached;
 }
 
 function request(args: CallArgs) {

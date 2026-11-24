@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
   CARD_MODEL,
   CONVERSE_MODEL,
@@ -25,25 +25,12 @@ import {
  * SDK belongs here.
  */
 describe('model wiring (against the real SDK)', () => {
-  const original = process.env.OLLAMA_MODEL;
-  afterEach(() => {
-    if (original === undefined) delete process.env.OLLAMA_MODEL;
-    else process.env.OLLAMA_MODEL = original;
-  });
-
   it('sends every text call to Claude Haiku 5.5', () => {
-    delete process.env.OLLAMA_MODEL;
     expect(proposeModel()).toBe(PROPOSE_MODEL);
     expect(cardModel()).toBe(CARD_MODEL);
     expect(converseModel()).toBe(CONVERSE_MODEL);
     expect(PROPOSE_MODEL).toBe('claude-haiku-5-5');
     expect(CARD_MODEL).toBe('claude-haiku-5-5');
-  });
-
-  it('swaps in the local model when OLLAMA_MODEL is set', () => {
-    process.env.OLLAMA_MODEL = 'qwen3:1.7b';
-    expect(proposeModel()).toBe('qwen3:1.7b');
-    expect(cardModel()).toBe('qwen3:1.7b');
   });
 
   it('turns thinking off on the call the user waits for', () => {
