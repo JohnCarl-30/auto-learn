@@ -62,7 +62,7 @@ export function dictateRoutes(service: DictateService) {
       if (file.size > MAX_RECORDING_BYTES) return c.json(TOO_LONG, 413);
       if (file.size === 0) throw UNREADABLE;
 
-      // 201, as Nest answered every POST without an explicit code.
+      // 201: what these POSTs have always answered, so clients see no change.
       return c.json(
         await service.dictate(new Uint8Array(await file.arrayBuffer())),
         201,

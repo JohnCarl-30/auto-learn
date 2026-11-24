@@ -12,7 +12,7 @@ export function cardRoutes(service: CardService) {
       // Looser than /propose: opening every gate in a paste is the good case,
       // and a limit that punishes it would be limiting engagement itself.
       .use(signedIn, rateLimit('card'))
-      // 201, as Nest answered every POST without an explicit code.
+      // 201: what these POSTs have always answered, so clients see no change.
       .post('/', async (c) =>
         c.json(await service.build(await body(c.req, CardRequest)), 201),
       )

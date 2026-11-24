@@ -13,7 +13,7 @@ export function proposeRoutes(service: ProposeService) {
       // shares the allowance deliberately — it is the same model call, and a
       // separate one would be a second door to the same spend.
       .use(signedIn, rateLimit('propose'))
-      // 201, as Nest answered every POST without an explicit code.
+      // 201: what these POSTs have always answered, so clients see no change.
       .post('/', async (c) =>
         c.json(await service.propose(await body(c.req, ProposeRequest)), 201),
       )

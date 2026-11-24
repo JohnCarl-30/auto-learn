@@ -1,7 +1,6 @@
 /**
- * The few pieces of Nest the services used, kept under the same names so the
- * move to Hono left their logic untouched. `app.ts` turns an `HttpException`
- * into its status and body, exactly as Nest did.
+ * What the services share for failing and for logging. A service throws an
+ * `HttpException`; `create-app.ts` turns it into that status and body.
  */
 
 export const HttpStatus = {
@@ -30,7 +29,7 @@ export class HttpException extends Error {
   }
 }
 
-/** Same body Nest sends, so anything reading `message` still finds it. */
+/** The body the API has always sent for a 401, so anything reading `message` still finds it. */
 export class UnauthorizedException extends HttpException {
   constructor(message: string) {
     super({ message, error: 'Unauthorized', statusCode: 401 }, 401);

@@ -25,10 +25,9 @@ import { TelemetryService } from './telemetry/telemetry.service';
 const logger = new Logger('App');
 
 /**
- * The whole API, wired by hand. One instance of each service, shared the way
- * Nest's container shared them: the speaking partner and the daily lesson
- * review with the same ProposeService a paste does, and every route reports
- * to the same telemetry.
+ * The whole API, wired by hand. One instance of each service, shared: the
+ * speaking partner and the daily lesson review with the same ProposeService a
+ * paste does, and every route reports to the same telemetry.
  */
 export function createApp() {
   const telemetry = new TelemetryService();
