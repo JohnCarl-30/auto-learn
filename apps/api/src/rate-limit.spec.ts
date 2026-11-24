@@ -1,7 +1,9 @@
 // `ai`, `@ai-sdk/openai` and `@ai-sdk/elevenlabs` are ESM-only; jest's CJS
 // runtime cannot load them.
-jest.mock('ai', () => ({
+jest.mock('./llm/claude', () => ({
   generateObject: jest.fn(),
+}));
+jest.mock('ai', () => ({
   generateSpeech: jest.fn(),
   transcribe: jest.fn(),
 }));

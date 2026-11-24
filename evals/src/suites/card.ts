@@ -1,12 +1,13 @@
-import { openai } from '@ai-sdk/openai';
-import { generateObject } from 'ai';
 import { z } from 'zod';
 import { ModelCard } from '@auto-learn/shared';
 import {
   CARD_MAX_OUTPUT_TOKENS,
   CARD_MODEL,
+  CARD_TIMEOUT_MS,
+  MODEL_MAX_RETRIES,
   cardProviderOptions,
 } from '../../../apps/api/src/llm/config';
+import { generateObject } from '../../../apps/api/src/llm/claude';
 import {
   CARD_SYSTEM_PROMPT,
   cardUserPrompt,
@@ -129,7 +130,7 @@ export const cardSuite: Suite<CardCase> = {
     }
 
     const { object, usage } = await generateObject({
-      model: openai(CARD_MODEL),
+      model: CARD_MODEL,
       schema: ModelCard,
       system: CARD_SYSTEM_PROMPT,
       prompt: cardUserPrompt({
@@ -141,6 +142,8 @@ export const cardSuite: Suite<CardCase> = {
       }),
       providerOptions: cardProviderOptions,
       maxOutputTokens: CARD_MAX_OUTPUT_TOKENS,
+      maxRetries: MODEL_MAX_RETRIES,
+      abortSignal: AbortSignal.timeout(CARD_TIMEOUT_MS),
     });
 
     const subject: CardSubject = { testCase, entry, card: object };

@@ -3,17 +3,18 @@
 // them. `generateObject` drives the verdict; the rewrite (`propose`) and the
 // word picker (`suggestCheckedWord`) are stubbed because they have their own
 // specs and this one is about how the lesson joins them up.
-jest.mock('ai', () => ({
+jest.mock('../llm/claude', () => ({
   generateObject: jest.fn(),
   generateText: jest.fn(),
 }));
+jest.mock('ai', () => ({}));
 jest.mock('@ai-sdk/openai', () => ({ openai: jest.fn() }));
 jest.mock('@ai-sdk/elevenlabs', () => ({
   elevenLabs: { speech: jest.fn(), transcription: jest.fn() },
 }));
 
 import { HttpException, Logger } from '../common/http';
-import { generateObject } from 'ai';
+import { generateObject } from '../llm/claude';
 import type {
   ApiError,
   LessonFeedbackRequest,

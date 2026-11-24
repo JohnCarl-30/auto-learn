@@ -53,7 +53,7 @@ jobs:
         run: pnpm build
 
 # Playwright is deliberately absent. Its most valuable tests need
-# OPENAI_API_KEY, so running them per-PR means paying a model provider on
+# ANTHROPIC_API_KEY, so running them per-PR means paying a model provider on
 # every push, and the rest largely restate coverage that belongs in unit
 # tests. Run it locally with `pnpm --filter web test:e2e`. Worth revisiting
 # when there are users to protect — and even then, prefer a schedule.

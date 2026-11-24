@@ -1,9 +1,5 @@
 jest.mock('ai', () => ({ transcribe: jest.fn() }));
-// `transcribeModel()` falls through to OpenAI when no ElevenLabs key is set, so
-// the mock needs `.transcription` as well as being callable.
-jest.mock('@ai-sdk/openai', () => ({
-  openai: Object.assign(jest.fn(), { transcription: jest.fn() }),
-}));
+jest.mock('@ai-sdk/openai', () => ({ createOpenAI: jest.fn() }));
 jest.mock('@ai-sdk/elevenlabs', () => ({
   elevenLabs: { speech: jest.fn(), transcription: jest.fn() },
 }));
@@ -24,10 +20,29 @@ const errorOf = async (fn: () => Promise<unknown>): Promise<ApiError> => {
   }
 };
 
-beforeEach(() => listen.mockReset());
+beforeEach(() => {
+  listen.mockReset();
+  process.env.ELEVENLABS_API_KEY = 'test-key';
+});
+afterEach(() => delete process.env.ELEVENLABS_API_KEY);
 
 describe('DictateService', () => {
   const audio = new Uint8Array([1, 2, 3]);
+
+  it('says plainly that it cannot listen when ElevenLabs is not configured', async () => {
+    delete process.env.ELEVENLABS_API_KEY;
+    const telemetry = new TelemetryService();
+    jest.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    const error = await errorOf(() =>
+      new DictateService(telemetry).dictate(audio),
+    );
+
+    expect(error.code).toBe('upstream_failed');
+    expect(error.message).toContain("can't listen to recordings");
+    expect(listen).not.toHaveBeenCalled();
+    expect(telemetry.snapshot().dictationsFailed).toBe(1);
+  });
 
   it('returns the transcript and records what it cost, in seconds', async () => {
     const telemetry = new TelemetryService();

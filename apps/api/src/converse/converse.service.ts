@@ -1,5 +1,5 @@
 import { HttpException, HttpStatus, Logger } from '../common/http';
-import { generateText } from 'ai';
+import { generateText } from '../llm/claude';
 import {
   MAX_SENTENCES,
   recentTurns,

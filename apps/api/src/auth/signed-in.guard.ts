@@ -23,7 +23,7 @@ export function signInRequired(): boolean {
 }
 
 /**
- * Keeps strangers off the routes that spend the OpenAI key.
+ * Keeps strangers off the routes that spend the model keys.
  *
  * `CallerGuard` answers "who is this?" for routes about somebody's own data.
  * This one answers a different question — "may this request spend money?" —

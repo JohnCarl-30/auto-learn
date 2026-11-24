@@ -2,7 +2,6 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
   CARD_MODEL,
   CONVERSE_MODEL,
-  OPENAI_TRANSCRIBE_MODEL,
   PROPOSE_MODEL,
   SPEECH_MODEL,
   TRANSCRIBE_MODEL,
@@ -20,79 +19,45 @@ import {
 
 /**
  * A `*.test.ts` file, so vitest owns it — this is the reason the API runs two
- * runners. These assertions load the real `@ai-sdk/openai`, which is ESM-only
+ * runners. The audio assertions load the real `@ai-sdk/elevenlabs`, which is ESM-only
  * and cannot be imported by jest's CJS runtime at all; the `*.spec.ts` suites
  * have to mock it out. Anything that must verify behaviour against the actual
  * SDK belongs here.
  */
 describe('model wiring (against the real SDK)', () => {
-  it('resolves the propose model to the cheap fast tier', () => {
-    const model = proposeModel();
-    expect(model.modelId).toBe(PROPOSE_MODEL);
-    expect(model.modelId).toBe('gpt-5.6-luna');
-  });
-
-  it('resolves the card model to the higher-quality tier', () => {
-    const model = cardModel();
-    expect(model.modelId).toBe(CARD_MODEL);
-    expect(model.modelId).toBe('gpt-5.6-terra');
-  });
-
-  it('builds real provider model instances, not stubs', () => {
-    // If the SDK were mocked, `provider` would be undefined — this is the
-    // assertion that proves the ESM package actually loaded.
-    expect(proposeModel().provider).toContain('openai');
-    expect(proposeModel().specificationVersion).toBeDefined();
-  });
-
-  it('turns reasoning off on the call the user waits for', () => {
-    expect(proposeProviderOptions.openai.reasoningEffort).toBe('none');
-  });
-
-  it('lets the card call reason, since quality outranks latency there', () => {
-    expect(cardProviderOptions.openai.reasoningEffort).toBe('low');
-  });
-
-  it('keeps the two prompt cache keys distinct', () => {
-    expect(proposeProviderOptions.openai.promptCacheKey).not.toBe(
-      cardProviderOptions.openai.promptCacheKey,
-    );
-  });
-
-  // The transcription provider is picked from the environment at call time, so
-  // these tests flip the key and must put it back.
-  const originalElevenLabsKey = process.env.ELEVENLABS_API_KEY;
+  const original = process.env.OLLAMA_MODEL;
   afterEach(() => {
-    if (originalElevenLabsKey === undefined)
-      delete process.env.ELEVENLABS_API_KEY;
-    else process.env.ELEVENLABS_API_KEY = originalElevenLabsKey;
+    if (original === undefined) delete process.env.OLLAMA_MODEL;
+    else process.env.OLLAMA_MODEL = original;
   });
 
-  it('keeps ElevenLabs when its key is set', () => {
-    process.env.ELEVENLABS_API_KEY = 'test-key';
+  it('sends every text call to Claude Haiku 5.5', () => {
+    delete process.env.OLLAMA_MODEL;
+    expect(proposeModel()).toBe(PROPOSE_MODEL);
+    expect(cardModel()).toBe(CARD_MODEL);
+    expect(converseModel()).toBe(CONVERSE_MODEL);
+    expect(PROPOSE_MODEL).toBe('claude-haiku-5-5');
+    expect(CARD_MODEL).toBe('claude-haiku-5-5');
+  });
+
+  it('swaps in the local model when OLLAMA_MODEL is set', () => {
+    process.env.OLLAMA_MODEL = 'qwen3:1.7b';
+    expect(proposeModel()).toBe('qwen3:1.7b');
+    expect(cardModel()).toBe('qwen3:1.7b');
+  });
+
+  it('turns thinking off on the call the user waits for', () => {
+    expect(proposeProviderOptions.thinking).toBe(false);
+  });
+
+  it('lets the card call think, since quality outranks latency there', () => {
+    expect(cardProviderOptions.thinking).toBe(true);
+  });
+
+  it('transcribes with ElevenLabs', () => {
     expect(transcribeModel().modelId).toBe(TRANSCRIBE_MODEL);
     expect(transcribeModel().modelId).toBe('scribe_v2');
     expect(transcribeModel().provider).toContain('elevenlabs');
-  });
-
-  it('transcribes with OpenAI when ElevenLabs is not configured', () => {
-    delete process.env.ELEVENLABS_API_KEY;
-    expect(transcribeModel().modelId).toBe(OPENAI_TRANSCRIBE_MODEL);
-    expect(transcribeModel().modelId).toBe('gpt-4o-mini-transcribe');
-    expect(transcribeModel().provider).toContain('openai');
-  });
-
-  it('sends every text call to Ollama when OLLAMA_MODEL is set', () => {
-    process.env.OLLAMA_MODEL = 'qwen3:1.7b';
-    try {
-      for (const model of [proposeModel(), cardModel(), converseModel()]) {
-        expect(model.modelId).toBe('qwen3:1.7b');
-        expect(model.provider).toContain('chat');
-      }
-    } finally {
-      delete process.env.OLLAMA_MODEL;
-    }
-    expect(converseModel().modelId).toBe(CONVERSE_MODEL);
   });
 
   it('resolves the speech model against the real ElevenLabs provider', () => {
@@ -108,11 +73,6 @@ describe('model wiring (against the real SDK)', () => {
    */
   it('pins transcription to English rather than letting it guess', () => {
     expect(transcribeProviderOptions.elevenlabs.languageCode).toBe('en');
-  });
-
-  // Same hazard on the OpenAI path, which is the one the deployed site uses.
-  it('pins the OpenAI transcription to English too', () => {
-    expect(transcribeProviderOptions.openai.language).toBe('en');
   });
 
   it('keeps audio-event tags out of what lands in someone drafting a sentence', () => {

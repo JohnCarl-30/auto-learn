@@ -59,8 +59,8 @@ test.describe('the gate', () => {
   // These need real proposals. They light up the moment a key exists, and they
   // are the tests that actually check the product's thesis.
   test.skip(
-    !process.env.OPENAI_API_KEY,
-    'needs OPENAI_API_KEY to get real proposals',
+    !process.env.ANTHROPIC_API_KEY,
+    'needs ANTHROPIC_API_KEY to get real proposals',
   );
 
   test('withholds the wording until the card is opened', async ({ page }) => {
@@ -147,8 +147,8 @@ test.describe('the gate', () => {
 
 test.describe('leaving with the text', () => {
   test.skip(
-    !process.env.OPENAI_API_KEY,
-    'needs OPENAI_API_KEY to reach the review',
+    !process.env.ANTHROPIC_API_KEY,
+    'needs ANTHROPIC_API_KEY to reach the review',
   );
 
   test('copies the finished sentence to the real clipboard', async ({

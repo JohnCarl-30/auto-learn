@@ -12,7 +12,6 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^4.0.42",
     "@auto-learn/shared": "workspace:*",
     "ai": "^7.0.66",
     "zod": "^4.4.3"

@@ -24,7 +24,7 @@ test('a turn reaches the partner, and a failed one keeps your words', async ({
   await page.getByTestId('answer').fill('It was very busy, I have many exam.');
   await page.getByTestId('send').click();
 
-  if (process.env.OPENAI_API_KEY) {
+  if (process.env.ANTHROPIC_API_KEY) {
     // A real partner answers, and the turn is reviewed under what was said.
     await expect(page.getByTestId('partner-turn')).toHaveCount(2, {
       timeout: 30_000,

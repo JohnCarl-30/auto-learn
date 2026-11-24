@@ -32,7 +32,7 @@ either to matter.
 `render.yaml` at the repo root is a blueprint; point Render at the repo and it
 reads it. What the file cannot carry:
 
-- `OPENAI_API_KEY` — set it in the dashboard, `sync: false` keeps it out of git.
+- `ANTHROPIC_API_KEY` — set it in the dashboard, `sync: false` keeps it out of git.
 - `WEB_ORIGIN` — you do not have it yet. Step 3.
 - `ELEVENLABS_API_KEY` and `ELEVENLABS_VOICE_ID` — voice. Leave them unset and
   dictation and spoken pronunciation refuse, with everything else working; the
@@ -138,10 +138,11 @@ adds two things to a deploy:
   Existing words start due today.
 - **Spoken answers always use the recorder**, never the browser's own speech
   recognition, which ends at the first pause and would cut an answer short. The
-  recording goes to `/dictate`, which transcribes with OpenAI unless
-  `ELEVENLABS_API_KEY` is set (the free setup leaves it unset). That is one
-  transcription per spoken answer, up to 3 minutes of audio, billed to the same
-  `OPENAI_API_KEY`; a retry is a second one. Today's word needs no voice key
+  recording goes to `/dictate`, which transcribes with ElevenLabs and refuses
+  without `ELEVENLABS_API_KEY`, so spoken answers (and dictation in the iPhone
+  app) need that key; typed answers do not. That is one transcription per
+  spoken answer, up to 3 minutes of audio; a retry is a second one. Today's
+  word needs no voice key
   either: it plays the dictionary's recording when there is one, and otherwise
   the browser's own voice, so it never calls the ElevenLabs-only `/speak`
   unless the browser has no voice at all.
@@ -182,8 +183,8 @@ measuring a product that is quietly getting thinner.
 `/propose` and `/card` each spend a model call, behind no login unless the
 deploy sets `REQUIRE_SIGN_IN=true` (see below). The per-IP limits in
 `common/rate-limit.ts` bound one caller, not a distributed one. Cap the spend
-too — OpenAI sets budgets per project, not per key, so give the deploy its own
-project, cap that, and make the key inside it (the steps are under OpenAI
+too — Anthropic sets spend limits per workspace, so give the deploy its own
+workspace, cap that, and make the key inside it (the steps are under Anthropic
 below). The rate limit protects against a script, the cap protects against
 everything else.
 
@@ -268,7 +269,7 @@ is exempt from rate limiting for the same reason as in step 1. Environment:
 | Variable | Value |
 |---|---|
 | `NODE_VERSION` | `22`. Render's default has moved on, and the blueprint pins 22. |
-| `OPENAI_API_KEY` | Your key. The only thing here that costs money. |
+| `ANTHROPIC_API_KEY` | Your key. The only thing here that costs money. |
 | `API_JWT_SECRET` | `openssl rand -base64 32`. Vercel needs the same value. |
 | `REQUIRE_SIGN_IN` | `true`, exactly. |
 | `WEB_ORIGIN` | The Vercel URL, once it exists (below). |
@@ -283,9 +284,10 @@ than `true`, so read the first lines of the log once.
 Leave `REDIS_URL` and the ElevenLabs keys unset. Without Redis, sessions live in
 memory, which is correct on exactly one instance, and a free service cannot run
 more than one. Without the
-ElevenLabs pair, dictation transcribes with OpenAI instead, and the API logs a
-boot warning for what is missing: synthesised pronunciation of a word the
-dictionary has no recording for returns 502. That warning is expected here.
+ElevenLabs pair the API logs a boot warning for what is missing: dictation and
+spoken lesson answers, and synthesised pronunciation of a word the dictionary
+has no recording for, return 502. That warning is expected here; set
+`ELEVENLABS_API_KEY` when you want people to answer out loud.
 
 **It sleeps.** Render spins a free service down after 15 minutes with no inbound
 traffic, and the next request takes about a minute to wake it (Render's own
@@ -320,24 +322,20 @@ curl -s -X POST https://<render-url>/converse -H 'Content-Type: application/json
 It should answer 401 with `"code":"sign_in_required"`. The first call after a
 sleep is the slow one.
 
-### OpenAI
+### Anthropic
 
-OpenAI limits are set per project, not per key. Create a project in the OpenAI
-dashboard for this deploy, cap its monthly budget, and make the key for
-`OPENAI_API_KEY` inside that project. Use that key for the deployed app only:
+Anthropic spend limits are set per workspace, not per key. Create a workspace
+in the Anthropic Console for this deploy, cap its monthly spend, and make the
+key for `ANTHROPIC_API_KEY` inside that workspace. Use that key for the deployed app only:
 never for evals, never as a CI secret. The sign-in lock keeps strangers out;
 the cap bounds the rest, such as a leaked token or a loop. This is the one
 running cost, and it is the same advice as under Costs.
 
-Set the cap knowing which models run, because they are not the ones the
-design's estimate assumed. That estimate ("under $1/month") was priced on
-`gpt-4o-mini`; `apps/api/src/llm/config.ts` actually runs `gpt-5.6-luna` for
-replies and reviews (`/converse`, `/propose`) and `gpt-5.6-terra` for word cards
-(`/card`), at the prices listed there, plus `gpt-4o-mini-transcribe` when the
-phone falls back to recording. Expect the monthly bill to be higher than the
-design's estimate, and pick the cap from what you are willing to spend, not
-from that figure. The models are a deliberate choice and are not changed by
-this setup.
+Set the cap knowing which model runs: `apps/api/src/llm/config.ts` sends every
+text call (`/converse`, `/propose`, `/card`, the lessons) to Claude Haiku 5.5,
+at the prices listed there ($0.10 / $0.50 per million tokens). Pick the cap
+from what you are willing to spend. The model is a deliberate choice and is
+not changed by this setup.
 
 ### iPhone
 
